@@ -1,0 +1,21 @@
+name: telluric
+channels:
+- conda-forge
+- defaults
+dependencies:
+- python>=3.4
+- coverage
+- fiona
+- folium
+- geoalchemy2
+- jupyter
+- libgdal<2
+- numpy
+- pandas
+- psycopg2
+- pyproj
+- pytest
+- scipy
+- shapely
+- sphinx
+- rasterio>=1.0a9

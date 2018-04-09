@@ -1,0 +1,12 @@
+**/*.tif
+!tests/data/**/*.tif
+.eggs
+.git
+.gitignore
+.cache
+.coverage
+.mypy_cache
+.vscode
+.flake8
+rasters
+osm
