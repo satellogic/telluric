@@ -1,0 +1,33 @@
+language: python
+python:
+  - "3.4"
+  - "3.5"
+  - "3.6"
+  - "nightly"
+
+matrix:
+  allow_failures:
+  - python: "nightly"
+
+install:
+  - pip install numpy  # Required
+  - pip install .  # Test installation correctness
+  - pip install .[dev]  # Test development dependencies
+
+before_script:
+  - pycodestyle . --count
+  - mypy --ignore-missing-imports --check-untyped-defs telluric/
+
+script:
+  - pytest -vv  # Test against installed code
+
+after_success:
+  # Uninstall to test coverage against sources
+  - pip uninstall telluric -y
+  - pip install --editable .
+
+  - pytest --cov
+
+  # Publish coverage
+  - pip install codecov
+  - codecov

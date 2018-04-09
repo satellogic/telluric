@@ -34,7 +34,9 @@ setup(
         ':python_version<="3.4"': ['typing'],
         'dev': [
             'coverage',
+            'mypy',
             'packaging',
+            'pycodestyle',
             'pytest',
             'pytest-cov',
             'sphinx',
