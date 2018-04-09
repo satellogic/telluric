@@ -2,7 +2,7 @@ import pytest
 from unittest import mock
 
 from shapely.geometry import shape, Polygon, Point
-from folium import GeoJson
+from ipyleaflet import Map
 
 from telluric.vectors import GeoVector
 from telluric.plotting import layer_from_element, plot
@@ -27,10 +27,12 @@ def test_plot_empty_geometry_prints_warning():
     assert "The geometry is empty." in record[0].message.args[0]
 
 
-@mock.patch.object(GeoJson, "add_to")
-def test_plot(mock_add_to):
+@mock.patch.object(Map, "add_layer")
+@mock.patch("telluric.plotting.layer_from_element", autospec=True)
+def test_plot_adds_layer_to_map(mock_layer_from_element, mock_add_layer):
     gv = GeoVector(Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]))
+    layer = mock_layer_from_element.return_value
 
     plot(gv)
 
-    mock_add_to.assert_called_once()
+    mock_add_layer.assert_called_once_with(layer)
