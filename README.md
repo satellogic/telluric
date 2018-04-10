@@ -20,6 +20,8 @@ You can install telluric using pip:
 pip install telluric
 ```
 
+Read more complete installation instructions at [our documentation](http://telluric.readthedocs.io/).
+
 telluric is a pure Python library, and therefore should work on Linux, OS X and Windows
 provided that you can install its dependencies. If you find any problem,
 [please open an issue](https://github.com/satellogic/telluric/issues/new)

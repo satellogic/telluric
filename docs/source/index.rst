@@ -28,6 +28,17 @@ provided that you can install its dependencies. If you find any problem,
 
 .. _`please open an issue`: https://github.com/satellogic/telluric/issues/new
 
+.. warning::
+
+    It is recommended that you **never ever use sudo** with pip because you might
+    seriously break your system. Use `venv`_, `Pipenv`_, `pyenv`_ or `conda`_
+    to create an isolated development environment instead.
+
+.. _`venv`: https://docs.python.org/3/library/venv.html
+.. _`Pipenv`: https://docs.pipenv.org/
+.. _`pyenv`: https://github.com/pyenv/pyenv
+.. _`conda`: https://conda.io/docs/
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
