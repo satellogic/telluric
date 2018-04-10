@@ -374,9 +374,7 @@ class GeoRaster2(WindowMethodsMixin):
         :param lazy_load: if True - do not load anything
         :return: GeoRaster2
         """
-        fname, ext = os.path.splitext(filename)
-
-        geo_raster = GeoRaster2(filename=filename, band_names=band_names, **kwargs)
+        geo_raster = cls(filename=filename, band_names=band_names, **kwargs)
         if not lazy_load:
             geo_raster._populate_from_rasterio_object(read_image=True)
         return geo_raster
