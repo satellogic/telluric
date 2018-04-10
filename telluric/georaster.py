@@ -266,12 +266,15 @@ class GeoRaster2(WindowMethodsMixin):
     """
     represents multiband georeferenced image, supporting nodata pixels.
     the name 'GeoRaster2' is temporary, until rastile.GeoRaster is phased out
+
     conventions:
-        .array is np.masked_array, mask=True on nodata pixels.
-        .array is [band, y, x]
-        .affine is affine.Affine
-        .crs is rasterio.crs.CRS
-        .band_names is list of strings, order corresponding to order in .array
+
+    * .array is np.masked_array, mask=True on nodata pixels.
+    * .array is [band, y, x]
+    * .affine is affine.Affine
+    * .crs is rasterio.crs.CRS
+    * .band_names is list of strings, order corresponding to order in .array
+
     """
 
     def __init__(self, image=None, affine=None, crs=None, filename=None, band_names=None, nodata=0, shape=None):
@@ -374,9 +377,7 @@ class GeoRaster2(WindowMethodsMixin):
         :param lazy_load: if True - do not load anything
         :return: GeoRaster2
         """
-        fname, ext = os.path.splitext(filename)
-
-        geo_raster = GeoRaster2(filename=filename, band_names=band_names, **kwargs)
+        geo_raster = cls(filename=filename, band_names=band_names, **kwargs)
         if not lazy_load:
             geo_raster._populate_from_rasterio_object(read_image=True)
         return geo_raster
@@ -479,17 +480,19 @@ class GeoRaster2(WindowMethodsMixin):
 
         :param filename: url
         :param tags: tags to add to default namespace
+
         optional parameters:
-            GDAL_TIFF_INTERNAL_MASK: specifies whether mask is within image file, or additional .msk
-            overviews: if True, will save with previews. default: True
-            factors: list of factors for the overview, default: [2, 4, 8, 16, 32, 64, 128]
-            resampling: to build overviews. default: cubic
-            tiled: if True raster will be saved tiled, default: False
-            compress: any supported rasterio.enums.Compression value, default to LZW
-            blockxsize: int, tile x size, default:256
-            blockysize: int, tile y size, default:256
-            creation_options: dict, key value of additional creation options
-            nodata: if passed, will save with nodata value (e.g. useful for qgis)
+        * GDAL_TIFF_INTERNAL_MASK: specifies whether mask is within image file, or additional .msk
+        * overviews: if True, will save with previews. default: True
+        * factors: list of factors for the overview, default: [2, 4, 8, 16, 32, 64, 128]
+        * resampling: to build overviews. default: cubic
+        * tiled: if True raster will be saved tiled, default: False
+        * compress: any supported rasterio.enums.Compression value, default to LZW
+        * blockxsize: int, tile x size, default:256
+        * blockysize: int, tile y size, default:256
+        * creation_options: dict, key value of additional creation options
+        * nodata: if passed, will save with nodata value (e.g. useful for qgis)
+
         """
 
         internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
@@ -734,7 +737,7 @@ class GeoRaster2(WindowMethodsMixin):
         :param bounds: bounds on image
         :param xsize: output raster width, None for full resolution
         :param ysize: output raster height, None for full resolution
-        :return: GeoRaster
+        :return: GeoRaster2
         """
         out_raster = self[
             int(bounds[0]): int(bounds[2]),
@@ -1131,6 +1134,7 @@ class GeoRaster2(WindowMethodsMixin):
         Return GeoVector of raster, excluding nodata pixels, subject to 'condition'.
 
         :param condition: e.g. 42 < value < 142.
+
         e.g. if no nodata pixels, and without condition - this == footprint().
         """
         raise NotImplementedError
@@ -1234,7 +1238,7 @@ class GeoRaster2(WindowMethodsMixin):
     def align_raster_to_mercator_tiles(self):
         """Return new raster aligned to compasing tile.
 
-        :return GeoRaster2
+        :return: GeoRaster2
         """
         if not self._is_resolution_in_mercator_zoom_level():
             upper_zoom_level = self._mercator_upper_zoom_level()

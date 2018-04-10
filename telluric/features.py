@@ -10,7 +10,20 @@ from telluric.plotting import NotebookPlottingMixin
 
 
 class GeoFeature(Mapping, NotebookPlottingMixin):
+    """GeoFeature object.
+
+    """
     def __init__(self, geovector, attributes):
+        """Initialize a GeoFeature object.
+
+        Parameters
+        ----------
+        geovector : GeoVector
+            Geometry.
+        attributes : dict
+            Properties.
+
+        """
         self.geometry = geovector  # type: GeoVector
         self._attributes = attributes
         self._raster = None
