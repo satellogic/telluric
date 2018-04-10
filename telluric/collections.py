@@ -218,6 +218,14 @@ class FeatureCollectionIOError(BaseException):
 
 class FeatureCollection(BaseCollection):
     def __init__(self, results):
+        """Initialize FeatureCollection object.
+
+        Parameters
+        ----------
+        results : list
+            List of `GeoFeature` objects.
+
+        """
         super().__init__()
         self._results = list(results)
         self._schema = None
@@ -283,7 +291,15 @@ class FeatureCollection(BaseCollection):
 
 
 class FileCollection(BaseCollection):
+    """FileCollection object.
+
+    """
     def __init__(self, filename, crs, schema, length):
+        """Initialize a FileCollection object.
+
+        Use the FileCollection.open() method instead.
+
+        """
         super().__init__()
         self._filename = filename
         self._crs = crs
@@ -300,6 +316,14 @@ class FileCollection(BaseCollection):
 
     @classmethod
     def open(cls, filename):
+        """Creates a FileCollection from a file in disk.
+
+        Parameters
+        ----------
+        filename : str
+            Path of the file to read.
+
+        """
         with fiona.open(filename, 'r') as source:
             crs = CRS(source.crs)
             schema = source.schema

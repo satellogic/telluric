@@ -1,14 +1,42 @@
 API Reference
 =============
 
-telluric.features module
-------------------------
+telluric.constants module
+-------------------------
 
-.. automodule:: telluric.features
+.. automodule:: telluric.constants
    :members:
 
 telluric.vectors module
 -----------------------
 
 .. automodule:: telluric.vectors
+   :members:
+   :special-members: __init__
+
+telluric.features module
+------------------------
+
+.. automodule:: telluric.features
+   :members:
+   :special-members: __init__
+
+telluric.collections module
+---------------------------
+
+.. automodule:: telluric.collections
+   :members:
+   :special-members: __init__
+
+telluric.georaster module
+-------------------------
+
+.. automodule:: telluric.georaster
+   :members:
+   :special-members: __init__
+
+telluric.plotting module
+------------------------
+
+.. automodule:: telluric.plotting
    :members:
