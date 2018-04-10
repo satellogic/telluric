@@ -5,7 +5,7 @@ import versioneer
 setup(
     name='telluric',
     version=versioneer.get_version(),
-    description='telluric API',
+    description='Interactive geospatial data manipulation in Python',
     author='Juan Luis Cano, Guy Doulberg, Slava Kerner, Lucio Torre, Ariel Zerahia',
     maintainer_email='juanlu@satellogic.com',
     url='https://github.com/satellogic/telluric/',
