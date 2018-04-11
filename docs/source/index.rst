@@ -43,6 +43,7 @@ provided that you can install its dependencies. If you find any problem,
    :maxdepth: 2
    :caption: Contents:
 
+   User Guide.ipynb
    api
 
 

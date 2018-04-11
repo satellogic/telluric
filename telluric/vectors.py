@@ -96,7 +96,7 @@ def generate_tile_coordinates(roi, num_tiles):
 
     Yields
     ------
-    GeoVector
+    ~telluric.vectors.GeoVector
 
     """
     bounds = roi.get_shape(roi.crs).bounds
@@ -128,7 +128,7 @@ def generate_tile_coordinates_from_pixels(roi, scale, size):
 
     Yields
     ------
-    GeoVector
+    ~telluric.vectors.GeoVector
 
     """
     if not all(isinstance(coord, int) for coord in size):
@@ -240,9 +240,21 @@ class _GeoVectorDelegator:
 class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
     """Geometric element with an associated CRS.
 
+    This class has also all the properties and methods of :py:class:`shapely.geometry.BaseGeometry`.
+
     """
     # noinspection PyInitNewSignature,PyMissingConstructor
     def __init__(self, shape, crs=DEFAULT_CRS):
+        """Initialize GeoVector.
+
+        Parameters
+        ----------
+        shape : shapely.geometry.BaseGeometry
+            Geometry.
+        crs : ~rasterio.crs.CRS, dict (optional)
+            Coordinate Reference System, default to :py:data:`telluric.constants.DEFAULT_CRS`.
+
+        """
         self._shape = shape  # type: shapely.geometry.base.BaseGeometry
         self._crs = crs
 
@@ -280,8 +292,8 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         ----------
         xmin, ymin, xmax, ymax : float
             Bounds of the GeoVector.
-        crs : CRS, dict
-            Projection, default to telluric.constants.DEFAULT_CRS.
+        crs : ~rasterio.crs.CRS, dict
+            Projection, default to :py:data:`telluric.constants.DEFAULT_CRS`.
 
         Examples
         --------

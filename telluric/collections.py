@@ -143,12 +143,12 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             Resolution in units of the CRS.
         polygonize_width : float, optional
             Width for the polygonized features (lines and points) in pixels, default to 0 (they won't appear).
-        crs : dict or CRS
-            Coordinate system.
+        crs : ~rasterio.crs.CRS, dict (optional)
+            Coordinate system, default to :py:data:`telluric.constants.WEB_MERCATOR_CRS`.
         fill_value : float, optional
-            Value that represents data, default to None (will default to telluric.rasterization.FILL_VALUE.
+            Value that represents data, default to None (will default to :py:data:`telluric.rasterization.FILL_VALUE`.
         nodata_value : float, optional
-            Nodata value, default to None (will default to telluric.rasterization.NODATA_VALUE.
+            Nodata value, default to None (will default to :py:data:`telluric.rasterization.NODATA_VALUE`.
         bounds : GeoVector, optional
             Optional bounds for the target image, default to None (will use the FeatureCollection convex hull).
         polygonize_kwargs : dict
@@ -223,7 +223,7 @@ class FeatureCollection(BaseCollection):
         Parameters
         ----------
         results : list
-            List of `GeoFeature` objects.
+            List of :py:class:`~telluric.features.GeoFeature` objects.
 
         """
         super().__init__()
@@ -277,7 +277,7 @@ class FeatureCollection(BaseCollection):
 
     @classmethod
     def from_geovectors(cls, geovectors):
-        """Builds new FeatureCollection from a sequence of GeoVector objects."""
+        """Builds new FeatureCollection from a sequence of :py:class:`~telluric.vectors.GeoVector` objects."""
         return cls([GeoFeature(vector, {}) for vector in geovectors])
 
     def _adapt_feature_before_write(self, feature):
@@ -297,7 +297,7 @@ class FileCollection(BaseCollection):
     def __init__(self, filename, crs, schema, length):
         """Initialize a FileCollection object.
 
-        Use the FileCollection.open() method instead.
+        Use the :py:meth:`~telluric.collections.FileCollection.open()` method instead.
 
         """
         super().__init__()
