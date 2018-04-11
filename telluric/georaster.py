@@ -115,8 +115,11 @@ def merge(one, other, merge_strategy=MergeStrategy.UNION):
     Parameters
     ----------
     one : GeoRaster2
+        Left raster to merge.
     other : GeoRaster2
+        Right raster to merge.
     merge_strategy : MergeStrategy
+        Merge strategy, from :py:data:`telluric.georaster.MergeStrategy` (default to "union").
 
     Returns
     -------
@@ -264,8 +267,8 @@ class GeoRaster2NotImplementedError(GeoRaster2Error, NotImplementedError):
 
 class GeoRaster2(WindowMethodsMixin):
     """
-    represents multiband georeferenced image, supporting nodata pixels.
-    the name 'GeoRaster2' is temporary, until rastile.GeoRaster is phased out
+    Represents multiband georeferenced image, supporting nodata pixels.
+    The name "GeoRaster2" is temporary.
 
     conventions:
 
@@ -482,6 +485,7 @@ class GeoRaster2(WindowMethodsMixin):
         :param tags: tags to add to default namespace
 
         optional parameters:
+
         * GDAL_TIFF_INTERNAL_MASK: specifies whether mask is within image file, or additional .msk
         * overviews: if True, will save with previews. default: True
         * factors: list of factors for the overview, default: [2, 4, 8, 16, 32, 64, 128]
@@ -1147,7 +1151,7 @@ class GeoRaster2(WindowMethodsMixin):
         """
         Set pixels outside vector as nodata.
 
-        :param vector: GeoVector, GeoFeature or FeatureCollection
+        :param vector: GeoVector, GeoFeature, FeatureCollection
         :param mask_shape_nodata: if True - pixels inside shape are set nodata, if False - outside shape is nodata
         :return: GeoRaster2
         """

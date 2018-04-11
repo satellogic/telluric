@@ -105,7 +105,7 @@ def layer_from_element(element, style_function=None):
 
 
 def plot(feature, mp=None, style_function=None, **map_kwargs):
-    """Plots a GeoVector in a Folium map.
+    """Plots a GeoVector in an ipyleaflet map.
 
     Parameters
     ----------

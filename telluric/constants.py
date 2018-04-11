@@ -18,4 +18,5 @@ WEB_MERCATOR_CRS = CRS({'init': 'epsg:{:4d}'.format(WEB_MERCATOR_SRID)})
 EQUAL_AREA_CRS = CRS({'proj': 'eck4'})
 
 DEFAULT_SRID = WGS84_SRID
+#: Default CRS, set to :py:data:`~telluric.constants.WGS84_CRS`.
 DEFAULT_CRS = WGS84_CRS
