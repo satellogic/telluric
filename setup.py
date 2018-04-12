@@ -41,6 +41,7 @@ setup(
             'pycodestyle',
             'pytest',
             'pytest-cov',
+            'docutils<0.14',
             'sphinx<1.7',
             'ipython',
             'nbsphinx',
