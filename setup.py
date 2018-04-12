@@ -41,7 +41,7 @@ setup(
             'pycodestyle',
             'pytest',
             'pytest-cov',
-            'sphinx',
+            'sphinx<1.7',
             'ipython',
             'nbsphinx',
             'sphinx_rtd_theme'
