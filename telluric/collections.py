@@ -6,7 +6,7 @@ from itertools import islice
 from typing import Set
 
 import fiona
-from shapely.geometry import shape, CAP_STYLE
+from shapely.geometry import CAP_STYLE
 from rasterio.crs import CRS
 from shapely.ops import cascaded_union
 from shapely.prepared import prep
@@ -352,13 +352,7 @@ class FileCollection(BaseCollection):
     def __iter__(self):
         with fiona.open(self._filename, 'r') as source:
             for record in source:
-                yield GeoFeature(
-                    GeoVector(
-                        shape(record['geometry']),
-                        source.crs
-                    ),
-                    record["properties"]
-                )
+                yield GeoFeature.from_record(record, source.crs, source.schema)
 
     def __getitem__(self, index):
         # See https://github.com/Toblerity/Fiona/issues/327 for discussion

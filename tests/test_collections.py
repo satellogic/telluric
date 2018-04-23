@@ -1,3 +1,8 @@
+import os
+from collections import OrderedDict
+from datetime import date
+
+import fiona
 import tempfile
 
 import pytest
@@ -241,3 +246,29 @@ def test_file_collection_open_save_shapefile():
         time.sleep(5)
         assert fcol_res.crs == WGS84_CRS
         assert fcol == fcol_res.reproject(fcol.crs)
+
+
+def test_feature_collection_with_dates_serializes_correctly():
+    # "For Shapefiles, however, the only possible field type is 'date' as 'datetime' and 'time' are not available."
+    # https://github.com/Toblerity/Fiona/pull/130
+    # See also: https://github.com/Toblerity/Fiona/issues/572
+    schema = {
+        'geometry': 'Point',
+        'properties': OrderedDict([
+            ('prop_date', 'date'),
+        ]),
+    }
+    expected_attributes = {
+        'prop_date': date(2018, 4, 23),
+    }
+    feature = GeoFeature(GeoVector(Point(0, 0)), expected_attributes)
+    with tempfile.TemporaryDirectory() as path:
+        file_path = os.path.join(path, "test_dates.shp")
+        with fiona.open(file_path, mode='w', driver="ESRI Shapefile", schema=schema, crs=feature.crs) as sink:
+            sink.write(mapping(feature))
+
+        fc = FileCollection.open(file_path)
+
+        assert fc.schema == schema
+        assert fc[0].geometry == feature.geometry
+        assert fc[0].attributes == expected_attributes

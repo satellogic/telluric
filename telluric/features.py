@@ -1,4 +1,7 @@
 from collections import Mapping
+from dateutil.parser import parse as parse_date
+
+from shapely.geometry import shape
 
 from telluric.constants import DEFAULT_CRS, WGS84_CRS
 from telluric.vectors import (
@@ -7,6 +10,27 @@ from telluric.vectors import (
 )
 from telluric.georaster import GeoRaster2
 from telluric.plotting import NotebookPlottingMixin
+
+
+def transform_attributes(attributes, schema):
+    """Transform attributes types according to a schema.
+
+    Parameters
+    ----------
+    attributes : dict
+        Attributes to transform.
+    schema : dict
+        Fiona schema containing the types.
+
+    """
+    new_attributes = attributes.copy()
+    for value, (attr_name, attr_type) in zip(new_attributes.values(), schema["properties"].items()):
+        if attr_type == "date":
+            new_attributes[attr_name] = parse_date(value).date()
+        elif attr_type == "datetime":
+            new_attributes[attr_name] = parse_date(value)
+
+    return new_attributes
 
 
 class GeoFeature(Mapping, NotebookPlottingMixin):
@@ -46,6 +70,21 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             'properties': self._attributes,
             'geometry': self.geometry.to_record(crs),
         }
+
+    @classmethod
+    def from_record(cls, record, crs, schema=None):
+        if schema is not None:
+            attributes = transform_attributes(record["properties"], schema)
+        else:
+            attributes = record["properties"]
+
+        return cls(
+            GeoVector(
+                shape(record['geometry']),
+                crs
+            ),
+            attributes
+        )
 
     def __len__(self):
         return len(self.attributes)
