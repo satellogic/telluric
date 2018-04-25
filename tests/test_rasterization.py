@@ -1,7 +1,8 @@
 import pytest
 
 from affine import Affine
-from shapely.geometry import Polygon, LineString
+from numpy.testing import assert_array_equal
+from shapely.geometry import Polygon, LineString, Point
 
 import numpy as np
 
@@ -9,7 +10,7 @@ from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.georaster import GeoRaster2
 from telluric.collections import FeatureCollection
-from telluric.constants import DEFAULT_CRS
+from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS
 
 from telluric.rasterization import ScaleError
 
@@ -96,3 +97,23 @@ def test_rasterization_of_line_has_correct_pixel_width(resolution):
     result = fc.rasterize(resolution, pixels_width, crs=DEFAULT_CRS, bounds=roi)
 
     assert result == expected_result
+
+
+def test_rasterization_point_single_pixel():
+    data = np.zeros((5, 5), dtype=np.uint8)[None, :, :]
+    data[0, 2, 2] = 1
+
+    mask = ~(data.astype(bool))
+
+    expected_image = np.ma.masked_array(data, mask)
+
+    fc = FeatureCollection.from_geovectors([
+        GeoVector(Point(2, 2), crs=WEB_MERCATOR_CRS)]
+    )
+
+    roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=5, ymax=5, crs=WEB_MERCATOR_CRS)
+
+    result = fc.rasterize(1, 1, bounds=roi).image
+
+    assert_array_equal(result.data, expected_image.data)
+    assert_array_equal(result.mask, expected_image.mask)

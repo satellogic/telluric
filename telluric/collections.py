@@ -6,7 +6,7 @@ from itertools import islice
 from typing import Set
 
 import fiona
-from shapely.geometry import shape
+from shapely.geometry import shape, CAP_STYLE
 from rasterio.crs import CRS
 from shapely.ops import cascaded_union
 from shapely.prepared import prep
@@ -156,6 +156,10 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
         """
         # Compute the size in real units and polygonize the features
+        # If the pixels width is 1, render points as squares to avoid missing data
+        if polygonize_width == 1:
+            polygonize_kwargs.update(cap_style_point=CAP_STYLE.square)
+
         width = polygonize_width * dest_resolution
         polygonized = [feature.polygonize(width, **polygonize_kwargs) for feature in self]
 
