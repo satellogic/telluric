@@ -1,4 +1,6 @@
 from collections import Mapping
+from json import JSONEncoder
+
 from dateutil.parser import parse as parse_date
 
 from shapely.geometry import shape
@@ -24,11 +26,32 @@ def transform_attributes(attributes, schema):
 
     """
     new_attributes = attributes.copy()
-    for value, (attr_name, attr_type) in zip(new_attributes.values(), schema["properties"].items()):
+    for attr_value, (attr_name, attr_type) in zip(new_attributes.values(), schema["properties"].items()):
         if attr_type == "date":
-            new_attributes[attr_name] = parse_date(value).date()
+            new_attributes[attr_name] = parse_date(attr_value).date()
         elif attr_type == "datetime":
-            new_attributes[attr_name] = parse_date(value)
+            new_attributes[attr_name] = parse_date(attr_value)
+
+    return new_attributes
+
+
+def serialize_attributes(attributes):
+    """Serialize attributes.
+
+    Parameters
+    ----------
+    attributes : dict
+        Attributes to serialize.
+
+    """
+    encoder = JSONEncoder()
+    new_attributes = attributes.copy()
+    for attr_name, attr_value in new_attributes.items():
+        try:
+            encoder.encode(attr_value)
+        except TypeError:
+            # Attribute is not JSON-serializable, convert to string
+            new_attributes[attr_name] = str(attr_value)
 
     return new_attributes
 
@@ -67,7 +90,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def to_record(self, crs):
         return {
             'type': 'Feature',
-            'properties': self._attributes,
+            'properties': serialize_attributes(self._attributes),
             'geometry': self.geometry.to_record(crs),
         }
 
