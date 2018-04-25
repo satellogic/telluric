@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import pytest
 from datetime import datetime
 import json
@@ -181,13 +183,10 @@ def test_geofeature_equality_checks_geometry_and_attributes(geometry, attributes
 def test_geofeature_correctly_serializes_non_simple_types():
     feature = GeoFeature(
         GeoVector(Point(0, 0)),
-        {'attr1': 1, 'attr2': '2', 'attr3': datetime(2018, 4, 25, 11, 18)}
+        OrderedDict([('attr1', 1), ('attr2', '2'), ('attr3', datetime(2018, 4, 25, 11, 18))])
     )
-    expected_properties = {
-        'attr1': 1, 'attr2': '2', 'attr3': '2018-04-25 11:18:00'
-    }
-    expected_json = ('{"type": "Feature", "properties": {"attr1": 1, "attr2": "2", "attr3": "2018-04-25 11:18:00"}, '
-                     '"geometry": {"type": "Point", "coordinates": [0.0, 0.0]}}')
+    expected_properties = OrderedDict([
+        ('attr1', 1), ('attr2', '2'), ('attr3', '2018-04-25 11:18:00')
+    ])
 
     assert mapping(feature)['properties'] == expected_properties
-    assert json.dumps(mapping(feature)) == expected_json
