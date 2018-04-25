@@ -3,7 +3,7 @@ import warnings
 import contextlib
 from collections import Sequence
 from itertools import islice
-from typing import Set
+from typing import Set, Iterator
 
 import fiona
 from shapely.geometry import CAP_STYLE
@@ -28,7 +28,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
     def __len__(self):
         raise NotImplementedError
 
-    def __iter__(self):
+    def __iter__(self):  # type: () -> Iterator[GeoFeature]
         raise NotImplementedError
 
     def __getitem__(self, index):
