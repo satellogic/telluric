@@ -1,4 +1,8 @@
+from collections import OrderedDict
+
 import pytest
+from datetime import datetime
+import json
 
 from shapely.geometry import Point, Polygon, LineString, mapping
 
@@ -174,3 +178,15 @@ def test_geofeature_equality_checks_geometry_and_attributes(geometry, attributes
 
     else:
         assert feature1 != feature2
+
+
+def test_geofeature_correctly_serializes_non_simple_types():
+    feature = GeoFeature(
+        GeoVector(Point(0, 0)),
+        OrderedDict([('attr1', 1), ('attr2', '2'), ('attr3', datetime(2018, 4, 25, 11, 18))])
+    )
+    expected_properties = OrderedDict([
+        ('attr1', 1), ('attr2', '2'), ('attr3', '2018-04-25 11:18:00')
+    ])
+
+    assert mapping(feature)['properties'] == expected_properties

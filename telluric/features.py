@@ -1,5 +1,9 @@
 from collections import Mapping
 
+from dateutil.parser import parse as parse_date
+
+from shapely.geometry import shape
+
 from telluric.constants import DEFAULT_CRS, WGS84_CRS
 from telluric.vectors import (
     GeoVector,
@@ -7,6 +11,47 @@ from telluric.vectors import (
 )
 from telluric.georaster import GeoRaster2
 from telluric.plotting import NotebookPlottingMixin
+
+
+def transform_attributes(attributes, schema):
+    """Transform attributes types according to a schema.
+
+    Parameters
+    ----------
+    attributes : dict
+        Attributes to transform.
+    schema : dict
+        Fiona schema containing the types.
+
+    """
+    new_attributes = attributes.copy()
+    for attr_value, (attr_name, attr_type) in zip(new_attributes.values(), schema["properties"].items()):
+        if attr_type == "date":
+            new_attributes[attr_name] = parse_date(attr_value).date()
+        elif attr_type == "datetime":
+            new_attributes[attr_name] = parse_date(attr_value)
+
+    return new_attributes
+
+
+def serialize_attributes(attributes):
+    """Serialize attributes.
+
+    Parameters
+    ----------
+    attributes : dict
+        Attributes to serialize.
+
+    """
+    new_attributes = attributes.copy()
+    for attr_name, attr_value in new_attributes.items():
+        if not isinstance(attr_value, (dict, list, tuple, str, int, float, bool, type(None))):
+            # Attribute is not JSON-serializable according to this table
+            # https://docs.python.org/3.4/library/json.html#json.JSONEncoder
+            # so we convert to string
+            new_attributes[attr_name] = str(attr_value)
+
+    return new_attributes
 
 
 class GeoFeature(Mapping, NotebookPlottingMixin):
@@ -43,9 +88,24 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def to_record(self, crs):
         return {
             'type': 'Feature',
-            'properties': self._attributes,
+            'properties': serialize_attributes(self._attributes),
             'geometry': self.geometry.to_record(crs),
         }
+
+    @classmethod
+    def from_record(cls, record, crs, schema=None):
+        if schema is not None:
+            attributes = transform_attributes(record["properties"], schema)
+        else:
+            attributes = record["properties"]
+
+        return cls(
+            GeoVector(
+                shape(record['geometry']),
+                crs
+            ),
+            attributes
+        )
 
     def __len__(self):
         return len(self.attributes)
