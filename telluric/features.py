@@ -1,5 +1,4 @@
 from collections import Mapping
-from json import JSONEncoder
 
 from dateutil.parser import parse as parse_date
 
@@ -44,13 +43,12 @@ def serialize_attributes(attributes):
         Attributes to serialize.
 
     """
-    encoder = JSONEncoder()
     new_attributes = attributes.copy()
     for attr_name, attr_value in new_attributes.items():
-        try:
-            encoder.encode(attr_value)
-        except TypeError:
-            # Attribute is not JSON-serializable, convert to string
+        if not isinstance(attr_value, (dict, list, tuple, str, int, float, bool, type(None))):
+            # Attribute is not JSON-serializable according to this table
+            # https://docs.python.org/3.4/library/json.html#json.JSONEncoder
+            # so we convert to string
             new_attributes[attr_name] = str(attr_value)
 
     return new_attributes
