@@ -6,7 +6,7 @@ from itertools import islice
 from typing import Set
 
 import fiona
-from shapely.geometry import shape
+from shapely.geometry import shape, CAP_STYLE
 from rasterio.crs import CRS
 from shapely.ops import cascaded_union
 from shapely.prepared import prep
@@ -141,7 +141,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         ----------
         dest_resolution: float
             Resolution in units of the CRS.
-        polygonize_width : float, optional
+        polygonize_width : int, optional
             Width for the polygonized features (lines and points) in pixels, default to 0 (they won't appear).
         crs : ~rasterio.crs.CRS, dict (optional)
             Coordinate system, default to :py:data:`telluric.constants.WEB_MERCATOR_CRS`.
@@ -156,6 +156,13 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
         """
         # Compute the size in real units and polygonize the features
+        if not isinstance(polygonize_width, int):
+            raise TypeError("The width in pixels must be an integer")
+
+        # If the pixels width is 1, render points as squares to avoid missing data
+        if polygonize_width == 1:
+            polygonize_kwargs.update(cap_style_point=CAP_STYLE.square)
+
         width = polygonize_width * dest_resolution
         polygonized = [feature.polygonize(width, **polygonize_kwargs) for feature in self]
 
