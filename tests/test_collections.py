@@ -5,8 +5,6 @@ from datetime import date
 import fiona
 import tempfile
 import mercantile
-from affine import Affine
-import numpy as np
 
 import pytest
 from unittest import mock
@@ -276,16 +274,6 @@ def test_feature_collection_with_dates_serializes_correctly():
         assert fc.schema == schema
         assert fc[0].geometry == feature.geometry
         assert fc[0].attributes == expected_attributes
-
-
-def make_test_raster(value=0, band_names=[], height=3, width=4, dtype=np.uint16,
-                     crs=WEB_MERCATOR_CRS, affine=Affine.scale(1, -1)):
-    shape = [len(band_names), height, width]
-    array = np.full(shape, value, dtype=dtype)
-    mask = np.full(shape, False, dtype=np.bool)
-    image = np.ma.array(data=array, mask=mask)
-    raster = GeoRaster2(image=image, affine=affine, crs=crs, band_names=band_names)
-    return raster
 
 
 @pytest.mark.parametrize("tile", [(4377, 3039, 13), (4376, 3039, 13), (4377, 3039, 13),
