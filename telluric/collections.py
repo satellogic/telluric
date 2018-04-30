@@ -226,7 +226,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
     rasters_executor = ThreadPoolExecutor(max_workers=30)
 
     def get_tile(self, x, y, z, bands=None):
-        """Convert mercator tile to raster window.
+        """Generate mercator tile from rasters in FeatureCollection.
 
         Parameters
         ----------
