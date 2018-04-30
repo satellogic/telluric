@@ -11,11 +11,15 @@ from rasterio.crs import CRS
 from shapely.ops import cascaded_union
 from shapely.prepared import prep
 
+import mercantile
+from concurrent.futures import ThreadPoolExecutor
+
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
 from telluric.rasterization import rasterize
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
+from telluric.georaster import merge_all
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -217,6 +221,49 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             for feature in self:
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
+
+    fc_executor = ThreadPoolExecutor(max_workers=30)
+    rasters_executor = ThreadPoolExecutor(max_workers=30)
+
+    def get_tile(self, x, y, z, bands=None):
+        """Convert mercator tile to raster window.
+
+        Parameters
+        ----------
+        x: int
+            x coordinate of tile
+        y: int
+            y coordinate of tile
+        z: int
+            zoom level
+        bands: list
+            list of indices of requested bads, default None which returns all bands
+
+        Returns
+        -------
+        GeoRaster2
+
+        """
+        bb = mercantile.xy_bounds(x, y, z)
+        roi = GeoVector.from_bounds(xmin=bb.left, ymin=bb.bottom,
+                                    xmax=bb.right, ymax=bb.top,
+                                    crs=WEB_MERCATOR_CRS)
+
+        filtered_fc = self.filter(roi)
+
+        filtered_fc_rasters = [f.get_raster() for f in filtered_fc]
+
+        def _get_tile_from_raster(raster):
+            return raster.get_tile(x, y, z, bands)
+
+        rasters = self.rasters_executor.map(_get_tile_from_raster, filtered_fc_rasters, timeout=10)
+
+        tiles = list(rasters)
+        if tiles:
+            tile = merge_all(tiles, roi)
+            return tile
+        else:
+            return None
 
 
 class FeatureCollectionIOError(BaseException):

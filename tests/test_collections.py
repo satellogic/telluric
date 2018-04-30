@@ -4,6 +4,9 @@ from datetime import date
 
 import fiona
 import tempfile
+import mercantile
+from affine import Affine
+import numpy as np
 
 import pytest
 from unittest import mock
@@ -14,6 +17,7 @@ from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.collections import FeatureCollection, FileCollection, FeatureCollectionIOError
+from telluric.georaster import GeoRaster2, merge_all
 
 
 def fc_generator(num_features):
@@ -272,3 +276,36 @@ def test_feature_collection_with_dates_serializes_correctly():
         assert fc.schema == schema
         assert fc[0].geometry == feature.geometry
         assert fc[0].attributes == expected_attributes
+
+
+def make_test_raster(value=0, band_names=[], height=3, width=4, dtype=np.uint16,
+                     crs=WEB_MERCATOR_CRS, affine=Affine.scale(1, -1)):
+    shape = [len(band_names), height, width]
+    array = np.full(shape, value, dtype=dtype)
+    mask = np.full(shape, False, dtype=np.bool)
+    image = np.ma.array(data=array, mask=mask)
+    raster = GeoRaster2(image=image, affine=affine, crs=crs, band_names=band_names)
+    return raster
+
+
+@pytest.mark.parametrize("tile", [(4377, 3039, 13), (4376, 3039, 13), (4377, 3039, 13),
+                                  (2189, 1519, 12), (8756, 6076, 14), (8751, 6075, 14)])
+def test_get_tile_merge_tiles(tile):
+    tile = (4377, 3039, 13)
+    raster1_path = './tests/data/raster/overlap1.tif'
+    raster2_path = './tests/data/raster/overlap2.tif'
+    raster1 = GeoRaster2.open(raster1_path)
+    raster2 = GeoRaster2.open(raster2_path)
+
+    features = [
+        GeoFeature(raster1.footprint(), {'raster_url': raster1_path}),
+        GeoFeature(raster2.footprint(), {'raster_url': raster2_path}),
+    ]
+    fc = FeatureCollection(features)
+    bounds = mercantile.xy_bounds(*tile)
+    eroi = GeoVector.from_bounds(xmin=bounds.left, xmax=bounds.right,
+                                 ymin=bounds.bottom, ymax=bounds.top,
+                                 crs=WEB_MERCATOR_CRS)
+    expected_tile = merge_all([raster1.get_tile(*tile), raster2.get_tile(*tile)], roi=eroi)
+    merged = fc.get_tile(*tile)
+    assert merged == expected_tile
