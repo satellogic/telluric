@@ -1,6 +1,6 @@
 import os
 from collections import OrderedDict
-from datetime import date
+from datetime import date, datetime
 
 import fiona
 import tempfile
@@ -286,8 +286,8 @@ def test_get_tile_merge_tiles(tile):
     raster2 = GeoRaster2.open(raster2_path)
 
     features = [
-        GeoFeature(raster1.footprint(), {'raster_url': raster1_path}),
-        GeoFeature(raster2.footprint(), {'raster_url': raster2_path}),
+        GeoFeature(raster1.footprint(), {'raster_url': raster1_path, 'created': datetime.now()}),
+        GeoFeature(raster2.footprint(), {'raster_url': raster2_path, 'created': datetime.now()}),
     ]
     fc = FeatureCollection(features)
     bounds = mercantile.xy_bounds(*tile)
@@ -295,5 +295,5 @@ def test_get_tile_merge_tiles(tile):
                                  ymin=bounds.bottom, ymax=bounds.top,
                                  crs=WEB_MERCATOR_CRS)
     expected_tile = merge_all([raster1.get_tile(*tile), raster2.get_tile(*tile)], roi=eroi)
-    merged = fc.get_tile(*tile)
+    merged = fc.get_tile(*tile, sort_by='created')
     assert merged == expected_tile

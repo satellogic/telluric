@@ -225,7 +225,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
     fc_executor = ThreadPoolExecutor(max_workers=30)
     rasters_executor = ThreadPoolExecutor(max_workers=30)
 
-    def get_tile(self, x, y, z, bands=None):
+    def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None):
         """Generate mercator tile from rasters in FeatureCollection.
 
         Parameters
@@ -236,6 +236,10 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             y coordinate of tile
         z: int
             zoom level
+        soert_by: str
+            attribute in feature to sort by
+        desc: bool
+            True for descending order, False for ascending
         bands: list
             list of indices of requested bads, default None which returns all bands
 
@@ -251,14 +255,18 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
         filtered_fc = self.filter(roi)
 
-        filtered_fc_rasters = [f.get_raster() for f in filtered_fc]
+        def _get_tiled_feature(feature):
+            return feature.get_tiled_feature(x, y, z, bands)
 
-        def _get_tile_from_raster(raster):
-            return raster.get_tile(x, y, z, bands)
+        tiled_features = self.rasters_executor.map(_get_tiled_feature, filtered_fc, timeout=10)
 
-        rasters = self.rasters_executor.map(_get_tile_from_raster, filtered_fc_rasters, timeout=10)
+        # tiled_features can be sort for different merge strategies
+        if sort_by is not None:
+            tiled_features = sorted(tiled_features,
+                                    reverse=desc,
+                                    key=lambda f: f[sort_by])
 
-        tiles = list(rasters)
+        tiles = [f['tile'] for f in tiled_features]
         if tiles:
             tile = merge_all(tiles, roi)
             return tile
