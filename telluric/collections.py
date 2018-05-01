@@ -236,7 +236,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             y coordinate of tile
         z: int
             zoom level
-        soert_by: str
+        sort_by: str
             attribute in feature to sort by
         desc: bool
             True for descending order, False for ascending

@@ -285,9 +285,12 @@ def test_get_tile_merge_tiles(tile):
     raster2 = GeoRaster2.open(raster2_path)
 
     features = [
-        GeoFeature(raster1.footprint(), {'raster_url': raster1_path, 'created': datetime.now()}),
-        GeoFeature(raster2.footprint(), {'raster_url': raster2_path, 'created': datetime.now()}),
+        GeoFeature(raster1.footprint().reproject(new_crs=WGS84_CRS),
+                   {'raster_url': raster1_path, 'created': datetime.now()}),
+        GeoFeature(raster2.footprint().reproject(new_crs=WGS84_CRS),
+                   {'raster_url': raster2_path, 'created': datetime.now()}),
     ]
+
     fc = FeatureCollection(features)
     bounds = mercantile.xy_bounds(*tile)
     eroi = GeoVector.from_bounds(xmin=bounds.left, xmax=bounds.right,
