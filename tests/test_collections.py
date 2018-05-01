@@ -279,7 +279,6 @@ def test_feature_collection_with_dates_serializes_correctly():
 @pytest.mark.parametrize("tile", [(4377, 3039, 13), (4376, 3039, 13), (4377, 3039, 13),
                                   (2189, 1519, 12), (8756, 6076, 14), (8751, 6075, 14)])
 def test_get_tile_merge_tiles(tile):
-    tile = (4377, 3039, 13)
     raster1_path = './tests/data/raster/overlap1.tif'
     raster2_path = './tests/data/raster/overlap2.tif'
     raster1 = GeoRaster2.open(raster1_path)
@@ -296,4 +295,8 @@ def test_get_tile_merge_tiles(tile):
                                  crs=WEB_MERCATOR_CRS)
     expected_tile = merge_all([raster1.get_tile(*tile), raster2.get_tile(*tile)], roi=eroi)
     merged = fc.get_tile(*tile, sort_by='created')
-    assert merged == expected_tile
+    if merged is not None:
+        assert merged == expected_tile
+    else:
+        assert expected_tile.image.mask.all()
+        assert (expected_tile.image.data == 0).all()
