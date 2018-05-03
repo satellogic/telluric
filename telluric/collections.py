@@ -1,3 +1,4 @@
+import os
 import os.path
 import warnings
 import contextlib
@@ -26,6 +27,9 @@ DRIVERS = {
     '.geojson': 'GeoJSON',
     '.shp': 'ESRI Shapefile'
 }
+
+MAX_WORKERS = os.environ.get('TELLURIC_LIB_MAX_WORKERS', 30)
+CONCURRENCY_TIMEOUT = os.environ.get('TELLURIC_LIB_CONCURRENCY_TIMEOUT', 600)
 
 
 class BaseCollection(Sequence, NotebookPlottingMixin):
@@ -222,8 +226,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
 
-    fc_executor = ThreadPoolExecutor(max_workers=30)
-    rasters_executor = ThreadPoolExecutor(max_workers=30)
+    fc_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+    rasters_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
     def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None):
         """Generate mercator tile from rasters in FeatureCollection.
@@ -258,7 +262,9 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         def _get_tiled_feature(feature):
             return feature.get_tiled_feature(x, y, z, bands)
 
-        tiled_features = self.rasters_executor.map(_get_tiled_feature, filtered_fc, timeout=10)
+        tiled_features = self.rasters_executor.map(_get_tiled_feature,
+                                                   filtered_fc,
+                                                   timeout=CONCURRENCY_TIMEOUT)
 
         # tiled_features can be sort for different merge strategies
         if sort_by is not None:
