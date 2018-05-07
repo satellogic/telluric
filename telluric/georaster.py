@@ -2,7 +2,7 @@ import json
 import os
 import io
 from functools import reduce, partial
-from typing import Callable, Union, Iterable
+from typing import Callable, Union, Iterable, Dict
 from enum import Enum
 
 import tempfile
@@ -1431,7 +1431,7 @@ class GeoRaster2(WindowMethodsMixin):
             rasterio_env = {
                 'GDAL_DISABLE_READDIR_ON_OPEN': True,
                 'GDAL_FORCE_CACHING': True
-            }
+            }   # type: Dict
             if self._filename.split('.')[-1] == 'tif':
                 rasterio_env['CPL_VSIL_CURL_ALLOWED_EXTENSIONS'] = '.tif'
 

@@ -28,7 +28,7 @@ DRIVERS = {
     '.shp': 'ESRI Shapefile'
 }
 
-MAX_WORKERS = os.environ.get('TELLURIC_LIB_MAX_WORKERS', 30)
+MAX_WORKERS = int(os.environ.get('TELLURIC_LIB_MAX_WORKERS', 30))
 CONCURRENCY_TIMEOUT = os.environ.get('TELLURIC_LIB_CONCURRENCY_TIMEOUT', 600)
 
 
@@ -226,7 +226,6 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
 
-    fc_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
     rasters_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
     def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None):
