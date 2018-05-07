@@ -1428,7 +1428,14 @@ class GeoRaster2(WindowMethodsMixin):
                 "out_shape": requested_out_shape
             }
 
-            with rasterio.Env(GDAL_FORCE_CACHING=True):
+            rasterio_env = {
+                'GDAL_DISABLE_READDIR_ON_OPEN': True,
+                'GDAL_FORCE_CACHING': True
+            }
+            if self._filename.split('.')[-1] == 'tif':
+                rasterio_env['CPL_VSIL_CURL_ALLOWED_EXTENSIONS'] = '.tif'
+
+            with rasterio.Env(**rasterio_env):
                 with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
                     array = raster.read(bands, **read_params)
 
