@@ -255,11 +255,10 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         GeoFeature
 
         """
-
         attributes = copy.deepcopy(self.attributes)
         attributes['tile'] = self.get_raster().get_tile(x, y, z, bands)
         attributes['tile_x'] = x
         attributes['tile_y'] = y
         attributes['tile_z'] = z
         attributes['tile_bans'] = bands
-        return GeoFeature(self.geometry, attributes)
+        return self.__class__(self.geometry, attributes)
