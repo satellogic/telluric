@@ -131,6 +131,19 @@ def test_featurecollection_map():
     assert new_fc == FeatureCollection([func(feat) for feat in fc])
 
 
+def test_featurecollection_save_has_no_side_effects():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr2': 1})
+    ])
+
+    with tempfile.NamedTemporaryFile(suffix=".json") as fp:
+        fc.save(fp.name)
+
+        assert fc[0].attributes == {'attr1': 1}
+        assert fc[1].attributes == {'attr2': 1}
+
+
 @pytest.mark.parametrize("fc", [
     fc_generator(num_features=5),
     FileCollection.open("tests/data/vector/bsas_barrios_lla.geojson"),
