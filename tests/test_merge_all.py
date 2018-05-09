@@ -1,9 +1,10 @@
 import unittest
+import pytest
 import copy
 import numpy as np
 from affine import Affine
 from telluric import constants, GeoVector
-from telluric.georaster import GeoRaster2, MergeStrategy, merge_all
+from telluric.georaster import GeoRaster2, MergeStrategy, merge_all, merge, merge_to_first
 
 
 def black_and_white_raster(band_names=[], height=10, width=10, dtype=np.uint16,
@@ -258,3 +259,32 @@ def test_rasterio_bug():
 
     rasterio.warp.reproject(data, dest_data, src_transform=src_affine_bad,
                             dst_transform=dst_affine, src_crs=crs, dst_crs=crs)
+
+
+def test_merge_raise_on_non_overlapping_rasters():
+    affine1 = Affine.translation(10, 12) * Affine.scale(1, -1)
+    affine2 = Affine.translation(100, 120) * Affine.scale(1, -1)
+    raster1 = make_test_raster(affine=affine1)
+    raster2 = make_test_raster(affine=affine2)
+    with pytest.raises(ValueError) as ex:
+        merge(raster1, raster2)
+
+    assert "rasters do not intersect" in ex.exconly()
+
+
+def test_merge_to_firs_on_non_overlapping_rasters_returns_first_raster():
+    affine1 = Affine.translation(10, 12) * Affine.scale(1, -1)
+    affine2 = Affine.translation(100, 120) * Affine.scale(1, -1)
+    raster1 = make_test_raster(affine=affine1)
+    raster2 = make_test_raster(affine=affine2)
+    merged = merge_to_first(raster1, raster2)
+    assert merged == raster1
+
+
+def test_merge_all_on_non_overlapping_rasters_returns_first_raster():
+    affine1 = Affine.translation(10, 12) * Affine.scale(1, -1)
+    affine2 = Affine.translation(100, 120) * Affine.scale(1, -1)
+    raster1 = make_test_raster(value=1, band_names=['blue'], affine=affine1, height=30, width=40)
+    raster2 = make_test_raster(value=2, band_names=['blue'], affine=affine2, height=30, width=40)
+    merged = merge_all([raster1, raster2], raster1.footprint())
+    assert merged == raster1

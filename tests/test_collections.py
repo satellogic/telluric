@@ -1,9 +1,10 @@
 import os
 from collections import OrderedDict
-from datetime import date
+from datetime import date, datetime
 
 import fiona
 import tempfile
+import mercantile
 
 import pytest
 from unittest import mock
@@ -14,6 +15,7 @@ from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.collections import FeatureCollection, FileCollection, FeatureCollectionIOError
+from telluric.georaster import GeoRaster2, merge_all
 
 
 def fc_generator(num_features):
@@ -272,3 +274,32 @@ def test_feature_collection_with_dates_serializes_correctly():
         assert fc.schema == schema
         assert fc[0].geometry == feature.geometry
         assert fc[0].attributes == expected_attributes
+
+
+@pytest.mark.parametrize("tile", [(4377, 3039, 13), (4376, 3039, 13), (4377, 3039, 13),
+                                  (2189, 1519, 12), (8756, 6076, 14), (8751, 6075, 14)])
+def test_get_tile_merge_tiles(tile):
+    raster1_path = './tests/data/raster/overlap1.tif'
+    raster2_path = './tests/data/raster/overlap2.tif'
+    raster1 = GeoRaster2.open(raster1_path)
+    raster2 = GeoRaster2.open(raster2_path)
+
+    features = [
+        GeoFeature(raster1.footprint().reproject(new_crs=WGS84_CRS),
+                   {'raster_url': raster1_path, 'created': datetime.now()}),
+        GeoFeature(raster2.footprint().reproject(new_crs=WGS84_CRS),
+                   {'raster_url': raster2_path, 'created': datetime.now()}),
+    ]
+
+    fc = FeatureCollection(features)
+    bounds = mercantile.xy_bounds(*tile)
+    eroi = GeoVector.from_bounds(xmin=bounds.left, xmax=bounds.right,
+                                 ymin=bounds.bottom, ymax=bounds.top,
+                                 crs=WEB_MERCATOR_CRS)
+    expected_tile = merge_all([raster1.get_tile(*tile), raster2.get_tile(*tile)], roi=eroi)
+    merged = fc.get_tile(*tile, sort_by='created')
+    if merged is not None:
+        assert merged == expected_tile
+    else:
+        assert expected_tile.image.mask.all()
+        assert (expected_tile.image.data == 0).all()

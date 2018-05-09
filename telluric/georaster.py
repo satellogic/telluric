@@ -2,7 +2,7 @@ import json
 import os
 import io
 from functools import reduce, partial
-from typing import Callable, Union, Iterable
+from typing import Callable, Union, Iterable, Dict
 from enum import Enum
 
 import tempfile
@@ -105,27 +105,12 @@ def merge_all(rasters, roi, dest_resolution=None, merge_strategy=MergeStrategy.U
         dtype=rasters[0].dtype)
 
     # Perform merge
-    func = partial(merge, merge_strategy=merge_strategy)  # type: Callable[[GeoRaster2, GeoRaster2], GeoRaster2]
+    func = partial(merge_to_first,
+                   merge_strategy=merge_strategy)  # type: Callable[[GeoRaster2, GeoRaster2], GeoRaster2]
     return reduce(func, rasters, empty)
 
 
-def merge(one, other, merge_strategy=MergeStrategy.UNION):
-    """Merge two rasters into one.
-
-    Parameters
-    ----------
-    one : GeoRaster2
-        Left raster to merge.
-    other : GeoRaster2
-        Right raster to merge.
-    merge_strategy : MergeStrategy
-        Merge strategy, from :py:data:`telluric.georaster.MergeStrategy` (default to "union").
-
-    Returns
-    -------
-    GeoRaster2
-
-    """
+def _prepare_other_raster(one, other):
     # Crop and reproject the second raster, if necessary
     if not (one.footprint().almost_equals(other.footprint()) and
        one.crs == other.crs and one.affine.almost_equals(other.affine)):
@@ -136,8 +121,12 @@ def merge(one, other, merge_strategy=MergeStrategy.UNION):
                                     resampling=Resampling.nearest)
 
         else:
-            raise ValueError("rasters do not intersect")
+            return None
 
+    return other
+
+
+def _merge(one, other, merge_strategy=MergeStrategy.UNION):
     if merge_strategy is MergeStrategy.LEFT_ALL:
         # If the bands are not the same, return one
         try:
@@ -145,7 +134,7 @@ def merge(one, other, merge_strategy=MergeStrategy.UNION):
         except GeoRaster2Error:
             return one
 
-        return merge(one, other, merge_strategy=MergeStrategy.INTERSECTION)
+        return _merge(one, other, merge_strategy=MergeStrategy.INTERSECTION)
 
     elif merge_strategy is MergeStrategy.INTERSECTION:
         # https://stackoverflow.com/a/23529016/554319
@@ -201,8 +190,8 @@ def merge(one, other, merge_strategy=MergeStrategy.UNION):
         # relies on all the dimensions of the mask to be equal
         if common_bands:
             # Merge the common bands by intersection
-            res_common = merge(one.limit_to_bands(common_bands), other.limit_to_bands(common_bands),
-                               merge_strategy=MergeStrategy.INTERSECTION)
+            res_common = _merge(one.limit_to_bands(common_bands), other.limit_to_bands(common_bands),
+                                merge_strategy=MergeStrategy.INTERSECTION)
             new_bands = res_common.band_names
             all_data = [res_common.image.data]
 
@@ -241,6 +230,56 @@ def merge(one, other, merge_strategy=MergeStrategy.UNION):
 
     else:
         raise ValueError("Use one the strategies available in MergeStrategy instead.")
+
+
+def merge(one, other, merge_strategy=MergeStrategy.UNION):
+    """Merge two rasters into one.
+
+    Parameters
+    ----------
+    one : GeoRaster2
+        Left raster to merge.
+    other : GeoRaster2
+        Right raster to merge.
+    merge_strategy : MergeStrategy
+        Merge strategy, from :py:data:`telluric.georaster.MergeStrategy` (default to "union").
+
+    Returns
+    -------
+    GeoRaster2
+
+    """
+    other = _prepare_other_raster(one, other)
+    if other is None:
+        raise ValueError("rasters do not intersect")
+
+    return _merge(one, other, merge_strategy)
+
+
+def merge_to_first(one, other, merge_strategy=MergeStrategy.UNION):
+    """Merge the second raster to the first.
+
+    if rasters dont overlap it returns the first one.
+
+    Parameters
+    ----------
+    one : GeoRaster2
+        Left raster to merge.
+    other : GeoRaster2
+        Right raster to merge.
+    merge_strategy : MergeStrategy
+        Merge strategy, from :py:data:`telluric.georaster.MergeStrategy` (default to "union").
+
+    Returns
+    -------
+    GeoRaster2
+
+    """
+    other = _prepare_other_raster(one, other)
+    if other is None:
+        return one
+
+    return _merge(one, other, merge_strategy)
 
 
 class GeoRaster2Warning(UserWarning):
@@ -1346,8 +1385,8 @@ class GeoRaster2(WindowMethodsMixin):
 
         This method is used only on get_window
         """
-        xmin = round(abs(min(window.col_off, 0)) / xratio)
-        ymin = round(abs(min(window.row_off, 0)) / yratio)
+        xmin = math.floor(abs(min(window.col_off, 0)) / xratio)
+        ymin = math.floor(abs(min(window.row_off, 0)) / yratio)
         return xmin, ymin
 
     def get_window(self, window, bands=None,
@@ -1389,8 +1428,16 @@ class GeoRaster2(WindowMethodsMixin):
                 "out_shape": requested_out_shape
             }
 
-            with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
-                array = raster.read(bands, **read_params)
+            rasterio_env = {
+                'GDAL_DISABLE_READDIR_ON_OPEN': True,
+                'GDAL_FORCE_CACHING': True
+            }   # type: Dict
+            if self._filename.split('.')[-1] == 'tif':
+                rasterio_env['CPL_VSIL_CURL_ALLOWED_EXTENSIONS'] = '.tif'
+
+            with rasterio.Env(**rasterio_env):
+                with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
+                    array = raster.read(bands, **read_params)
 
             if not boundless and not self._window_contained_in_raster(window):
                 out_array = np.ma.array(
@@ -1421,7 +1468,7 @@ class GeoRaster2(WindowMethodsMixin):
     def get_tile(self, x_tile, y_tile, zoom,
                  bands=None, blocksize=256,
                  resampling=Resampling.cubic):
-        """convert mercator tile to raster window.
+        """Convert mercator tile to raster window.
 
         :param x_tile: x coordinate of tile
         :param y_tile: y coordinate of tile

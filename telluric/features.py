@@ -1,3 +1,4 @@
+import copy
 from collections import Mapping
 
 from dateutil.parser import parse as parse_date
@@ -234,3 +235,30 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
     def __repr__(self):
         return str(self)
+
+    def get_tiled_feature(self, x, y, z, bands):
+        """Generate a new GeoFeature with new attribute a mercator tile from the raster.
+
+        Parameters
+        ----------
+        x: int
+            x coordinate of tile
+        y: int
+            y coordinate of tile
+        z: int
+            zoom level
+        bands: list
+            list of indices of requested bads, default None which returns all bands
+
+        Returns
+        -------
+        GeoFeature
+
+        """
+        attributes = copy.deepcopy(self.attributes)
+        attributes['tile'] = self.get_raster().get_tile(x, y, z, bands)
+        attributes['tile_x'] = x
+        attributes['tile_y'] = y
+        attributes['tile_z'] = z
+        attributes['tile_bans'] = bands
+        return self.__class__(self.geometry, attributes)
