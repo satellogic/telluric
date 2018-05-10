@@ -28,8 +28,8 @@ DRIVERS = {
     '.shp': 'ESRI Shapefile'
 }
 
-MAX_WORKERS = int(os.environ.get('TELLURIC_LIB_MAX_WORKERS', 30))
-CONCURRENCY_TIMEOUT = os.environ.get('TELLURIC_LIB_CONCURRENCY_TIMEOUT', 600)
+MAX_WORKERS = int(os.environ.get('TELLURIC_LIB_MAX_WORKERS', 5))
+CONCURRENCY_TIMEOUT = int(os.environ.get('TELLURIC_LIB_CONCURRENCY_TIMEOUT', 600))
 
 
 class BaseCollection(Sequence, NotebookPlottingMixin):
@@ -226,8 +226,6 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
 
-    rasters_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-
     def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None):
         """Generate mercator tile from rasters in FeatureCollection.
 
@@ -261,9 +259,10 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         def _get_tiled_feature(feature):
             return feature.get_tiled_feature(x, y, z, bands)
 
-        tiled_features = self.rasters_executor.map(_get_tiled_feature,
-                                                   filtered_fc,
-                                                   timeout=CONCURRENCY_TIMEOUT)
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executer:
+            tiled_features = list(executer.map(_get_tiled_feature,
+                                               filtered_fc,
+                                               timeout=CONCURRENCY_TIMEOUT))
 
         # tiled_features can be sort for different merge strategies
         if sort_by is not None:
