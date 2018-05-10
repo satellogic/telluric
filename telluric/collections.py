@@ -349,7 +349,7 @@ class FeatureCollection(BaseCollection):
         return cls([GeoFeature(vector, {}) for vector in geovectors])
 
     def _adapt_feature_before_write(self, feature):
-        new_attributes = feature.attributes
+        new_attributes = feature.attributes.copy()
         for key in self.attribute_names:
             new_attributes.setdefault(key, None)
 
