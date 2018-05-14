@@ -23,40 +23,15 @@ class MainHandler(RequestHandler):
 
 
 class TilesHandler(RequestHandler):
-    def initialize(self, fcs):
-        self.feature_collections = fcs
+    def initialize(self, fc):
+        self.fc = fc
 
     fc_executor = _get_pool_thread(30)
     rasters_executor = _get_pool_thread(30)
 
     @gen.coroutine
     def _get_tile(self, z, x, y):
-        bb = mc.xy_bounds(x, y, z)
-        roi = tl.GeoVector.from_bounds(xmin=bb.left, ymin=bb.bottom,
-                                       xmax=bb.right, ymax=bb.top,
-                                       crs=WEB_MERCATOR_CRS)
-
-        def _filter_fc(fc):
-            return fc.filter(roi)
-
-        filtered_fc = self.fc_executor.map(_filter_fc, self.feature_collections, timeout=10)
-
-        filtered_fc_rasters = [f.get_raster() for fc in filtered_fc for f in fc]
-
-        def _crop_raster(raster):
-            return raster.crop(roi,
-                               resolution=tl.georaster.mercator_zoom_to_resolution[z])
-        # print("tile is in %i rasters" % len(filtered_fc_rasters))
-        rasters = self.rasters_executor.map(_crop_raster, filtered_fc_rasters, timeout=10)
-
-        tiles = list(rasters)
-        print("returnd .... %s args" % [z, x, y])
-        if tiles:
-            # print("found %i rasters" % len(rasters))
-            tile = tl.georaster.merge_all(tiles, roi)
-            return tile.to_png()
-        else:
-            return None
+        return self.fc.get_tile(x,y,z).to_png()
 
     @gen.coroutine
     def get(self, z, x, y):
@@ -75,11 +50,11 @@ class TilesHandler(RequestHandler):
 class TileServer():
 
     def __init__(self, feature_collections, host_name='localhost', port=4444):
-        if not isinstance(feature_collections, list):
-            feature_collections = [feature_collections]
+        # if not isinstance(feature_collections, list):
+            # feature_collections = [feature_collections]
 
-        feature_collections = [tl.FileCollection.open(f) if isinstance(f, str) else f
-                               for f in feature_collections]
+        # feature_collections = [tl.FileCollection.open(f) if isinstance(f, str) else f
+                               # for f in feature_collections]
         self.feature_collections = feature_collections
 
         self.port = port
@@ -105,7 +80,7 @@ class TileServer():
         return Application([
             url(r"/", MainHandler),
             url(r"/tiles/([0-9]{1,3})/([0-9]{1,10})/([0-9]{1,10})", TilesHandler,
-                dict(fcs=self.feature_collections), name='tiles'),
+                dict(fc=self.feature_collections), name='tiles'),
         ])
 
     def get_start_point(self):

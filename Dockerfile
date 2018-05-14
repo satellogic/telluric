@@ -24,3 +24,4 @@ WORKDIR /usr/src
 COPY . /usr/src
 
 RUN pip3 install --editable .[dev]
+RUN pip3 install -r examples/tile_server/requirments.py
