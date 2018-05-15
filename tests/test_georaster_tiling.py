@@ -129,8 +129,8 @@ class GeoRaster2TestGetTile(TestCase):
     @classmethod
     def raster_small_for_test(cls):
         return GeoRaster2(np.random.uniform(0, 256, (3, 391, 370)),
-                          affine=Affine(1.0000252884112817, 0.0, 2653750.345511198,
-                                        0.0, -1.0000599330133702, 4594461.485763356),
+                          affine=Affine(1.0000252884112817, 0.0, 2653900.345511198,
+                                        0.0, -1.0000599330133702, 4598361.485763356),
                           crs={'init': 'epsg:3857'})
 
     def read_only_virtual_geo_raster(self):
@@ -169,10 +169,10 @@ class GeoRaster2TestGetTile(TestCase):
 
     def test_get_entire_all_raster(self):
         vr = self.small_read_only_virtual_geo_raster()
-        r = vr.get_tile(2319, 1578, 12, blocksize=None)
+        r = vr.get_tile(37108, 25248, 16, blocksize=None)
         self.assertFalse((r.image.data == 0).all())
         self.assertFalse((r.image.mask).all())
-        self.assertEqual(r.shape, (3, 9784, 9784))
+        self.assertEqual(r.shape, (3, 612, 612))
 
     def test_fails_with_empty_raster_for_tile_out_of_raster_area_with_no_tile_size(self):
         vr = self.read_only_virtual_geo_raster()
