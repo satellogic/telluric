@@ -303,6 +303,8 @@ class FeatureCollection(BaseCollection):
         yield from self._results
 
     def __getitem__(self, index):
+        if isinstance(index, slice):
+            return self.__class__(self._results[index])
         return self._results[index]
 
     @property
