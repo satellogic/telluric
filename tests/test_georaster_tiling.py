@@ -24,6 +24,8 @@ from telluric.util.general import convert_resolution_from_meters_to_deg
 
 import sys
 import logging
+import tempfile
+
 
 log = logging.getLogger('rasterio._gdal')
 log.setLevel(logging.DEBUG)
@@ -102,10 +104,19 @@ class GeoRaster2TestGetTile(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        path = os.path.join('./', 'test_raster.tif')
+        cls.temp_dir = tempfile.TemporaryDirectory()
+        path = os.path.join(cls.temp_dir.name, 'test_raster.tif')
         if not os.path.isfile(path):
             cls.raster_for_test().save(path)
         cls.read_only_vgr = GeoRaster2.open(path)
+        path = os.path.join(cls.temp_dir.name, 'small_test_raster.tif')
+        if not os.path.isfile(path):
+            cls.raster_small_for_test().save(path)
+        cls.small_read_only_vgr = GeoRaster2.open(path)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp_dir.cleanup()
 
     @classmethod
     def raster_for_test(cls):
@@ -115,8 +126,18 @@ class GeoRaster2TestGetTile(TestCase):
                                         0.0, -1.0000599330133702, 4594461.485763356),
                           crs={'init': 'epsg:3857'})
 
+    @classmethod
+    def raster_small_for_test(cls):
+        return GeoRaster2(np.random.uniform(0, 256, (3, 391, 370)),
+                          affine=Affine(1.0000252884112817, 0.0, 2653750.345511198,
+                                        0.0, -1.0000599330133702, 4594461.485763356),
+                          crs={'init': 'epsg:3857'})
+
     def read_only_virtual_geo_raster(self):
         return self.read_only_vgr
+
+    def small_read_only_virtual_geo_raster(self):
+        return self.small_read_only_vgr
 
     def test_geo_bounding_tile(self):
         gr = self.raster_for_test()
@@ -147,11 +168,11 @@ class GeoRaster2TestGetTile(TestCase):
             self.assertEqual(r.image.shape, (3, 256, 256))
 
     def test_get_entire_all_raster(self):
-        vr = self.read_only_virtual_geo_raster()
+        vr = self.small_read_only_virtual_geo_raster()
         r = vr.get_tile(2319, 1578, 12, blocksize=None)
         self.assertFalse((r.image.data == 0).all())
         self.assertFalse((r.image.mask).all())
-        self.assertEqual(r.image.shape, (3, 9784, 9784))
+        self.assertEqual(r.shape, (3, 9784, 9784))
 
     def test_fails_with_empty_raster_for_tile_out_of_raster_area_with_no_tile_size(self):
         vr = self.read_only_virtual_geo_raster()
