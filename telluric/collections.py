@@ -264,7 +264,6 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         tiled_features = list(self.executer.map(_get_tiled_feature,
                                                 filtered_fc,
                                                 timeout=CONCURRENCY_TIMEOUT))
-        # tiled_features = list(_get_tiled_feature(f) for f in filtered_fc)
 
         # tiled_features can be sort for different merge strategies
         if sort_by is not None:
