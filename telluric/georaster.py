@@ -1,5 +1,4 @@
 import json
-import copy
 import os
 import io
 from functools import reduce, partial
@@ -7,7 +6,7 @@ from typing import Callable, Union, Iterable, Dict
 from enum import Enum
 
 import tempfile
-from copy import deepcopy
+from copy import copy, deepcopy
 
 import math
 
@@ -333,12 +332,12 @@ class GeoRaster2(WindowMethodsMixin):
         """
         self._image = None
         self._band_names = None
-        self._affine = copy.deepcopy(affine)
-        self._crs = CRS(copy.copy(crs)) if crs else None  # type: Union[None, CRS]
-        self._shape = copy.copy(shape)
-        self._filename = copy.copy(filename)
+        self._affine = deepcopy(affine)
+        self._crs = CRS(copy(crs)) if crs else None  # type: Union[None, CRS]
+        self._shape = copy(shape)
+        self._filename = filename
         if band_names:
-            self._set_bandnames(copy.copy(band_names))
+            self._set_bandnames(copy(band_names))
         if image is not None:
             self._set_image(image.copy(), nodata)
             self._dtype = np.dtype(image.dtype)
@@ -433,8 +432,8 @@ class GeoRaster2(WindowMethodsMixin):
 
     def _populate_from_rasterio_object(self, read_image):
         with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
-            self._affine = copy.copy(raster.transform)
-            self._crs = copy.copy(raster.crs)
+            self._affine = copy(raster.transform)
+            self._crs = copy(raster.crs)
             self._dtype = np.dtype(raster.dtypes[0])
 
             # if band_names not provided, try read them from raster tags.
@@ -451,7 +450,7 @@ class GeoRaster2(WindowMethodsMixin):
                 image = np.ma.masked_array(raster.read(), ~raster.read_masks()).copy()
                 self._set_image(image)
             else:
-                self._set_shape(copy.copy((raster.count, raster.shape[0], raster.shape[1])))
+                self._set_shape((raster.count, raster.shape[0], raster.shape[1]))
 
     @classmethod
     def tags(cls, filename, namespace=None):
