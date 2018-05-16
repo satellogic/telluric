@@ -20,7 +20,7 @@ from telluric.plotting import NotebookPlottingMixin
 from telluric.rasterization import rasterize
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.georaster import merge_all
+from telluric.georaster import merge_all, mercator_zoom_to_resolution
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -226,6 +226,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
 
+    executer = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+
     def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None):
         """Generate mercator tile from rasters in FeatureCollection.
 
@@ -259,10 +261,9 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         def _get_tiled_feature(feature):
             return feature.get_tiled_feature(x, y, z, bands)
 
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executer:
-            tiled_features = list(executer.map(_get_tiled_feature,
-                                               filtered_fc,
-                                               timeout=CONCURRENCY_TIMEOUT))
+        tiled_features = list(self.executer.map(_get_tiled_feature,
+                                                filtered_fc,
+                                                timeout=CONCURRENCY_TIMEOUT))
 
         # tiled_features can be sort for different merge strategies
         if sort_by is not None:
@@ -272,7 +273,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
         tiles = [f['tile'] for f in tiled_features]
         if tiles:
-            tile = merge_all(tiles, roi)
+            resolution = mercator_zoom_to_resolution[z]
+            tile = merge_all(tiles, roi, dest_resolution=resolution)
             return tile
         else:
             return None
