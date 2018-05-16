@@ -5,7 +5,7 @@ import numpy as np
 import shapely.geometry
 from shapely.geometry import (
     shape as to_shape,
-    Point, MultiPoint, Polygon, MultiPolygon, LineString, MultiLineString,
+    Point, MultiPoint, Polygon, LineString, MultiLineString,
     CAP_STYLE,
     mapping)
 
@@ -391,7 +391,12 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
 
     def __eq__(self, other):
         """ invariant to crs and topology."""
-        return self.equals(other)
+        # Explicitly include method here instead of in GEOM_BINARY_PREDICATES,
+        # otherwise the delegation won't happen
+        return (
+            self.crs == other.crs
+            and self._shape.__eq__(other.get_shape(self.crs))
+        )
 
     def __str__(self):
         return '{cls}(shape={shape}, crs={crs})'.format(

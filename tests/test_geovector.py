@@ -457,7 +457,8 @@ def test_polygonize_line_square_cap_style():
 
     result = line.polygonize(1, cap_style_line=CAP_STYLE.square)
 
-    assert result == expected_result
+    # Don't use result == expected_result as topology might be different
+    assert result.equals(expected_result)
 
 
 def test_polygonize_point():
