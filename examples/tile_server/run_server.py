@@ -27,7 +27,7 @@ feature = tl.GeoFeature(footprint, {'raster_url': url})
 feature.crs
 
 features = []
-for i in range(1):
+for i in range(50):
     url = prepare_url(cog_url)
     features.append(tl.GeoFeature(footprint, {'raster_url': url}))
 fc = tl.FeatureCollection(features)

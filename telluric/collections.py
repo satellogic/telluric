@@ -13,14 +13,14 @@ from shapely.ops import cascaded_union
 from shapely.prepared import prep
 
 import mercantile
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
 from telluric.rasterization import rasterize
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.georaster import merge_all
+from telluric.georaster import merge_all, GeoRaster2IOError
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -226,6 +226,24 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
 
+    @classmethod
+    def _get_tiled_feature(cls, feature_ser):
+            import time
+            [x,y,z,bands,feature] =  feature_ser
+            feature = GeoFeature.from_record(feature, WEB_MERCATOR_CRS)
+            t0 = time.time()
+            try:
+               ret_value = feature.get_tiled_feature(x, y, z, bands)
+            except GeoRaster2IOError:
+               print("first try")
+               ret_value = feature.get_tiled_feature(x, y, z, bands)
+            t1 = time.time()
+            total = t1-t0
+            print(total)
+            return ret_value
+
+
+
     def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None):
         """Generate mercator tile from rasters in FeatureCollection.
 
@@ -255,14 +273,18 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                                     crs=WEB_MERCATOR_CRS)
 
         filtered_fc = self.filter(roi)
-
-        def _get_tiled_feature(feature):
-            return feature.get_tiled_feature(x, y, z, bands)
+        import time
+        t0 = time.time()
+        serialized_fc = [[x,y,z,bands,f.to_record(WEB_MERCATOR_CRS)] for f in filtered_fc]
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executer:
-            tiled_features = list(executer.map(_get_tiled_feature,
-                                               filtered_fc,
+            tiled_features = list(executer.map(BaseCollection._get_tiled_feature,
+                                               serialized_fc,
                                                timeout=CONCURRENCY_TIMEOUT))
+
+        t1 = time.time()
+        total = t1-t0
+        print("fetching a tile")
 
         # tiled_features can be sort for different merge strategies
         if sort_by is not None:
