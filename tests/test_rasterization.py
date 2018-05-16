@@ -12,7 +12,7 @@ from telluric.georaster import GeoRaster2
 from telluric.collections import FeatureCollection
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS
 
-from telluric.rasterization import ScaleError
+from telluric.rasterization import ScaleError, rasterize
 
 
 def test_rasterization_raise_error_for_too_small_image():
@@ -117,3 +117,41 @@ def test_rasterization_point_single_pixel():
 
     assert_array_equal(result.data, expected_image.data)
     assert_array_equal(result.mask, expected_image.mask)
+
+
+@pytest.mark.parametrize("fill_value,dtype", [
+    (1, np.uint8),
+    (0, np.uint8),
+    (256, np.uint16),
+    (1.0, np.float32),
+    (1.5, np.float32),
+    (0.0, np.float32),
+    (256.0, np.float32)
+])
+def test_rasterization_function_user_dtype(fill_value, dtype):
+    resolution = 1
+
+    line = GeoVector.from_bounds(xmin=2, ymin=0, xmax=3, ymax=3, crs=DEFAULT_CRS)
+    roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=5, ymax=5, crs=DEFAULT_CRS)
+
+    fc = FeatureCollection.from_geovectors([line])
+
+    expected_data = np.zeros((5, 5), dtype=dtype)
+    expected_data[2:, 2] = fill_value
+    expected_mask = np.ones((5, 5), dtype=bool)
+    expected_mask[2:, 2] = False
+    expected_image = np.ma.masked_array(
+        expected_data,
+        expected_mask
+    )
+
+    expected_affine = Affine(1.0, 0.0, 0.0, 0.0, -1.0, 5.0)
+
+    expected_crs = DEFAULT_CRS
+
+    expected_result = GeoRaster2(expected_image, expected_affine, expected_crs)
+
+    result = rasterize([feat.get_shape(DEFAULT_CRS) for feat in fc], DEFAULT_CRS, roi.get_shape(DEFAULT_CRS),
+                       resolution, fill_value=fill_value, dtype=dtype)
+
+    assert result == expected_result
