@@ -5,6 +5,10 @@ python:
   - "3.6"
   - "nightly"
 
+branches:
+  only:
+  - master
+
 matrix:
   allow_failures:
   - python: "nightly"
