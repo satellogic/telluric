@@ -15,7 +15,7 @@ from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.collections import FeatureCollection, FileCollection, FeatureCollectionIOError
-from telluric.georaster import GeoRaster2, merge_all
+from telluric.georaster import GeoRaster2, merge_all, mercator_zoom_to_resolution
 
 
 def fc_generator(num_features):
@@ -309,7 +309,9 @@ def test_get_tile_merge_tiles(tile):
     eroi = GeoVector.from_bounds(xmin=bounds.left, xmax=bounds.right,
                                  ymin=bounds.bottom, ymax=bounds.top,
                                  crs=WEB_MERCATOR_CRS)
-    expected_tile = merge_all([raster1.get_tile(*tile), raster2.get_tile(*tile)], roi=eroi)
+    expected_tile = merge_all([raster1.get_tile(*tile), raster2.get_tile(*tile)],
+                              roi=eroi,
+                              dest_resolution=mercator_zoom_to_resolution[tile[2]])
     merged = fc.get_tile(*tile, sort_by='created')
     if merged is not None:
         assert merged == expected_tile
