@@ -34,6 +34,7 @@ GEOM_BINARY_OPERATIONS = [
 GEOM_UNARY_OPERATIONS = [
     'buffer',
     'simplify',
+    'geoms',
 ]
 
 GEOM_UNARY_PREDICATES = [
