@@ -16,8 +16,10 @@ def prepare_url(url):
         url = azure.generate_url(dsn.host, dsn.path.lstrip("/"), expire=6000)
         urlf = furl(url)
         urlf.args["tt"] = arrow.now().isoformat()
+        urlf.args["timeout"] = 30
+        url = urlf.url
         print(url)
-        return urlf.url
+        return url
 
 
 url = prepare_url(cog_url)
