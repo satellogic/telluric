@@ -169,6 +169,9 @@ def test_collection_slicing(fc):
     assert fc[:3:-1] == FeatureCollection(features[:3:-1])
     assert fc[5:1:-2] == FeatureCollection(features[5:1:-2])
 
+    # Slicing should return another FeatureCollection
+    assert type(fc[:]) is FeatureCollection
+
 
 @mock.patch('telluric.collections.rasterize')
 def test_rasterize_without_bounds(mock_rasterize):
