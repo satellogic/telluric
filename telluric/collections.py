@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
-from telluric.rasterization import rasterize
+from telluric.rasterization import rasterize, NODATA_DEPRECATION_WARNING
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.georaster import merge_all, mercator_zoom_to_resolution
@@ -141,8 +141,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         """
         return FeatureCollection(map_function(x) for x in self)
 
-    def rasterize(self, dest_resolution, polygonize_width=0, crs=WEB_MERCATOR_CRS, fill_value=None,
-                  nodata_value=None, bounds=None, **polygonize_kwargs):
+    def rasterize(self, dest_resolution, *, polygonize_width=0, crs=WEB_MERCATOR_CRS, fill_value=None,
+                  bounds=None, **polygonize_kwargs):
         """Binarize a FeatureCollection and produce a raster with the target resolution.
 
         Parameters
@@ -167,6 +167,9 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         if not isinstance(polygonize_width, int):
             raise TypeError("The width in pixels must be an integer")
 
+        if polygonize_kwargs.pop("nodata_value", None):
+            warnings.warn(NODATA_DEPRECATION_WARNING, DeprecationWarning)
+
         # If the pixels width is 1, render points as squares to avoid missing data
         if polygonize_width == 1:
             polygonize_kwargs.update(cap_style_point=CAP_STYLE.square)
@@ -187,7 +190,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         elif isinstance(bounds, GeoVector):
             bounds = bounds.get_shape(crs)
 
-        return rasterize(shapes, crs, bounds, dest_resolution, fill_value, nodata_value)
+        return rasterize(shapes, crs, bounds, dest_resolution, fill_value=fill_value)
 
     def plot(self, mp=None, max_plot_rows=200, **plot_kwargs):
         if len(self) > max_plot_rows:

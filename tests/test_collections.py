@@ -242,13 +242,13 @@ def test_collection_slicing(fc):
 @mock.patch('telluric.collections.rasterize')
 def test_rasterize_without_bounds(mock_rasterize):
     fc = fc_generator(num_features=1)
-    fc.rasterize(dest_resolution=0.1, crs=DEFAULT_CRS, fill_value=29, nodata_value=-19)
+    fc.rasterize(dest_resolution=0.1, crs=DEFAULT_CRS, fill_value=29)
     f = next(iter(fc))
     expected_shape = [f.geometry.get_shape(f.geometry.crs)]
     expected_bounds = f.geometry.get_shape(f.geometry.crs)
     mock_rasterize.assert_called_with(expected_shape, DEFAULT_CRS,
                                       expected_bounds, 0.1,
-                                      29, -19)
+                                      fill_value=29)
 
 
 @mock.patch('telluric.collections.rasterize')
@@ -261,7 +261,7 @@ def test_rasterize_with_geovector_bounds(mock_rasterize):
     expected_shape = [f.geometry.get_shape(f.geometry.crs)]
     mock_rasterize.assert_called_with(expected_shape, DEFAULT_CRS,
                                       expected_bounds, 0.00001,
-                                      None, None)
+                                      fill_value=None)
 
 
 @mock.patch('telluric.collections.rasterize')
@@ -274,7 +274,7 @@ def test_rasterize_with_polygon_bounds(mock_rasterize):
     expected_shape = [f.geometry.get_shape(f.geometry.crs)]
     mock_rasterize.assert_called_with(expected_shape, DEFAULT_CRS,
                                       expected_bounds, 0.00001,
-                                      None, None)
+                                      fill_value=None)
 
 
 def test_file_collection_open():

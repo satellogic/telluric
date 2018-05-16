@@ -70,7 +70,7 @@ def test_rasterization_of_line_simple():
 
     expected_result = GeoRaster2(expected_image, expected_affine, expected_crs)
 
-    result = fc.rasterize(resolution, pixels_width, crs=DEFAULT_CRS, bounds=roi)
+    result = fc.rasterize(resolution, polygonize_width=pixels_width, crs=DEFAULT_CRS, bounds=roi)
 
     assert result == expected_result
 
@@ -94,7 +94,7 @@ def test_rasterization_of_line_has_correct_pixel_width(resolution):
 
     expected_result = GeoRaster2(expected_image, expected_affine, expected_crs)
 
-    result = fc.rasterize(resolution, pixels_width, crs=DEFAULT_CRS, bounds=roi)
+    result = fc.rasterize(resolution, polygonize_width=pixels_width, crs=DEFAULT_CRS, bounds=roi)
 
     assert result == expected_result
 
@@ -113,7 +113,7 @@ def test_rasterization_point_single_pixel():
 
     roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=5, ymax=5, crs=WEB_MERCATOR_CRS)
 
-    result = fc.rasterize(1, 1, bounds=roi).image
+    result = fc.rasterize(1, polygonize_width=1, bounds=roi).image
 
     assert_array_equal(result.data, expected_image.data)
     assert_array_equal(result.mask, expected_image.mask)

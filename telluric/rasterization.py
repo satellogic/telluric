@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 
 from affine import Affine, TransformNotInvertibleError
@@ -12,17 +14,27 @@ NODATA_VALUE = 0
 # FILL_VALUE = np.iinfo(DTYPE).max
 FILL_VALUE = 1
 
+NODATA_DEPRECATION_WARNING = ("Passing nodata_value to rasterize is not supported anymore. "
+                              "An appropriate nodata value will be generated, depending on the fill value(s).")
+
 
 class ScaleError(ValueError):
     pass
 
 
-def rasterize(shapes, crs, bounds, dest_resolution, fill_value=None, nodata_value=None,
-              band_names=None, dtype=np.uint8):
+def rasterize(shapes, crs, bounds, dest_resolution, *, fill_value=None,
+              band_names=None, dtype=np.uint8, **kwargs):
     if fill_value is None:
         fill_value = FILL_VALUE
-    if nodata_value is None:
-        nodata_value = NODATA_VALUE
+
+    nodata_value = kwargs.get('nodata_value', NODATA_VALUE)
+    if nodata_value is not None:
+        warnings.warn(NODATA_DEPRECATION_WARNING, DeprecationWarning)
+
+    # We do not want to use a nodata value that the user is explicitly asking for,
+    # so in this case we use the complement
+    if nodata_value == fill_value:
+        nodata_value = ~np.array(NODATA_VALUE, dtype=dtype)
 
     if band_names is None:
         band_names = [1]
