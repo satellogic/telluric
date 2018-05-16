@@ -284,7 +284,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
         t1 = time.time()
         total = t1-t0
-        print("fetching a tile")
+        print("fetching a tile", total)
 
         # tiled_features can be sort for different merge strategies
         if sort_by is not None:
