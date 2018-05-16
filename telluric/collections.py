@@ -20,7 +20,7 @@ from telluric.plotting import NotebookPlottingMixin
 from telluric.rasterization import rasterize
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.georaster import merge_all, GeoRaster2IOError
+from telluric.georaster import merge_all, GeoRaster2IOError, mercator_zoom_to_resolution
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -243,6 +243,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             return ret_value
 
 
+    executer = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
     def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None):
         """Generate mercator tile from rasters in FeatureCollection.
@@ -277,10 +278,9 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         t0 = time.time()
         serialized_fc = [[x,y,z,bands,f.to_record(WEB_MERCATOR_CRS)] for f in filtered_fc]
 
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executer:
-            tiled_features = list(executer.map(BaseCollection._get_tiled_feature,
-                                               serialized_fc,
-                                               timeout=CONCURRENCY_TIMEOUT))
+        tiled_features = list(executer.map(BaseCollection._get_tiled_feature,
+                                           serialized_fc,
+                                        timeout=CONCURRENCY_TIMEOUT))
 
         t1 = time.time()
         total = t1-t0
@@ -294,7 +294,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
         tiles = [f['tile'] for f in tiled_features]
         if tiles:
-            tile = merge_all(tiles, roi)
+            resolution = mercator_zoom_to_resolution[z]
+            tile = merge_all(tiles, roi, dest_resolution=resolution)
             return tile
         else:
             return None
@@ -325,6 +326,8 @@ class FeatureCollection(BaseCollection):
         yield from self._results
 
     def __getitem__(self, index):
+        if isinstance(index, slice):
+            return self.__class__(self._results[index])
         return self._results[index]
 
     @property

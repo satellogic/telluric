@@ -6,11 +6,10 @@ from typing import Callable, Union, Iterable, Dict
 from enum import Enum
 
 import tempfile
-from copy import deepcopy
+from copy import copy, deepcopy
 
 import math
 
-import dsnparse
 import mercantile
 
 import warnings
@@ -333,14 +332,14 @@ class GeoRaster2(WindowMethodsMixin):
         """
         self._image = None
         self._band_names = None
-        self._affine = affine
-        self._crs = CRS(crs) if crs else None  # type: Union[None, CRS]
-        self._shape = shape
+        self._affine = deepcopy(affine)
+        self._crs = CRS(copy(crs)) if crs else None  # type: Union[None, CRS]
+        self._shape = copy(shape)
         self._filename = filename
         if band_names:
-            self._set_bandnames(band_names)
+            self._set_bandnames(copy(band_names))
         if image is not None:
-            self._set_image(image, nodata)
+            self._set_image(image.copy(), nodata)
             self._dtype = np.dtype(image.dtype)
         else:
             self._dtype = None
@@ -433,8 +432,8 @@ class GeoRaster2(WindowMethodsMixin):
 
     def _populate_from_rasterio_object(self, read_image):
         with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
-            self._affine = raster.transform
-            self._crs = raster.crs
+            self._affine = copy(raster.transform)
+            self._crs = copy(raster.crs)
             self._dtype = np.dtype(raster.dtypes[0])
 
             # if band_names not provided, try read them from raster tags.
@@ -448,7 +447,7 @@ class GeoRaster2(WindowMethodsMixin):
                         pass
 
             if read_image:
-                image = np.ma.masked_array(raster.read(), ~raster.read_masks())
+                image = np.ma.masked_array(raster.read(), ~raster.read_masks()).copy()
                 self._set_image(image)
             else:
                 self._set_shape((raster.count, raster.shape[0], raster.shape[1]))
@@ -808,17 +807,7 @@ class GeoRaster2(WindowMethodsMixin):
 
         return GeoRaster2(**init_args)
 
-    def deepcopy_with(self, **kwargs):
-        """Get a copy of this GeoRaster with some attributes changed."""
-        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names}
-        init_args.update(kwargs)
-
-        # The image is a special case because we don't want to make a copy of a possibly big array
-        # unless totally necessary
-        if 'image' not in init_args:
-            init_args['image'] = self.image.copy()
-
-        return GeoRaster2(**init_args)
+    deepcopy_with = copy_with
 
     def __copy__(self):
         return self.copy_with()
@@ -1407,7 +1396,6 @@ class GeoRaster2(WindowMethodsMixin):
         xratio, yratio = self._get_widow_calculate_resize_ratio(xsize, ysize, window)
         bands = bands or list(range(1, self.num_bands + 1))
         out_shape = self._get_window_out_shape(bands, xratio, yratio, window)
-
         # if window and raster dont intersect return an empty raster in the requested size
         if not self._window_intersects_with_raster(window):
             array = np.zeros(out_shape, dtype=self._dtype)
@@ -1418,7 +1406,6 @@ class GeoRaster2(WindowMethodsMixin):
 
         # requested_out_shape and out_shape are different for out of bounds window
         requested_out_shape = self._get_window_out_shape(bands, xratio, yratio, requested_window)
-
         try:
             read_params = {
                 "window": requested_window,
@@ -1430,7 +1417,6 @@ class GeoRaster2(WindowMethodsMixin):
 
             rasterio_env = {
                 'GDAL_DISABLE_READDIR_ON_OPEN': True,
-                'GDAL_FORCE_CACHING': True
             }   # type: Dict
             if self._filename.split('.')[-1] == 'tif':
                 rasterio_env['CPL_VSIL_CURL_ALLOWED_EXTENSIONS'] = '.tif'
@@ -1446,11 +1432,12 @@ class GeoRaster2(WindowMethodsMixin):
                 )
                 xmin, ymin = self._get_window_origin(xratio, yratio, window)
                 out_array[:, ymin: ymin + array.shape[-2], xmin: xmin + array.shape[-1]] = array[:, :, :]
-                array = out_array
+                array = out_array.copy()
 
             affine = self._calculate_new_affine(window, out_shape[2], out_shape[1])
 
-            return self.copy_with(image=array, affine=affine)
+            raster = self.copy_with(image=array, affine=affine)
+            return raster
 
         except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_HttpResponseError) as e:
             raise GeoRaster2IOError(e)
