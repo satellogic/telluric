@@ -278,7 +278,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         t0 = time.time()
         serialized_fc = [[x,y,z,bands,f.to_record(WEB_MERCATOR_CRS)] for f in filtered_fc]
 
-        tiled_features = list(executer.map(BaseCollection._get_tiled_feature,
+        tiled_features = list(self.executer.map(BaseCollection._get_tiled_feature,
                                            serialized_fc,
                                         timeout=CONCURRENCY_TIMEOUT))
 
