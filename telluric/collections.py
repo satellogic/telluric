@@ -182,15 +182,12 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                   if not feature.is_empty]
 
         if bounds is None:
-            bounds = self.convex_hull.get_shape(crs)
+            bounds = self.envelope
 
         if bounds.area == 0.0:
             raise ValueError("Specify non-empty ROI")
 
-        elif isinstance(bounds, GeoVector):
-            bounds = bounds.get_shape(crs)
-
-        return rasterize(shapes, crs, bounds, dest_resolution, fill_value=fill_value)
+        return rasterize(shapes, crs, bounds.get_shape(crs), dest_resolution, fill_value=fill_value)
 
     def plot(self, mp=None, max_plot_rows=200, **plot_kwargs):
         if len(self) > max_plot_rows:
