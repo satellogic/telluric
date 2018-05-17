@@ -20,7 +20,7 @@ from telluric.plotting import NotebookPlottingMixin
 from telluric.rasterization import rasterize, NODATA_DEPRECATION_WARNING
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.georaster import merge_all, mercator_zoom_to_resolution
+from telluric.georaster import merge_all, mercator_zoom_to_resolution, MergeStrategy
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -153,8 +153,10 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             Width for the polygonized features (lines and points) in pixels, default to 0 (they won't appear).
         crs : ~rasterio.crs.CRS, dict (optional)
             Coordinate system, default to :py:data:`telluric.constants.WEB_MERCATOR_CRS`.
-        fill_value : float, optional
+        fill_value : float or function, optional
             Value that represents data, default to None (will default to :py:data:`telluric.rasterization.FILL_VALUE`.
+            If given a function, it must accept a single :py:class:`~telluric.features.GeoFeature` and return a numeric
+            value.
         nodata_value : float, optional
             Nodata value, default to None (will default to :py:data:`telluric.rasterization.NODATA_VALUE`.
         bounds : GeoVector, optional
@@ -187,7 +189,17 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         if bounds.area == 0.0:
             raise ValueError("Specify non-empty ROI")
 
-        return rasterize(shapes, crs, bounds.get_shape(crs), dest_resolution, fill_value=fill_value)
+        if callable(fill_value):
+            rasters = []
+            for feature in self:
+                rasters.append(feature.geometry.rasterize(
+                    dest_resolution, fill_value=fill_value(feature), bounds=bounds)
+                )
+
+            return merge_all(rasters, bounds, dest_resolution, merge_strategy=MergeStrategy.INTERSECTION)
+
+        else:
+            return rasterize(shapes, crs, bounds.get_shape(crs), dest_resolution, fill_value=fill_value)
 
     def plot(self, mp=None, max_plot_rows=200, **plot_kwargs):
         if len(self) > max_plot_rows:

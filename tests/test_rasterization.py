@@ -10,7 +10,7 @@ from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.georaster import GeoRaster2
 from telluric.collections import FeatureCollection
-from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS
+from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 
 from telluric.rasterization import ScaleError, rasterize
 
@@ -155,3 +155,36 @@ def test_rasterization_function_user_dtype(fill_value, dtype):
                        resolution, fill_value=fill_value, dtype=dtype)
 
     assert result == expected_result
+
+
+def test_rasterization_function():
+    sq1 = GeoFeature(
+        GeoVector.from_bounds(xmin=0, ymin=2, xmax=1, ymax=3, crs=WGS84_CRS),
+        {'value': 1.0}
+    )
+    sq2 = GeoFeature(
+        GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=2, crs=WGS84_CRS),
+        {'value': 2.0}
+    )
+    fc = FeatureCollection([sq1, sq2])
+
+    def func(feat):
+        return feat['value']
+
+    expected_image = np.ma.masked_array(
+        [[
+            [1.0, 0.0, 0.0],
+            [0.0, 2.0, 2.0],
+            [0.0, 2.0, 2.0]
+        ]],
+        [
+            [False, True, True],
+            [True, False, False],
+            [True, False, False],
+        ]
+    )
+
+    result = fc.rasterize(1.0, fill_value=func, crs=WGS84_CRS)
+
+    assert_array_equal(result.image.mask, expected_image.mask)
+    assert_array_equal(result.image.data, expected_image.data)
