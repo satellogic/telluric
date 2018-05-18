@@ -34,7 +34,6 @@ GEOM_BINARY_OPERATIONS = [
 GEOM_UNARY_OPERATIONS = [
     'buffer',
     'simplify',
-    'geoms',
 ]
 
 GEOM_UNARY_PREDICATES = [
@@ -318,6 +317,10 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
     @property
     def area(self):
         return self.get_shape(EQUAL_AREA_CRS).area
+
+    @property
+    def geoms(self):
+        return [GeoVector(g, self.crs) for g in self._shape.geoms]
 
     @property
     def type(self):
