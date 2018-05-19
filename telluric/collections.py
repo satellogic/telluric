@@ -319,9 +319,27 @@ class FeatureCollection(BaseCollection):
         for feat in self:
             attribute_names_set = attribute_names_set.union(feat.attributes)
 
-        # TODO: Use proper types
+        # make type mapping based on the first feature
+        attr_types_map = dict([
+            (attr_name, type(self[0].get(attr_name)))
+            for attr_name in attribute_names_set])
+
+        for feat in self:
+            for attr_name, attr_value in feat.items():
+                if attr_value is not None:
+                    if isinstance(None, attr_types_map[attr_name]):
+                        attr_types_map[attr_name] = type(attr_value)
+                    if not isinstance(attr_value, attr_types_map[attr_name]):
+                        raise FeatureCollectionIOError(
+                            "Cannot generate a schema for a heterogeneous FeatureCollection. "
+                            "Please convert all the appropriate properties to the same type."
+                        )
+
+        fiona_field_types_map = dict([
+            (v, k) for k, v in fiona.FIELD_TYPES_MAP.items()])
         properties = {
-            k: 'str' for k in list(attribute_names_set)
+            k: fiona_field_types_map.get(v) or 'str'
+            for k, v in attr_types_map.items()
         }
 
         return properties
