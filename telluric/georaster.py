@@ -99,9 +99,12 @@ def merge_all(rasters, roi, dest_resolution=None, merge_strategy=MergeStrategy.U
         dest_resolution = rasters[0].resolution()
 
     # Create empty raster
-    empty = GeoRaster2.empty_from_roi(
-        roi, resolution=dest_resolution, band_names=rasters[0].band_names,
-        dtype=rasters[0].dtype)
+    if roi.almost_equals(rasters[0].footprint()) and (dest_resolution == rasters[0].resolution()):
+        empty = GeoRaster2.empty_from_raster(rasters[0])
+    else:
+        empty = GeoRaster2.empty_from_roi(
+            roi, resolution=dest_resolution, band_names=rasters[0].band_names,
+            dtype=rasters[0].dtype)
 
     # Perform merge
     func = partial(merge_to_first,
@@ -429,6 +432,14 @@ class GeoRaster2(WindowMethodsMixin):
 
         return rasterization.rasterize([], roi.crs, roi.get_shape(roi.crs),
                                        resolution, band_names=band_names, dtype=dtype)
+
+    @classmethod
+    def empty_from_raster(cls, raster):
+        from telluric import rasterization
+        image = raster.image.copy()
+        image = np.full(image.shape, rasterization.NODATA_VALUE, dtype=image.dtype)
+        return raster.copy_with(image=image)
+
 
     def _populate_from_rasterio_object(self, read_image):
         with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
