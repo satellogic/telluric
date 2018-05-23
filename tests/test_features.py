@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
 import pytest
-from datetime import datetime
+from datetime import time, date, datetime
 import json
 
 from shapely.geometry import Point, Polygon, LineString, mapping
@@ -11,7 +11,7 @@ from telluric.vectors import (
     GEOM_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
 
-from telluric.features import GeoFeature
+from telluric.features import transform_attributes, GeoFeature
 
 
 def test_geofeature_initializer():
@@ -190,3 +190,26 @@ def test_geofeature_correctly_serializes_non_simple_types():
     ])
 
     assert mapping(feature)['properties'] == expected_properties
+
+
+def test_transform_attributes():
+    schema = {
+        'properties': OrderedDict([
+            ('attr1', 'time'),
+            ('attr2', 'date'),
+            ('attr3', 'datetime'),
+            ('attr4', 'datetime')
+        ])
+    }
+    expected_properties = OrderedDict([
+        ('attr1', time(15, 0, 0)),
+        ('attr2', date(2018, 5, 19)),
+        ('attr3', datetime(2018, 5, 19, 15, 0)),
+        ('attr4', None)
+    ])
+    assert transform_attributes(OrderedDict([
+        ('attr1', '15:00:00'),
+        ('attr2', '2018-05-19'),
+        ('attr3', '2018-05-19T15:00:00'),
+        ('attr4', None)
+    ]), schema) == expected_properties
