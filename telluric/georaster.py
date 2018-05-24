@@ -124,8 +124,7 @@ def _prepare_other_raster(one, other):
 
     return other
 
-
-def _merge(one, other, merge_strategy=MergeStrategy.UNION):
+def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None, out=None):
     if merge_strategy is MergeStrategy.LEFT_ALL:
         # If the bands are not the same, return one
         try:
@@ -137,7 +136,8 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION):
 
     elif merge_strategy is MergeStrategy.INTERSECTION:
         # https://stackoverflow.com/a/23529016/554319
-        common_bands = [band for band in one.band_names if band in set(other.band_names)]
+        if common_bands is None:
+            common_bands = [band for band in one.band_names if band in set(other.band_names)]
 
         # We raise an error in the intersection is empty.
         # Other options include returning an "empty" raster or just None.
@@ -178,7 +178,12 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION):
         # new_image[other_values_mask] = other_image[other_values_mask]
         # but here the word "mask" does not mean the same as in masked arrays.
 
-        return one.copy_with(image=new_image, band_names=common_bands)
+        if out is None:
+            out = one.copy_with(image=new_image, band_names=common_bands)
+        else:
+            out._set_image(new_image)
+            out._set_bandnames(common_bands)
+        return out
 
     elif merge_strategy is MergeStrategy.UNION:
         # Join the common bands using the INTERSECTION strategy
@@ -189,8 +194,8 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION):
         # relies on all the dimensions of the mask to be equal
         if common_bands:
             # Merge the common bands by intersection
-            res_common = _merge(one.limit_to_bands(common_bands), other.limit_to_bands(common_bands),
-                                merge_strategy=MergeStrategy.INTERSECTION)
+            res_common = _merge(one, other,
+                                merge_strategy=MergeStrategy.INTERSECTION, common_bands=common_bands, out=out)
             new_bands = res_common.band_names
             all_data = [res_common.image.data]
 
@@ -219,13 +224,17 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION):
             # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks
             new_mask |= other.image.mask[0]
             new_bands = new_bands + other_remaining_bands
-
         new_image = np.ma.MaskedArray(
             np.concatenate(all_data),
-            mask=new_mask[None].repeat(len(new_bands), axis=0) == 1
+            mask=[new_mask]*len(new_bands)
         )
+        if out is None:
+            out = res_common.copy_with(image=new_image, band_names=new_bands)
+        else:
+            out._set_image(new_image)
+            out._set_bandnames(new_bands)
+        return out
 
-        return res_common.copy_with(image=new_image, band_names=new_bands)
 
     else:
         raise ValueError("Use one the strategies available in MergeStrategy instead.")
@@ -278,7 +287,7 @@ def merge_to_first(one, other, merge_strategy=MergeStrategy.UNION):
     if other is None:
         return one
 
-    return _merge(one, other, merge_strategy)
+    return _merge(one, other, merge_strategy, out=one)
 
 
 class GeoRaster2Warning(UserWarning):
