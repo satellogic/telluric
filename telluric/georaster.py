@@ -326,8 +326,7 @@ class GeoRaster2(WindowMethodsMixin):
     * .band_names is list of strings, order corresponding to order in .array
 
     """
-
-    def __init__(self, image=None, affine=None, crs=None, filename=None, band_names=None, nodata=0, shape=None):
+    def __init__(self, image=None, affine=None, crs=None, filename=None, band_names=None, nodata=0, shape=None, footprint=None):
         """Create a GeoRaster object
 
         :param filename: optional path/url to raster file for lazy loading
@@ -345,6 +344,7 @@ class GeoRaster2(WindowMethodsMixin):
         self._crs = CRS(copy(crs)) if crs else None  # type: Union[None, CRS]
         self._shape = copy(shape)
         self._filename = filename
+        self._footprint = copy(footprint)
         if band_names:
             self._set_bandnames(copy(band_names))
         if image is not None:
@@ -1089,9 +1089,17 @@ class GeoRaster2(WindowMethodsMixin):
 
     def footprint(self):
         """Return rectangle in world coordinates, as GeoVector."""
+        if self._footprint is not None:
+            return self._footprint
         corners = [self.corner(corner) for corner in self.corner_types()]
-        shp = Polygon([[corner.get_shape(corner.crs).x, corner.get_shape(corner.crs).y] for corner in corners])
-        return GeoVector(shp, self.crs)
+        coords = []
+        for corner in corners:
+            shape = corner.get_shape(corner.crs)
+            coords.append([shape.x, shape.y])
+
+        shp = Polygon(coords)
+        self._footprint = GeoVector(shp, self.crs)
+        return self._footprint
 
     def area(self):
         return self.footprint().area
