@@ -103,16 +103,16 @@ def merge_all(rasters, roi, dest_resolution=None, merge_strategy=MergeStrategy.U
         roi, resolution=dest_resolution, band_names=rasters[0].band_names,
         dtype=rasters[0].dtype)
 
+    # empty = rasters[0]
+
     # Perform merge
     func = partial(merge_to_first,
                    merge_strategy=merge_strategy)  # type: Callable[[GeoRaster2, GeoRaster2], GeoRaster2]
     return reduce(func, rasters, empty)
 
-
 def _prepare_other_raster(one, other):
     # Crop and reproject the second raster, if necessary
-    if not (one.footprint().almost_equals(other.footprint()) and
-       one.crs == other.crs and one.affine.almost_equals(other.affine)):
+    if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
             other = other.crop(one.footprint(), resolution=one.resolution())
             other = other.reproject(new_width=one.width, new_height=one.height,
