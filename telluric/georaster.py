@@ -151,8 +151,8 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION):
             raise ValueError("rasters have no bands in common, use another merge strategy")
 
         # Change the binary mask to stay "under" the first raster
-        new_image = one.limit_to_bands(common_bands).image.copy()
-        other_image = other.limit_to_bands(common_bands).image.copy()
+        new_image = one.subimage(common_bands).copy()
+        other_image = other.subimage(common_bands)
 
         # The values that I want to mask are the ones that:
         # * Were already masked in the other array, _or_
@@ -1018,7 +1018,7 @@ class GeoRaster2(WindowMethodsMixin):
         """Required for jupyter notebook to show raster."""
         return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, stretch=True)
 
-    def limit_to_bands(self, bands):
+    def subimage(self, bands):
         if isinstance(bands, str):
             bands = [bands]
 
@@ -1028,6 +1028,10 @@ class GeoRaster2(WindowMethodsMixin):
 
         bands_indices = [self.band_names.index(band) for band in bands]
         subimage = self.image[bands_indices, :, :]
+        return subimage
+
+    def limit_to_bands(self, bands):
+        subimage = self.subimage(bands)
         return self.copy_with(image=subimage, band_names=bands)
 
     def num_pixels(self):
