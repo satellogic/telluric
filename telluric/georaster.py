@@ -36,6 +36,8 @@ from telluric.util.projections import transform
 from telluric.util.general import convert_resolution_from_meters_to_deg
 from telluric.util.histogram import stretch_histogram
 
+from telluric.util.raster_utils import convert_to_cog, _calc_overviews_factors, _mask_from_masked_array
+
 with warnings.catch_warnings():  # silences warning, see https://github.com/matplotlib/matplotlib/issues/5836
     warnings.simplefilter("ignore", UserWarning)
     import matplotlib.pyplot as plt
@@ -588,8 +590,8 @@ class GeoRaster2(WindowMethodsMixin):
                         r.write_band(1 + band, img[band, :, :])
 
                     # write mask:
-                    mask = 255 * (~self.image.mask).astype('uint8')
-                    r.write_mask(mask[0, :, :])
+                    mask = _mask_from_masked_array(self.image)
+                    r.write_mask(mask)
 
                     # write tags:
                     r.update_tags(ns="rastile", band_names=json.dumps(self.band_names))
@@ -600,7 +602,7 @@ class GeoRaster2(WindowMethodsMixin):
                     overviews = kwargs.get('overviews', True)
                     resampling = kwargs.get('resampling', Resampling.cubic)
                     if overviews:
-                        factors = kwargs.get('factors', [2, 4, 8, 16, 32, 64, 128])
+                        factors = self._overviews_factors()
                         r.build_overviews(factors, resampling=resampling)
                         r.update_tags(ns='rio_overview', resampling=resampling.name)
 
@@ -1288,20 +1290,13 @@ class GeoRaster2(WindowMethodsMixin):
         return aligned_raster
 
     def _overviews_factors(self, blocksize=256):
-        res = min(self.width, self.height)
-        f = math.floor(math.log(res / blocksize, 2))
-        factors = [2**i for i in range(1, f + 1)]
-        return factors
+        return _calc_overviews_factors(self, blocksize=blocksize)
 
-    def save_cloud_optimized(self, dest_url, blockxsize=256, blockysize=256, aligned_to_mercator=False,
-                             resampling=Resampling.cubic, compress='DEFLATE'):
+    def save_cloud_optimized(self, dest_url, aligned_to_mercator=False):
         """Save as Cloud Optimized GeoTiff object to a new file.
 
         :param dest_url: path to the new raster
-        :param blockxsize: tile x size default 256
-        :param blockysize: tile y size default 256
         :param aligned_to_mercator: if True raster will be aligned to mercator tiles, default False
-        :param compress: compression method, default DEFLATE
         :return: new VirtualGeoRaster of the tiled object
         """
 
@@ -1309,28 +1304,11 @@ class GeoRaster2(WindowMethodsMixin):
             src = self.align_raster_to_mercator_tiles()
         else:
             src = self  # GeoRaster2.open(self._filename)
-        with tempfile.NamedTemporaryFile(suffix='.tif') as tf:
-            creation_options = {
-                'compress': compress,
-                'photometric': 'MINISBLACK'
-            }
-            overviews_factors = src._overviews_factors()
 
-            temp_file_name = tf.name
-            src.save(temp_file_name,
-                     overviews=True,
-                     factors=overviews_factors,
-                     tiled=True, blockxsize=blockxsize, blockysize=blockysize,
-                     creation_options=creation_options
-                     )
-            creation_options = {
-                'COPY_SRC_OVERVIEWS': 'YES',
-                'COMPRESS': compress,
-                'PHOTOMETRIC': 'MINISBLACK',
-                'TILED': 'YES'
-            }
-            with rasterio.open(temp_file_name) as source:
-                rasterio.shutil.copy(source, dest_url, **creation_options)
+        with tempfile.NamedTemporaryFile(suffix='.tif') as tf:
+            src.save(tf.name, overviews=False)
+            convert_to_cog(tf.name, dest_url)
+
         geotiff = GeoRaster2.open(dest_url)
         return geotiff
 
@@ -1417,6 +1395,7 @@ class GeoRaster2(WindowMethodsMixin):
 
             rasterio_env = {
                 'GDAL_DISABLE_READDIR_ON_OPEN': True,
+                'GDAL_TIFF_INTERNAL_MASK_TO_8BIT': False,
             }   # type: Dict
             if self._filename.split('.')[-1] == 'tif':
                 rasterio_env['CPL_VSIL_CURL_ALLOWED_EXTENSIONS'] = '.tif'
@@ -1453,8 +1432,7 @@ class GeoRaster2(WindowMethodsMixin):
         return self.bounds().intersects(window_polygon)
 
     def get_tile(self, x_tile, y_tile, zoom,
-                 bands=None, blocksize=256,
-                 resampling=Resampling.cubic):
+                 bands=None, blocksize=256):
         """Convert mercator tile to raster window.
 
         :param x_tile: x coordinate of tile
@@ -1462,14 +1440,12 @@ class GeoRaster2(WindowMethodsMixin):
         :param zoom: zoom level
         :param bands: list of indices of requested bads, default None which returns all bands
         :param blocksize: tile size  (x & y) default 256, for full resolution pass None
-        :param resampling: which Resampling to use on reading, default Resampling.cubic
         :return: GeoRaster2 of tile
         """
         coordinates = mercantile.xy_bounds(x_tile, y_tile, zoom)
         window = self.window(*coordinates).round_offsets().round_shape(op='ceil')
         return self.get_window(window, bands=bands,
-                               xsize=blocksize, ysize=blocksize,
-                               resampling=resampling)
+                               xsize=blocksize, ysize=blocksize)
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
         new_affine = self.window_transform(window)
