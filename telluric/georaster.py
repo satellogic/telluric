@@ -103,12 +103,12 @@ def merge_all(rasters, roi, dest_resolution=None, merge_strategy=MergeStrategy.U
         roi, resolution=dest_resolution, band_names=rasters[0].band_names,
         dtype=rasters[0].dtype)
 
-    # empty = rasters[0]
+    projected_rasters = [_prepare_other_raster(empty, raster) for raster in rasters]
+    projected_rasters = [raster for raster in projected_rasters if raster is not None]
 
-    # Perform merge
-    func = partial(merge_to_first,
-                   merge_strategy=merge_strategy)  # type: Callable[[GeoRaster2, GeoRaster2], GeoRaster2]
-    return reduce(func, rasters, empty)
+    func = partial(_merge, merge_strategy=merge_strategy )
+    raster = reduce(func, projected_rasters, empty)
+    return empty.copy_with(image=raster.image, band_names=raster.band_names)
 
 def _prepare_other_raster(one, other):
     # Crop and reproject the second raster, if necessary
@@ -124,11 +124,11 @@ def _prepare_other_raster(one, other):
 
     return other
 
-def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None, out=None):
+def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
     if merge_strategy is MergeStrategy.LEFT_ALL:
         # If the bands are not the same, return one
         try:
-            other = other.limit_to_bands(one.band_names)
+            other = Raster(image=other.subimage(one.band_names), band_names=one.band_names)
         except GeoRaster2Error:
             return one
 
@@ -178,12 +178,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None, ou
         # new_image[other_values_mask] = other_image[other_values_mask]
         # but here the word "mask" does not mean the same as in masked arrays.
 
-        if out is None:
-            out = one.copy_with(image=new_image, band_names=common_bands)
-        else:
-            out._set_image(new_image)
-            out._set_bandnames(common_bands)
-        return out
+        return Raster(image=new_image, band_names=common_bands)
 
     elif merge_strategy is MergeStrategy.UNION:
         # Join the common bands using the INTERSECTION strategy
@@ -195,7 +190,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None, ou
         if common_bands:
             # Merge the common bands by intersection
             res_common = _merge(one, other,
-                                merge_strategy=MergeStrategy.INTERSECTION, common_bands=common_bands, out=out)
+                                merge_strategy=MergeStrategy.INTERSECTION, common_bands=common_bands)
             new_bands = res_common.band_names
             all_data = [res_common.image.data]
 
@@ -211,7 +206,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None, ou
         other_remaining_bands = [band for band in other.band_names if band not in set(common_bands)]
 
         if one_remaining_bands:
-            all_data.insert(0, one.limit_to_bands(one_remaining_bands).image.data)
+            all_data.insert(0, one.subimage(one_remaining_bands).data)
             # This is not necessary, as new_mask already includes
             # at least all the values of one.image.mask because it comes
             # either from one or from the intersection of one and other
@@ -219,7 +214,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None, ou
             new_bands = one_remaining_bands + new_bands
 
         if other_remaining_bands:
-            all_data.append(other.limit_to_bands(other_remaining_bands).image.data)
+            all_data.append(other.subimage(other_remaining_bands).data)
             # Apply "or" to the mask in the same way rasterio does, see
             # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks
             new_mask |= other.image.mask[0]
@@ -228,12 +223,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None, ou
             np.concatenate(all_data),
             mask=[new_mask]*len(new_bands)
         )
-        if out is None:
-            out = res_common.copy_with(image=new_image, band_names=new_bands)
-        else:
-            out._set_image(new_image)
-            out._set_bandnames(new_bands)
-        return out
+        return Raster(image=new_image, band_names=new_bands)
 
 
     else:
@@ -261,8 +251,10 @@ def merge(one, other, merge_strategy=MergeStrategy.UNION):
     if other is None:
         raise ValueError("rasters do not intersect")
 
-    return _merge(one, other, merge_strategy)
+    raster = _merge(one, other, merge_strategy)
 
+
+    return one.copy_with(image=raster.image, band_names=raster.band_names)
 
 def merge_to_first(one, other, merge_strategy=MergeStrategy.UNION):
     """Merge the second raster to the first.
@@ -286,8 +278,9 @@ def merge_to_first(one, other, merge_strategy=MergeStrategy.UNION):
     other = _prepare_other_raster(one, other)
     if other is None:
         return one
+    raster = _merge(one, other, merge_strategy)
 
-    return _merge(one, other, merge_strategy, out=one)
+    return one.copy_with(image=raster.image, band_names=raster.band_names)
 
 
 class GeoRaster2Warning(UserWarning):
@@ -311,40 +304,20 @@ class GeoRaster2NotImplementedError(GeoRaster2Error, NotImplementedError):
     """Base class for NotImplementedError in the GeoRaster class. """
     pass
 
-
-class GeoRaster2(WindowMethodsMixin):
+class Raster():
+    """ A class that has image, band_names and shape
     """
-    Represents multiband georeferenced image, supporting nodata pixels.
-    The name "GeoRaster2" is temporary.
 
-    conventions:
-
-    * .array is np.masked_array, mask=True on nodata pixels.
-    * .array is [band, y, x]
-    * .affine is affine.Affine
-    * .crs is rasterio.crs.CRS
-    * .band_names is list of strings, order corresponding to order in .array
-
-    """
-    def __init__(self, image=None, affine=None, crs=None, filename=None, band_names=None, nodata=0, shape=None, footprint=None):
+    def __init__(self, image=None, band_names=None, shape=None, nodata=0):
         """Create a GeoRaster object
 
-        :param filename: optional path/url to raster file for lazy loading
         :param image: optional supported: np.ma.array, np.array, TODO: PIL image
-        :param affine: affine.Affine, or 9 numbers:
-            [step_x, 0, origin_x, 0, step_y, origin_y, 0, 0, 1]
-        :param crs: wkt/epsg code, e.g. {'init': 'epsg:32620'}
         :param band_names: e.g. ['red', 'blue'] or 'red'
         :param shape: raster image shape, optional
-        :param nodata: if provided image is array (not masked array), treat pixels with value=nodata as nodata
         """
         self._image = None
         self._band_names = None
-        self._affine = deepcopy(affine)
-        self._crs = CRS(copy(crs)) if crs else None  # type: Union[None, CRS]
         self._shape = copy(shape)
-        self._filename = filename
-        self._footprint = copy(footprint)
         if band_names:
             self._set_bandnames(copy(band_names))
         if image is not None:
@@ -403,6 +376,61 @@ class GeoRaster2(WindowMethodsMixin):
         if isinstance(band_names, str):  # single band:
             band_names = [band_names]
         self._band_names = list(band_names)
+
+    def subimage(self, bands):
+        if isinstance(bands, str):
+            bands = [bands]
+
+        missing_bands = set(bands) - set(self.band_names)
+        if missing_bands:
+            raise GeoRaster2Error('requested bands %s that are not found in raster' % missing_bands)
+
+        bands_indices = [self.band_names.index(band) for band in bands]
+        subimage = self.image[bands_indices, :, :]
+        return subimage
+
+    @property
+    def band_names(self):
+        return self._band_names or []
+
+    @property
+    def image(self):
+        return self._image
+
+
+
+
+class GeoRaster2(WindowMethodsMixin, Raster):
+    """
+    Represents multiband georeferenced image, supporting nodata pixels.
+    The name "GeoRaster2" is temporary.
+
+    conventions:
+
+    * .array is np.masked_array, mask=True on nodata pixels.
+    * .array is [band, y, x]
+    * .affine is affine.Affine
+    * .crs is rasterio.crs.CRS
+    * .band_names is list of strings, order corresponding to order in .array
+
+    """
+    def __init__(self, image=None, affine=None, crs=None, filename=None, band_names=None, nodata=0, shape=None, footprint=None):
+        """Create a GeoRaster object
+
+        :param filename: optional path/url to raster file for lazy loading
+        :param image: optional supported: np.ma.array, np.array, TODO: PIL image
+        :param affine: affine.Affine, or 9 numbers:
+            [step_x, 0, origin_x, 0, step_y, origin_y, 0, 0, 1]
+        :param crs: wkt/epsg code, e.g. {'init': 'epsg:32620'}
+        :param band_names: e.g. ['red', 'blue'] or 'red'
+        :param shape: raster image shape, optional
+        :param nodata: if provided image is array (not masked array), treat pixels with value=nodata as nodata
+        """
+        super().__init__(image=image, band_names=band_names, shape=shape, nodata=nodata)
+        self._affine = deepcopy(affine)
+        self._crs = CRS(copy(crs)) if crs else None  # type: Union[None, CRS]
+        self._filename = filename
+        self._footprint = copy(footprint)
 
     #  IO:
     @classmethod

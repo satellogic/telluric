@@ -45,14 +45,14 @@ def test_merge_left_all():
         merge_strategy=merge_strategy
     )
 
-    assert result_only_left is raster1_limited
+    assert result_only_left == raster1_limited
 
     result_only_left = merge(
         raster1_limited, raster2.limit_to_bands(["green", "blue"]),
         merge_strategy=merge_strategy
     )
 
-    assert result_only_left is raster1_limited
+    assert result_only_left == raster1_limited
 
 
 def test_merge_intersection():
