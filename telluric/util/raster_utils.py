@@ -16,6 +16,11 @@ def _calc_overviews_factors(one, blocksize=256):
 
 
 def _mask_from_masked_array(data):
+    """Union of mask and converting from boolean to uint8.
+
+    Numpy mask is the invers of the GDAL, True is 0 and False is 255
+    https://github.com/mapbox/rasterio/blob/master/docs/topics/masks.rst#numpy-masked-arrays
+    """
     mask = data.mask[0].copy()
     for i in range(1, len(data.mask)):
         mask = np.logical_or(mask, data.mask[i])
@@ -23,7 +28,7 @@ def _mask_from_masked_array(data):
     return mask
 
 
-def _has_mask(rast):
+def _has_internal_perdataset_mask(rast):
     for flags in rast.mask_flag_enums:
         if MaskFlags.per_dataset in flags:
             return True
@@ -49,7 +54,7 @@ def convert_to_cog(source_file, destination_file):
             temp_file = os.path.join(temp_dir, 'temp.tif')
             rasterio_sh.copy(source_file, temp_file, tiled=True, compress='DEFLATE', photometric='MINISBLACK')
             with rasterio.open(temp_file, 'r+') as dest:
-                if not _has_mask(dest):
+                if not _has_internal_perdataset_mask(dest):
                     mask = dest.dataset_mask()
                     dest.write_mask(mask)
 
@@ -62,4 +67,5 @@ def convert_to_cog(source_file, destination_file):
                     dest.update_tags(**telluric_tags)
 
             rasterio_sh.copy(temp_file, destination_file,
-                    COPY_SRC_OVERVIEWS=True, tiled=True, compress='DEFLATE', photometric='MINISBLACK')
+                             COPY_SRC_OVERVIEWS=True, tiled=True,
+                             compress='DEFLATE', photometric='MINISBLACK')

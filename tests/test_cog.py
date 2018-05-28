@@ -1,4 +1,5 @@
 import os
+import pytest
 import json
 import rasterio
 import numpy as np
@@ -9,7 +10,7 @@ from affine import Affine
 import telluric as tl
 from telluric.constants import WEB_MERCATOR_CRS
 
-from telluric.util.raster_utils import (_calc_overviews_factors, _has_mask,
+from telluric.util.raster_utils import (_calc_overviews_factors, _has_internal_perdataset_mask,
                                         _mask_from_masked_array, convert_to_cog)
 
 
@@ -47,10 +48,10 @@ def test_cog_simple_file():
         with rasterio.open(file_name) as raster:
             data = raster.read()
             assert (image.data == data).all()
-            mask = raster.read_mask()
+            mask = raster.read_masks()
             expected_mask = _mask_from_masked_array(image)
             assert (expected_mask == mask).all()
-            assert _has_mask(raster)
+            assert _has_internal_perdataset_mask(raster)
 
 
 def test_cog_overviews():
@@ -66,15 +67,16 @@ def test_cog_overviews():
         with rasterio.open(dest) as raster:
             data = raster.read()
             assert (image.data == data).all()
-            mask = raster.read_mask()
+            mask = raster.read_masks()
             expected_mask = _mask_from_masked_array(image)
             assert (expected_mask == mask).all()
 
+            # to confirtm that creating a cog remove namespace tags
             assert raster.tags(ns='rio_overview').get('resampling', 'empty') == 'empty'
             for i in raster.indexes:
                 assert raster.overviews(i) == _calc_overviews_factors(raster)
 
-            assert _has_mask(raster)
+            assert _has_internal_perdataset_mask(raster)
 
 
 def test_cog_move_telluric_tags_to_general_tags_space():
@@ -88,3 +90,29 @@ def test_cog_move_telluric_tags_to_general_tags_space():
         convert_to_cog(source, dest)
         tags = tl.GeoRaster2.tags(dest)
         assert(json.loads(tags['telluric_band_names']) == ['red', 'green', 'blue'])
+
+
+@pytest.mark.parametrize('height, factors', [
+                         (800, [2, 4]),
+                         (8000, [2, 4, 8, 16, 32])
+                         ])
+def test_cog_calc_overviews_factors(height, factors):
+        image = sample_raster_image(height=height, width=900)
+        raster = tl.GeoRaster2(image, crs=WEB_MERCATOR_CRS,
+                               affine=base_affine)
+
+        assert(_calc_overviews_factors(raster) == factors)
+
+
+def test_cog_mask_from_masked_array():
+    some_array = np.array([[0, 1, 2], [3, 4, 5]], dtype=np.uint8)
+    mask1 = np.array([[False, False, False], [False, False, True]], dtype=np.bool)
+    mask2 = np.array([[False, False, True], [False, False, True]], dtype=np.bool)
+    mask3 = np.array([[False, True, False], [False, False, True]], dtype=np.bool)
+    masks = np.array([mask1, mask2, mask3])
+    data = np.array([some_array, some_array, some_array])
+
+    image = np.ma.masked_array(data=data, mask=masks)
+
+    expected_mask = np.array([[255, 0, 0], [255, 255, 0]], dtype=np.uint8)
+    assert((_mask_from_masked_array(image) == expected_mask).all())
