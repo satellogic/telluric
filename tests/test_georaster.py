@@ -98,7 +98,8 @@ def test_tags():
         path = os.path.join(folder, 'test.tif')
         some_raster_multiband.save(path, tags={'foo': 'bar'}, factors=default_factors)
 
-        assert GeoRaster2.tags(path) == {'AREA_OR_POINT': 'Area', 'foo': 'bar'}  # namespace=default
+        assert GeoRaster2.tags(path) == {'AREA_OR_POINT': 'Area', 'foo': 'bar',
+                                         'telluric_band_names': '["r", "g", "b"]'}  # namespace=default
         assert GeoRaster2.tags(path, 'IMAGE_STRUCTURE') == {'COMPRESSION': 'LZW', 'INTERLEAVE': 'PIXEL'}
 
 
