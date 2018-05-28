@@ -3,7 +3,7 @@ import math
 import json
 import rasterio
 import numpy as np
-from rasterio import shutil as sh
+from rasterio import shutil as rasterio_sh
 from rasterio.enums import Resampling, MaskFlags
 from tempfile import TemporaryDirectory
 
@@ -47,7 +47,7 @@ def convert_to_cog(source_file, destination_file):
     with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
         with TemporaryDirectory() as temp_dir:
             temp_file = os.path.join(temp_dir, 'temp.tif')
-            sh.copy(source_file, temp_file, tiled=True, compress='DEFLATE', photometric='MINISBLACK')
+            rasterio_sh.copy(source_file, temp_file, tiled=True, compress='DEFLATE', photometric='MINISBLACK')
             with rasterio.open(temp_file, 'r+') as dest:
                 if not _has_mask(dest):
                     mask = dest.dataset_mask()
@@ -61,5 +61,5 @@ def convert_to_cog(source_file, destination_file):
                 if telluric_tags:
                     dest.update_tags(**telluric_tags)
 
-            sh.copy(temp_file, destination_file,
+            rasterio_sh.copy(temp_file, destination_file,
                     COPY_SRC_OVERVIEWS=True, tiled=True, compress='DEFLATE', photometric='MINISBLACK')
