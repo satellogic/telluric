@@ -598,7 +598,7 @@ class GeoRaster2(WindowMethodsMixin):
                     r.write_mask(mask)
 
                     # write tags:
-                    tags_to_save = {'telluric_band_names': json.dumps(self.band_names)} 
+                    tags_to_save = {'telluric_band_names': json.dumps(self.band_names)}
                     if tags:
                         tags_to_save.update(tags)
 
