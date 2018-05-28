@@ -1,4 +1,5 @@
 import os
+import json
 import rasterio
 import numpy as np
 from copy import deepcopy
@@ -9,7 +10,7 @@ import telluric as tl
 from telluric.constants import WEB_MERCATOR_CRS
 
 from telluric.util.raster_utils import (_calc_overviews_factors, _has_mask,
-                                   _mask_from_masked_array, convert_to_cog)
+                                        _mask_from_masked_array, convert_to_cog)
 
 
 base_affine = Affine.translation(20, -20) * Affine.scale(2, -2)
@@ -74,3 +75,16 @@ def test_cog_overviews():
                 assert raster.overviews(i) == _calc_overviews_factors(raster)
 
             assert _has_mask(raster)
+
+
+def test_cog_move_telluric_tags_to_general_tags_space():
+    with TemporaryDirectory() as dir_name:
+        source = os.path.join(dir_name, 'source.tif')
+        dest = os.path.join(dir_name, 'dest.tif')
+        image = sample_raster_image(height=800, width=900)
+        tl.GeoRaster2(deepcopy(image), crs=WEB_MERCATOR_CRS,
+                      affine=base_affine, band_names=['red', 'green', 'blue']).save(source)
+
+        convert_to_cog(source, dest)
+        tags = tl.GeoRaster2.tags(dest)
+        assert(json.loads(tags['telluric_band_names']) == ['red', 'green', 'blue'])

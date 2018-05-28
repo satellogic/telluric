@@ -1,5 +1,6 @@
 import os
 import math
+import json
 import rasterio
 import numpy as np
 from rasterio import shutil as sh
@@ -29,6 +30,14 @@ def _has_mask(rast):
     return False
 
 
+def _get_telluric_tags(source_file):
+    with rasterio.open(source_file) as r:
+        tags = r.tags(ns='rastile')
+        if not tags:
+            return tags
+        return {"telluric_%s" % k: json.loads(v) for k, v in tags.items()}
+
+
 def convert_to_cog(source_file, destination_file):
     """Convert source file to a Cloud Optimized GeoTiff new file.
 
@@ -47,6 +56,10 @@ def convert_to_cog(source_file, destination_file):
                 factors = _calc_overviews_factors(dest)
                 dest.build_overviews(factors, resampling=Resampling.cubic)
                 dest.update_tags(ns='rio_overview', resampling='cubic')
+
+                telluric_tags = _get_telluric_tags(source_file)
+                if telluric_tags:
+                    dest.update_tags(**telluric_tags)
 
             sh.copy(temp_file, destination_file,
                     COPY_SRC_OVERVIEWS=True, tiled=True, compress='DEFLATE', photometric='MINISBLACK')

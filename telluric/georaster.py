@@ -442,11 +442,15 @@ class GeoRaster2(WindowMethodsMixin):
             # if not - leave empty, for default:
             if self._band_names is None:
                 tags = raster.tags(ns="rastile")
+                band_names = None
                 if "band_names" in tags:
-                    try:
-                        self._set_bandnames(json.loads(tags['band_names']))
-                    except ValueError:
-                        pass
+                    band_names = json.loads(tags['band_names'])
+                else:
+                    tags = raster.tags()
+                    if tags and 'telluric_band_names' in tags:
+                        band_names = json.loads(tags['telluric_band_names'])
+                if band_names is not None:
+                    self._set_bandnames(band_names)
 
             if read_image:
                 image = np.ma.masked_array(raster.read(), ~raster.read_masks()).copy()
@@ -594,9 +598,11 @@ class GeoRaster2(WindowMethodsMixin):
                     r.write_mask(mask)
 
                     # write tags:
-                    r.update_tags(ns="rastile", band_names=json.dumps(self.band_names))
+                    tags_to_save = {'telluric_band_names': json.dumps(self.band_names)} 
                     if tags:
-                        r.update_tags(**tags)  # in default namespace
+                        tags_to_save.update(tags)
+
+                    r.update_tags(**tags_to_save)  # in default namespace
 
                     # overviews:
                     overviews = kwargs.get('overviews', True)
