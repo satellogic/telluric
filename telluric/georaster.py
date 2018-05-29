@@ -105,10 +105,10 @@ def merge_all(rasters, roi, dest_resolution=None, merge_strategy=MergeStrategy.U
 
     projected_rasters = [_prepare_other_raster(empty, raster) for raster in rasters]
     projected_rasters = [raster for raster in projected_rasters if raster is not None]
-
-    func = partial(_merge, merge_strategy=merge_strategy )
+    func = partial(_merge, merge_strategy=merge_strategy)
     raster = reduce(func, projected_rasters, empty)
     return empty.copy_with(image=raster.image, band_names=raster.band_names)
+
 
 def _prepare_other_raster(one, other):
     # Crop and reproject the second raster, if necessary
@@ -123,6 +123,7 @@ def _prepare_other_raster(one, other):
             return None
 
     return other
+
 
 def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
     if merge_strategy is MergeStrategy.LEFT_ALL:
@@ -224,8 +225,6 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
             mask=[new_mask]*len(new_bands)
         )
         return Raster(image=new_image, band_names=new_bands)
-
-
     else:
         raise ValueError("Use one the strategies available in MergeStrategy instead.")
 
@@ -250,11 +249,9 @@ def merge(one, other, merge_strategy=MergeStrategy.UNION):
     other = _prepare_other_raster(one, other)
     if other is None:
         raise ValueError("rasters do not intersect")
-
     raster = _merge(one, other, merge_strategy)
-
-
     return one.copy_with(image=raster.image, band_names=raster.band_names)
+
 
 def merge_to_first(one, other, merge_strategy=MergeStrategy.UNION):
     """Merge the second raster to the first.
@@ -303,6 +300,7 @@ class GeoRaster2IOError(GeoRaster2Error):
 class GeoRaster2NotImplementedError(GeoRaster2Error, NotImplementedError):
     """Base class for NotImplementedError in the GeoRaster class. """
     pass
+
 
 class Raster():
     """ A class that has image, band_names and shape
@@ -398,8 +396,6 @@ class Raster():
         return self._image
 
 
-
-
 class GeoRaster2(WindowMethodsMixin, Raster):
     """
     Represents multiband georeferenced image, supporting nodata pixels.
@@ -414,7 +410,8 @@ class GeoRaster2(WindowMethodsMixin, Raster):
     * .band_names is list of strings, order corresponding to order in .array
 
     """
-    def __init__(self, image=None, affine=None, crs=None, filename=None, band_names=None, nodata=0, shape=None, footprint=None):
+    def __init__(self, image=None, affine=None, crs=None,
+                 filename=None, band_names=None, nodata=0, shape=None, footprint=None):
         """Create a GeoRaster object
 
         :param filename: optional path/url to raster file for lazy loading
