@@ -350,7 +350,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
             new_shape = transform(self._shape, self._crs, new_crs)
             return self.__class__(new_shape, new_crs)
 
-    def rasterize(self, dest_resolution, *, fill_value=None, bounds=None, **kwargs):
+    def rasterize(self, dest_resolution, *, fill_value=None, bounds=None, dtype=None, **kwargs):
         # Import here to avoid circular imports
         from telluric import rasterization  # noqa
         crs = self.crs
@@ -363,7 +363,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         if kwargs.pop("nodata_value", None):
             warnings.warn(rasterization.NODATA_DEPRECATION_WARNING, DeprecationWarning)
 
-        return rasterization.rasterize(shapes, crs, bounds, dest_resolution, fill_value=fill_value)
+        return rasterization.rasterize(shapes, crs, bounds, dest_resolution, fill_value=fill_value, dtype=dtype)
 
     def equals_exact(self, other, tolerance):
         """ invariant to crs. """

@@ -142,7 +142,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         return FeatureCollection(map_function(x) for x in self)
 
     def rasterize(self, dest_resolution, *, polygonize_width=0, crs=WEB_MERCATOR_CRS, fill_value=None,
-                  bounds=None, **polygonize_kwargs):
+                  bounds=None, dtype=None, **polygonize_kwargs):
         """Binarize a FeatureCollection and produce a raster with the target resolution.
 
         Parameters
@@ -161,6 +161,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             Nodata value, default to None (will default to :py:data:`telluric.rasterization.NODATA_VALUE`.
         bounds : GeoVector, optional
             Optional bounds for the target image, default to None (will use the FeatureCollection convex hull).
+        dtype : numpy.dtype, optional
+            dtype of the result, required only if fill_value is a function.
         polygonize_kwargs : dict
             Extra parameters to the polygonize function.
 
@@ -190,16 +192,19 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             raise ValueError("Specify non-empty ROI")
 
         if callable(fill_value):
+            if dtype is None:
+                raise ValueError("dtype must be specified for multivalue rasterization")
+
             rasters = []
             for feature in self:
                 rasters.append(feature.geometry.rasterize(
-                    dest_resolution, fill_value=fill_value(feature), bounds=bounds)
+                    dest_resolution, fill_value=fill_value(feature), bounds=bounds, dtype=dtype)
                 )
 
             return merge_all(rasters, bounds, dest_resolution, merge_strategy=MergeStrategy.INTERSECTION)
 
         else:
-            return rasterize(shapes, crs, bounds.get_shape(crs), dest_resolution, fill_value=fill_value)
+            return rasterize(shapes, crs, bounds.get_shape(crs), dest_resolution, fill_value=fill_value, dtype=dtype)
 
     def plot(self, mp=None, max_plot_rows=200, **plot_kwargs):
         if len(self) > max_plot_rows:

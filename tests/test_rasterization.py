@@ -182,7 +182,24 @@ def test_rasterization_function():
         ]
     )
 
-    result = fc.rasterize(1.0, fill_value=func, crs=WGS84_CRS)
+    result = fc.rasterize(1.0, fill_value=func, crs=WGS84_CRS, dtype=np.float32)
 
     assert_array_equal(result.image.mask, expected_image.mask)
     assert_array_equal(result.image.data, expected_image.data)
+
+
+def test_rasterization_function_raises_error_if_no_dtype_is_given():
+    sq1 = GeoFeature(
+        GeoVector.from_bounds(xmin=0, ymin=2, xmax=1, ymax=3, crs=WGS84_CRS),
+        {'value': 1.0}
+    )
+    sq2 = GeoFeature(
+        GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=2, crs=WGS84_CRS),
+        {'value': 2.0}
+    )
+    fc = FeatureCollection([sq1, sq2])
+
+    with pytest.raises(ValueError) as excinfo:
+        fc.rasterize(1.0, fill_value=lambda x: 1, crs=WGS84_CRS)
+
+    assert "dtype must be specified for multivalue rasterization" in excinfo.exconly()
