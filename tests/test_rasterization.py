@@ -134,8 +134,6 @@ def test_rasterization_function_user_dtype(fill_value, dtype):
     line = GeoVector.from_bounds(xmin=2, ymin=0, xmax=3, ymax=3, crs=DEFAULT_CRS)
     roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=5, ymax=5, crs=DEFAULT_CRS)
 
-    fc = FeatureCollection.from_geovectors([line])
-
     expected_data = np.zeros((5, 5), dtype=dtype)
     expected_data[2:, 2] = fill_value
     expected_mask = np.ones((5, 5), dtype=bool)
@@ -151,7 +149,7 @@ def test_rasterization_function_user_dtype(fill_value, dtype):
 
     expected_result = GeoRaster2(expected_image, expected_affine, expected_crs)
 
-    result = rasterize([feat.get_shape(DEFAULT_CRS) for feat in fc], DEFAULT_CRS, roi.get_shape(DEFAULT_CRS),
+    result = rasterize([line.get_shape(DEFAULT_CRS)], DEFAULT_CRS, roi.get_shape(DEFAULT_CRS),
                        resolution, fill_value=fill_value, dtype=dtype)
 
     assert result == expected_result
