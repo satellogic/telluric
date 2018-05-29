@@ -91,6 +91,8 @@ def test_cog_move_telluric_tags_to_general_tags_space():
         convert_to_cog(source, dest)
         tags = tl.GeoRaster2.tags(dest)
         assert(json.loads(tags['telluric_band_names']) == band_names)
+        raster = tl.GeoRaster2.open(dest)
+        assert raster.band_names == band_names
 
 
 @pytest.mark.parametrize('height, factors', [
