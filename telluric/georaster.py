@@ -440,16 +440,22 @@ class GeoRaster2(WindowMethodsMixin):
 
             # if band_names not provided, try read them from raster tags.
             # if not - leave empty, for default:
+            key_name = None
             if self._band_names is None:
                 tags = raster.tags(ns="rastile")
                 band_names = None
                 if "band_names" in tags:
-                    band_names = json.loads(tags['band_names'])
+                    key_name = 'band_names'
+
                 else:
                     tags = raster.tags()
                     if tags and 'telluric_band_names' in tags:
-                        band_names = json.loads(tags['telluric_band_names'])
-                if band_names is not None:
+                        key_name = 'telluric_band_names'
+
+                if key_name is not None:
+                    band_names = tags[key_name]
+                    if isinstance(band_names, str):
+                        band_names = json.loads(band_names)
                     self._set_bandnames(band_names)
 
             if read_image:
