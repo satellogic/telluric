@@ -105,7 +105,7 @@ def merge_all(rasters, roi, dest_resolution=None, merge_strategy=MergeStrategy.U
 
     projected_rasters = [_prepare_other_raster(empty, raster) for raster in rasters]
     projected_rasters = [raster for raster in projected_rasters if raster is not None]
-    func = partial(_merge, merge_strategy=merge_strategy) # type: Callable[[Raster, Raster], Raster]
+    func = partial(_merge, merge_strategy=merge_strategy)  # type: Callable[[Raster, Raster], Raster]
     raster = reduce(func, projected_rasters, empty)
     return empty.copy_with(image=raster.image, band_names=raster.band_names)
 
