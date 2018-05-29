@@ -732,7 +732,11 @@ class GeoRaster2(WindowMethodsMixin):
 
     def _vector_to_raster_bounds(self, vector, boundless=False):
         # bounds = tuple(round(bb) for bb in self.to_raster(vector).bounds)
-        window = self.window(*vector.get_shape(self.crs).bounds).round_offsets().round_shape(op='ceil')
+        bounds = vector.get_shape(self.crs).bounds
+        if any(map(math.isinf, bounds)):
+            raise GeoRaster2Error('bounds %s cannot be transformed from %s to %s' % (
+                vector.get_shape(vector.crs).bounds, vector.crs, self.crs))
+        window = self.window(*bounds).round_offsets().round_shape(op='ceil')
         (ymin, ymax), (xmin, xmax) = window.toranges()
         bounds = (xmin, ymin, xmax, ymax)
         if not boundless:
