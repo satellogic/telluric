@@ -482,7 +482,7 @@ def test_rasterize_without_bounds(mock_rasterize):
     expected_bounds = gv.envelope.get_shape(gv.crs)
     mock_rasterize.assert_called_with(expected_shape, gv.crs,
                                       expected_bounds, 0.1,
-                                      fill_value=29)
+                                      fill_value=29, dtype=None)
 
 
 @mock.patch('telluric.rasterization.rasterize')
@@ -494,7 +494,7 @@ def test_rasterize_with_geovector_bounds(mock_rasterize):
     expected_shape = [gv.get_shape(gv.crs)]
     mock_rasterize.assert_called_with(expected_shape, gv.crs,
                                       expected_bounds, 0.00001,
-                                      fill_value=None)
+                                      fill_value=None, dtype=None)
 
 
 @mock.patch('telluric.rasterization.rasterize')
@@ -506,4 +506,4 @@ def test_rasterize_with_polygon_bounds(mock_rasterize):
     expected_shape = [gv.get_shape(gv.crs)]
     mock_rasterize.assert_called_with(expected_shape, gv.crs,
                                       expected_bounds, 0.00001,
-                                      fill_value=None)
+                                      fill_value=None, dtype=None)
