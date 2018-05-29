@@ -40,7 +40,7 @@ def _get_telluric_tags(source_file):
         tags = r.tags(ns='rastile')
         if not tags:
             return tags
-        return {"telluric_%s" % k: json.loads(v) for k, v in tags.items()}
+        return {"telluric_%s" % k: v for k, v in tags.items()}
 
 
 def convert_to_cog(source_file, destination_file):

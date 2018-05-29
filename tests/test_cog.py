@@ -84,12 +84,15 @@ def test_cog_move_telluric_tags_to_general_tags_space():
         source = os.path.join(dir_name, 'source.tif')
         dest = os.path.join(dir_name, 'dest.tif')
         image = sample_raster_image(height=800, width=900)
+        band_names = ['red', 'green', 'blue']
         tl.GeoRaster2(deepcopy(image), crs=WEB_MERCATOR_CRS,
-                      affine=base_affine, band_names=['red', 'green', 'blue']).save(source)
+                      affine=base_affine, band_names=band_names).save(source)
 
         convert_to_cog(source, dest)
         tags = tl.GeoRaster2.tags(dest)
-        assert(json.loads(tags['telluric_band_names']) == ['red', 'green', 'blue'])
+        assert(json.loads(tags['telluric_band_names']) == band_names)
+        raster = tl.GeoRaster2.open(dest)
+        assert raster.band_names == band_names
 
 
 @pytest.mark.parametrize('height, factors', [
