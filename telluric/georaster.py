@@ -125,7 +125,7 @@ def _prepare_other_raster(one, other):
     return other
 
 
-def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
+def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None):
     if merge_strategy is MergeStrategy.LEFT_ALL:
         # If the bands are not the same, return one
         try:
@@ -137,8 +137,10 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
 
     elif merge_strategy is MergeStrategy.INTERSECTION:
         # https://stackoverflow.com/a/23529016/554319
-        if common_bands is None:
+        if requested_bands is None:
             common_bands = [band for band in one.band_names if band in set(other.band_names)]
+        else:
+            common_bands = requested_bands
 
         # We raise an error in the intersection is empty.
         # Other options include returning an "empty" raster or just None.
