@@ -377,7 +377,8 @@ class _Raster():
         self._band_names = list(band_names)
 
     def subimage(self, bands):
-        bands = bands.split(",")
+        if isinstance(bands,str):
+            bands = bands.split(",")
 
         missing_bands = set(bands) - set(self.band_names)
         if missing_bands:
