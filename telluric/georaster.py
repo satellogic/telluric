@@ -403,7 +403,7 @@ class _Raster():
         return self._image
 
 
-class GeoRaster2(Windfixing styleowMethodsMixin, _Raster):
+class GeoRaster2(WindowMethodsMixin, _Raster):
     """
     Represents multiband georeferenced image, supporting nodata pixels.
     The name "GeoRaster2" is temporary.
