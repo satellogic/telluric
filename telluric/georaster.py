@@ -195,7 +195,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
         if common_bands:
             # Merge the common bands by intersection
             res_common = _merge(one, other,
-                                merge_strategy=MergeStrategy.INTERSECTION, common_bands=common_bands)
+                                merge_strategy=MergeStrategy.INTERSECTION, requested_bands=common_bands)
             new_bands = res_common.band_names
             all_data = [res_common.image.data]
 
