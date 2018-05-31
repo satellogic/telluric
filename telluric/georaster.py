@@ -129,7 +129,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
     if merge_strategy is MergeStrategy.LEFT_ALL:
         # If the bands are not the same, return one
         try:
-            other = Raster(image=other.subimage(one.band_names), band_names=one.band_names)
+            other = _Raster(image=other.subimage(one.band_names), band_names=one.band_names)
         except GeoRaster2Error:
             return one
 
@@ -179,7 +179,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
         # new_image[other_values_mask] = other_image[other_values_mask]
         # but here the word "mask" does not mean the same as in masked arrays.
 
-        return Raster(image=new_image, band_names=common_bands)
+        return _Raster(image=new_image, band_names=common_bands)
 
     elif merge_strategy is MergeStrategy.UNION:
         # Join the common bands using the INTERSECTION strategy
@@ -225,7 +225,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
             # mask=[new_mask]*len(new_bands)
             mask=new_mask[None].repeat(len(new_bands), axis=0) == 1
         )
-        return Raster(image=new_image, band_names=new_bands)
+        return _Raster(image=new_image, band_names=new_bands)
     else:
         raise ValueError("Use one the strategies available in MergeStrategy instead.")
 
@@ -303,7 +303,7 @@ class GeoRaster2NotImplementedError(GeoRaster2Error, NotImplementedError):
     pass
 
 
-class Raster():
+class _Raster():
     """ A class that has image, band_names and shape
     """
 
@@ -396,7 +396,7 @@ class Raster():
         return self._image
 
 
-class GeoRaster2(WindowMethodsMixin, Raster):
+class GeoRaster2(WindowMethodsMixin, _Raster):
     """
     Represents multiband georeferenced image, supporting nodata pixels.
     The name "GeoRaster2" is temporary.
