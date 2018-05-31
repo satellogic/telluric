@@ -222,9 +222,11 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
             new_bands = new_bands + other_remaining_bands
         new_image = np.ma.MaskedArray(
             np.concatenate(all_data),
-            # mask=[new_mask]*len(new_bands)
-            mask=new_mask[None].repeat(len(new_bands), axis=0) == 1
+            mask=[new_mask]*len(new_bands)
         )
+        # We don't copy image and mask here, due to performence issues,
+        # this output should not use without eventually being copied
+        # In this context we are copying the object in the end of merge_all merge_first and merge
         return _Raster(image=new_image, band_names=new_bands)
     else:
         raise ValueError("Use one the strategies available in MergeStrategy instead.")
@@ -397,7 +399,7 @@ class _Raster():
         return self._image
 
 
-class GeoRaster2(WindowMethodsMixin, _Raster):
+class GeoRaster2(Windfixing styleowMethodsMixin, _Raster):
     """
     Represents multiband georeferenced image, supporting nodata pixels.
     The name "GeoRaster2" is temporary.
