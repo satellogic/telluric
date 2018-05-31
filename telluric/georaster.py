@@ -162,7 +162,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
 
         # Reshape the mask to fit the future arrays, considering
         # that rasterio does not support one mask per band (see
-        # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks)
+        # https://mapbox.github.io/raserio/topics/masks.html#dataset-masks)
         other_values_mask = other_values_mask[None, ...].repeat(len(common_bands), axis=0)
 
         # Overwrite the values that I don't want to mask
@@ -222,7 +222,8 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, common_bands=None):
             new_bands = new_bands + other_remaining_bands
         new_image = np.ma.MaskedArray(
             np.concatenate(all_data),
-            mask=[new_mask]*len(new_bands)
+            # mask=[new_mask]*len(new_bands)
+            mask=new_mask[None].repeat(len(new_bands), axis=0) == 1
         )
         return Raster(image=new_image, band_names=new_bands)
     else:
@@ -1052,18 +1053,6 @@ class GeoRaster2(WindowMethodsMixin, Raster):
         """Required for jupyter notebook to show raster."""
         return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, stretch=True)
 
-    def subimage(self, bands):
-        if isinstance(bands, str):
-            bands = [bands]
-
-        missing_bands = set(bands) - set(self.band_names)
-        if missing_bands:
-            raise GeoRaster2Error('requested bands %s that are not found in raster' % missing_bands)
-
-        bands_indices = [self.band_names.index(band) for band in bands]
-        subimage = self.image[bands_indices, :, :]
-        return subimage
-
     def limit_to_bands(self, bands):
         subimage = self.subimage(bands)
         return self.copy_with(image=subimage, band_names=bands)
@@ -1123,6 +1112,7 @@ class GeoRaster2(WindowMethodsMixin, Raster):
             coords.append([shape.x, shape.y])
 
         shp = Polygon(coords)
+        #  TODO use GeoVector.from_bounds
         self._footprint = GeoVector(shp, self.crs)
         return self._footprint
 
