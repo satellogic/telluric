@@ -17,10 +17,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
-from telluric.rasterization import rasterize
+from telluric.rasterization import rasterize, NODATA_DEPRECATION_WARNING
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.georaster import merge_all, mercator_zoom_to_resolution
+from telluric.georaster import merge_all, mercator_zoom_to_resolution, MergeStrategy
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -141,8 +141,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         """
         return FeatureCollection(map_function(x) for x in self)
 
-    def rasterize(self, dest_resolution, polygonize_width=0, crs=WEB_MERCATOR_CRS, fill_value=None,
-                  nodata_value=None, bounds=None, **polygonize_kwargs):
+    def rasterize(self, dest_resolution, *, polygonize_width=0, crs=WEB_MERCATOR_CRS, fill_value=None,
+                  bounds=None, dtype=None, **polygonize_kwargs):
         """Binarize a FeatureCollection and produce a raster with the target resolution.
 
         Parameters
@@ -153,12 +153,16 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             Width for the polygonized features (lines and points) in pixels, default to 0 (they won't appear).
         crs : ~rasterio.crs.CRS, dict (optional)
             Coordinate system, default to :py:data:`telluric.constants.WEB_MERCATOR_CRS`.
-        fill_value : float, optional
+        fill_value : float or function, optional
             Value that represents data, default to None (will default to :py:data:`telluric.rasterization.FILL_VALUE`.
+            If given a function, it must accept a single :py:class:`~telluric.features.GeoFeature` and return a numeric
+            value.
         nodata_value : float, optional
             Nodata value, default to None (will default to :py:data:`telluric.rasterization.NODATA_VALUE`.
         bounds : GeoVector, optional
             Optional bounds for the target image, default to None (will use the FeatureCollection convex hull).
+        dtype : numpy.dtype, optional
+            dtype of the result, required only if fill_value is a function.
         polygonize_kwargs : dict
             Extra parameters to the polygonize function.
 
@@ -166,6 +170,9 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         # Compute the size in real units and polygonize the features
         if not isinstance(polygonize_width, int):
             raise TypeError("The width in pixels must be an integer")
+
+        if polygonize_kwargs.pop("nodata_value", None):
+            warnings.warn(NODATA_DEPRECATION_WARNING, DeprecationWarning)
 
         # If the pixels width is 1, render points as squares to avoid missing data
         if polygonize_width == 1:
@@ -179,15 +186,25 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                   if not feature.is_empty]
 
         if bounds is None:
-            bounds = self.convex_hull.get_shape(crs)
+            bounds = self.envelope
 
         if bounds.area == 0.0:
             raise ValueError("Specify non-empty ROI")
 
-        elif isinstance(bounds, GeoVector):
-            bounds = bounds.get_shape(crs)
+        if callable(fill_value):
+            if dtype is None:
+                raise ValueError("dtype must be specified for multivalue rasterization")
 
-        return rasterize(shapes, crs, bounds, dest_resolution, fill_value, nodata_value)
+            rasters = []
+            for feature in self:
+                rasters.append(feature.geometry.rasterize(
+                    dest_resolution, fill_value=fill_value(feature), bounds=bounds, dtype=dtype)
+                )
+
+            return merge_all(rasters, bounds, dest_resolution, merge_strategy=MergeStrategy.INTERSECTION)
+
+        else:
+            return rasterize(shapes, crs, bounds.get_shape(crs), dest_resolution, fill_value=fill_value, dtype=dtype)
 
     def plot(self, mp=None, max_plot_rows=200, **plot_kwargs):
         if len(self) > max_plot_rows:
@@ -319,9 +336,27 @@ class FeatureCollection(BaseCollection):
         for feat in self:
             attribute_names_set = attribute_names_set.union(feat.attributes)
 
-        # TODO: Use proper types
+        # make type mapping based on the first feature
+        attr_types_map = dict([
+            (attr_name, type(self[0].get(attr_name)))
+            for attr_name in attribute_names_set])
+
+        for feat in self:
+            for attr_name, attr_value in feat.items():
+                if attr_value is not None:
+                    if isinstance(None, attr_types_map[attr_name]):
+                        attr_types_map[attr_name] = type(attr_value)
+                    if not isinstance(attr_value, attr_types_map[attr_name]):
+                        raise FeatureCollectionIOError(
+                            "Cannot generate a schema for a heterogeneous FeatureCollection. "
+                            "Please convert all the appropriate properties to the same type."
+                        )
+
+        fiona_field_types_map = dict([
+            (v, k) for k, v in fiona.FIELD_TYPES_MAP.items()])
         properties = {
-            k: 'str' for k in list(attribute_names_set)
+            k: fiona_field_types_map.get(v) or 'str'
+            for k, v in attr_types_map.items()
         }
 
         return properties
