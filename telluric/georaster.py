@@ -166,7 +166,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
 
         # Reshape the mask to fit the future arrays, considering
         # that rasterio does not support one mask per band (see
-        # https://mapbox.github.io/raserio/topics/masks.html#dataset-masks)
+        # http://rasterio.readthedocs.io/en/latest/topics/masks.html#dataset-masks)
         other_values_mask = other_values_mask[None, ...].repeat(len(common_bands), axis=0)
 
         # Overwrite the values that I don't want to mask
