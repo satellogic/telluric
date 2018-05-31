@@ -577,7 +577,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         * GDAL_TIFF_INTERNAL_MASK: specifies whether mask is within image file, or additional .msk
         * overviews: if True, will save with previews. default: True
-        * factors: list of factors for the overview, default: [2, 4, 8, 16, 32, 64, 128]
+        * factors: list of factors for the overview, default: calculated based on raster width and height
         * resampling: to build overviews. default: cubic
         * tiled: if True raster will be saved tiled, default: False
         * compress: any supported rasterio.enums.Compression value, default to LZW
@@ -653,7 +653,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                     overviews = kwargs.get('overviews', True)
                     resampling = kwargs.get('resampling', Resampling.cubic)
                     if overviews:
-                        factors = self._overviews_factors()
+                        factors = kwargs.get('factors')
+                        if factors is None:
+                            factors = self._overviews_factors()
+                        else:
+                            factor_max = max(self._overviews_factors(blocksize=1), default=0)
+                            factors = [f for f in factors if f <= factor_max]
                         r.build_overviews(factors, resampling=resampling)
                         r.update_tags(ns='rio_overview', resampling=resampling.name)
 
