@@ -27,7 +27,11 @@ def transform_attributes(attributes, schema):
     """
     new_attributes = attributes.copy()
     for attr_value, (attr_name, attr_type) in zip(new_attributes.values(), schema["properties"].items()):
-        if attr_type == "date":
+        if attr_value is None:
+            continue
+        elif attr_type == "time":
+            new_attributes[attr_name] = parse_date(attr_value).time()
+        elif attr_type == "date":
             new_attributes[attr_name] = parse_date(attr_value).date()
         elif attr_type == "datetime":
             new_attributes[attr_name] = parse_date(attr_value)

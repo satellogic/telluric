@@ -17,6 +17,7 @@ from telluric.vectors import GeoVector
 some_array = np.array([[0, 1, 2], [3, 4, 5]], dtype=np.uint8)
 some_mask = np.array([[False, False, False], [False, False, True]], dtype=np.bool)
 some_image_2d = np.ma.array(some_array, mask=some_mask)
+some_image_2d_alt = np.ma.array(np.array([[0, 1, 2], [3, 4, 99]], dtype=np.uint8), mask=some_mask)
 some_image_3d = np.ma.array(some_array[np.newaxis, :, :], mask=some_mask[np.newaxis, :, :])
 some_image_3d_multiband = np.ma.array(
     np.array([some_array, some_array, some_array]), mask=np.array([some_mask, some_mask, some_mask]))
@@ -24,6 +25,7 @@ raster_origin = Point(2, 3)
 some_affine = Affine.translation(raster_origin.x, raster_origin.y)
 some_crs = {'init': 'epsg:32620'}
 some_raster = GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs, band_names=['r'])
+some_raster_alt = GeoRaster2(some_image_2d_alt, affine=some_affine, crs=some_crs, band_names=['r'])
 some_raster_multiband = GeoRaster2(
     some_image_3d_multiband, band_names=['r', 'g', 'b'], affine=some_affine, crs=some_crs)
 default_factors = [2, 4, 8]
@@ -68,6 +70,10 @@ def test_eq():
     assert some_raster != some_raster.copy_with(crs={'init': 'epsg:32621'})
 
 
+def test_eq_ignores_masked_values():
+    assert some_raster == some_raster_alt
+
+
 def test_read_write():
     for extension in ['tif', 'png']:
         with TemporaryDirectory() as folder:
@@ -98,7 +104,8 @@ def test_tags():
         path = os.path.join(folder, 'test.tif')
         some_raster_multiband.save(path, tags={'foo': 'bar'}, factors=default_factors)
 
-        assert GeoRaster2.tags(path) == {'AREA_OR_POINT': 'Area', 'foo': 'bar'}  # namespace=default
+        assert GeoRaster2.tags(path) == {'AREA_OR_POINT': 'Area', 'foo': 'bar',
+                                         'telluric_band_names': '["r", "g", "b"]'}  # namespace=default
         assert GeoRaster2.tags(path, 'IMAGE_STRUCTURE') == {'COMPRESSION': 'LZW', 'INTERLEAVE': 'PIXEL'}
 
 

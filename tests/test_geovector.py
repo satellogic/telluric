@@ -457,7 +457,8 @@ def test_polygonize_line_square_cap_style():
 
     result = line.polygonize(1, cap_style_line=CAP_STYLE.square)
 
-    assert result == expected_result
+    # Don't use result == expected_result as topology might be different
+    assert result.equals(expected_result)
 
 
 def test_polygonize_point():
@@ -476,12 +477,12 @@ def test_polygonize_point():
 @mock.patch('telluric.rasterization.rasterize')
 def test_rasterize_without_bounds(mock_rasterize):
     gv = GeoVector(Polygon.from_bounds(0, 0, 1, 1))
-    gv.rasterize(dest_resolution=0.1, fill_value=29, nodata_value=-19)
+    gv.rasterize(dest_resolution=0.1, fill_value=29)
     expected_shape = [gv.get_shape(gv.crs)]
     expected_bounds = gv.envelope.get_shape(gv.crs)
     mock_rasterize.assert_called_with(expected_shape, gv.crs,
                                       expected_bounds, 0.1,
-                                      29, -19)
+                                      fill_value=29, dtype=None)
 
 
 @mock.patch('telluric.rasterization.rasterize')
@@ -493,7 +494,7 @@ def test_rasterize_with_geovector_bounds(mock_rasterize):
     expected_shape = [gv.get_shape(gv.crs)]
     mock_rasterize.assert_called_with(expected_shape, gv.crs,
                                       expected_bounds, 0.00001,
-                                      None, None)
+                                      fill_value=None, dtype=None)
 
 
 @mock.patch('telluric.rasterization.rasterize')
@@ -505,4 +506,4 @@ def test_rasterize_with_polygon_bounds(mock_rasterize):
     expected_shape = [gv.get_shape(gv.crs)]
     mock_rasterize.assert_called_with(expected_shape, gv.crs,
                                       expected_bounds, 0.00001,
-                                      None, None)
+                                      fill_value=None, dtype=None)

@@ -105,7 +105,7 @@ def test_featurecollection_attribute_names_includes_all():
     assert sorted(fc.attribute_names) == expected_attribute_names
 
 
-def test_featurecollection_schema_raises_error_for_heterogeneous_types():
+def test_featurecollection_schema_raises_error_for_heterogeneous_geometry_types():
     fc = FeatureCollection.from_geovectors([
         GeoVector(Polygon.from_bounds(0, 0, 1, 1)),
         GeoVector(Point(0, 0))
@@ -115,6 +115,72 @@ def test_featurecollection_schema_raises_error_for_heterogeneous_types():
         fc.schema
 
     assert "Cannot generate a schema for a heterogeneous FeatureCollection. " in excinfo.exconly()
+
+
+def test_featurecollection_schema_raises_error_for_heterogeneous_property_types():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1.0})
+    ])
+
+    with pytest.raises(FeatureCollectionIOError) as excinfo:
+        fc.schema
+
+    assert "Cannot generate a schema for a heterogeneous FeatureCollection. " in excinfo.exconly()
+
+
+def test_featurecollection_schema_for_property_types_with_none_values():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': None, 'attr2': 1.0, 'attr3': 'A'}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 2, 'attr2': None, 'attr3': 'B'}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 3, 'attr2': 3.0, 'attr3': None})
+    ])
+
+    expected_schema = {
+        'geometry': 'Point',
+        'properties': {
+            'attr1': 'int',
+            'attr2': 'float',
+            'attr3': 'str'
+        }
+    }
+
+    assert fc.schema == expected_schema
+
+
+def test_featurecollection_schema_for_property_types_without_none_values():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1, 'attr2': 1.0, 'attr3': 'A'}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 2, 'attr2': 2.0, 'attr3': 'B'})
+    ])
+
+    expected_schema = {
+        'geometry': 'Point',
+        'properties': {
+            'attr1': 'int',
+            'attr2': 'float',
+            'attr3': 'str'
+        }
+    }
+
+    assert fc.schema == expected_schema
+
+
+def test_featurecollection_schema_treat_unsupported_property_types_as_str():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': bool(0), 'attr2': date(2018, 5, 19)}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': bool(1), 'attr2': date(2018, 5, 20)})
+    ])
+
+    expected_schema = {
+        'geometry': 'Point',
+        'properties': {
+            'attr1': 'str',
+            'attr2': 'str'
+        }
+    }
+
+    assert fc.schema == expected_schema
 
 
 def test_featurecollection_map():
@@ -176,13 +242,13 @@ def test_collection_slicing(fc):
 @mock.patch('telluric.collections.rasterize')
 def test_rasterize_without_bounds(mock_rasterize):
     fc = fc_generator(num_features=1)
-    fc.rasterize(dest_resolution=0.1, crs=DEFAULT_CRS, fill_value=29, nodata_value=-19)
+    fc.rasterize(dest_resolution=0.1, crs=DEFAULT_CRS, fill_value=29)
     f = next(iter(fc))
     expected_shape = [f.geometry.get_shape(f.geometry.crs)]
-    expected_bounds = f.geometry.get_shape(f.geometry.crs)
+    expected_bounds = fc.envelope.get_shape(fc.crs)
     mock_rasterize.assert_called_with(expected_shape, DEFAULT_CRS,
                                       expected_bounds, 0.1,
-                                      29, -19)
+                                      fill_value=29, dtype=None)
 
 
 @mock.patch('telluric.collections.rasterize')
@@ -195,20 +261,7 @@ def test_rasterize_with_geovector_bounds(mock_rasterize):
     expected_shape = [f.geometry.get_shape(f.geometry.crs)]
     mock_rasterize.assert_called_with(expected_shape, DEFAULT_CRS,
                                       expected_bounds, 0.00001,
-                                      None, None)
-
-
-@mock.patch('telluric.collections.rasterize')
-def test_rasterize_with_polygon_bounds(mock_rasterize):
-    fc = fc_generator(num_features=1)
-    expected_bounds = Polygon.from_bounds(0, 0, 1, 1)
-    bounds = expected_bounds
-    fc.rasterize(0.00001, crs=DEFAULT_CRS, bounds=bounds)
-    f = next(iter(fc))
-    expected_shape = [f.geometry.get_shape(f.geometry.crs)]
-    mock_rasterize.assert_called_with(expected_shape, DEFAULT_CRS,
-                                      expected_bounds, 0.00001,
-                                      None, None)
+                                      fill_value=None, dtype=None)
 
 
 def test_file_collection_open():

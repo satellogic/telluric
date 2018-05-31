@@ -19,7 +19,7 @@ from rasterio.crs import CRS
 
 from telluric import GeoRaster2, GeoVector
 from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
-from telluric.georaster import mercator_zoom_to_resolution, GeoRaster2IOError
+from telluric.georaster import mercator_zoom_to_resolution, GeoRaster2Error, GeoRaster2IOError
 from telluric.util.general import convert_resolution_from_meters_to_deg
 
 import sys
@@ -428,6 +428,12 @@ class GeoRasterCropTest(TestCase):
             self.metric_affine[6], mercator_zoom_to_resolution[17])
         self.assertAlmostEqual(cropped.affine[0], x_ex_res)
         self.assertAlmostEqual(abs(cropped.affine[4]), y_ex_res, 6)
+
+    def test_crop_raises_error_for_impossible_transformation(self):
+        raster = self.metric_raster()
+        vector = GeoVector(Polygon.from_bounds(-180, -90, 180, 90), crs=self.geographic_crs)
+        with self.assertRaises(GeoRaster2Error):
+            raster.crop(vector)
 
 
 class GeoRasterMaskedTest(TestCase):
