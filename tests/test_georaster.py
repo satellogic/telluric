@@ -28,7 +28,7 @@ some_raster = GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs, band_n
 some_raster_alt = GeoRaster2(some_image_2d_alt, affine=some_affine, crs=some_crs, band_names=['r'])
 some_raster_multiband = GeoRaster2(
     some_image_3d_multiband, band_names=['r', 'g', 'b'], affine=some_affine, crs=some_crs)
-default_factors = [2, 4, 8]
+default_factors = [2, 4, 8, 16]
 
 
 def make_test_raster(value=0, band_names=[], height=3, width=4, dtype=np.uint16,
