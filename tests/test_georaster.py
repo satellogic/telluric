@@ -412,6 +412,19 @@ def test_empty_from_roi():
     assert empty.dtype == some_dtype
     assert empty.affine.determinant == -1 * resolution * resolution
 
+def test_empty_from_raster():
+    empty = GeoRaster2.empty_from_raster(some_raster)
+    assert empty.footprint().almost_equals(some_raster.footprint())
+    assert empty.resolution() == some_raster.resolution()
+    assert empty.crs == some_raster.crs
+    assert empty.band_names == some_raster.band_names
+    assert empty.dtype == some_raster.dtype
+    assert empty.affine.almost_equals(some_raster.affine)
+
+    assert empty.image.mask.all()
+    assert not(some_raster.image.mask.all())
+
+
 
 def test_georaster_contains_geometry():
     roi = GeoVector(
