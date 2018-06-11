@@ -1,15 +1,14 @@
 import json
+import warnings
 
 import numpy as np
 
 import shapely.geometry
 from shapely.geometry import (
     shape as to_shape,
-    Point, MultiPoint, Polygon, MultiPolygon, LineString, MultiLineString,
+    Point, MultiPoint, Polygon, LineString, MultiLineString,
     CAP_STYLE,
     mapping)
-
-from rasterio.crs import CRS
 
 from telluric.constants import DEFAULT_CRS, EQUAL_AREA_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
@@ -351,7 +350,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
             new_shape = transform(self._shape, self._crs, new_crs)
             return self.__class__(new_shape, new_crs)
 
-    def rasterize(self, dest_resolution, fill_value=None, nodata_value=None, bounds=None):
+    def rasterize(self, dest_resolution, *, fill_value=None, bounds=None, dtype=None, **kwargs):
         # Import here to avoid circular imports
         from telluric import rasterization  # noqa
         crs = self.crs
@@ -361,7 +360,10 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         elif isinstance(bounds, GeoVector):
             bounds = bounds.get_shape(crs)
 
-        return rasterization.rasterize(shapes, crs, bounds, dest_resolution, fill_value, nodata_value)
+        if kwargs.pop("nodata_value", None):
+            warnings.warn(rasterization.NODATA_DEPRECATION_WARNING, DeprecationWarning)
+
+        return rasterization.rasterize(shapes, crs, bounds, dest_resolution, fill_value=fill_value, dtype=dtype)
 
     def equals_exact(self, other, tolerance):
         """ invariant to crs. """
@@ -391,7 +393,12 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
 
     def __eq__(self, other):
         """ invariant to crs and topology."""
-        return self.equals(other)
+        # Explicitly include method here instead of in GEOM_BINARY_PREDICATES,
+        # otherwise the delegation won't happen
+        return (
+            self.crs == other.crs
+            and self._shape.__eq__(other.get_shape(self.crs))
+        )
 
     def __str__(self):
         return '{cls}(shape={shape}, crs={crs})'.format(

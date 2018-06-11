@@ -1,5 +1,4 @@
 import os
-import math
 import json
 import rasterio
 import numpy as np
@@ -10,8 +9,12 @@ from tempfile import TemporaryDirectory
 
 def _calc_overviews_factors(one, blocksize=256):
     res = max(one.width, one.height)
-    f = math.floor(math.log2(res / blocksize))
-    factors = [2**i for i in range(1, f + 2)]
+    factor = 2
+    factors = []
+    while res > blocksize:
+        factors.append(factor)
+        res /= 2
+        factor *= 2
     return factors
 
 

@@ -441,9 +441,7 @@ class GeoRasterMaskedTest(TestCase):
     def setUpClass(cls):
         path = os.path.join('./', 'test_masked_raster.tif')
         if not os.path.isfile(path):
-            # Save without overviews to avoid segmentation fault, see
-            # https://publicgitlab.satellogic.com/telluric/telluric/issues/60
-            cls.masked_raster().save(path, overviews=False)
+            cls.masked_raster().save(path)
 
         cls.read_only_vgr = GeoRaster2.open(path)
 

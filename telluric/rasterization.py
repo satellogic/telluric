@@ -1,28 +1,47 @@
+import warnings
+
 import numpy as np
 
 from affine import Affine, TransformNotInvertibleError
 from rasterio import features
+from rasterio.dtypes import get_minimum_dtype
 from rasterio._err import CPLE_OutOfMemoryError  # noqa
 
 from telluric.georaster import GeoRaster2
 
 
-DTYPE = np.uint8
 NODATA_VALUE = 0
-# FILL_VALUE = np.iinfo(DTYPE).max
+# FILL_VALUE = np.iinfo(np.uint8).max
 FILL_VALUE = 1
+
+NODATA_DEPRECATION_WARNING = ("Passing nodata_value to rasterize is not supported anymore. "
+                              "An appropriate nodata value will be generated, depending on the fill value(s).")
 
 
 class ScaleError(ValueError):
     pass
 
 
-def rasterize(shapes, crs, bounds, dest_resolution, fill_value=None, nodata_value=None,
-              band_names=None, dtype=np.uint8):
+def rasterize(shapes, crs, bounds, dest_resolution, *, fill_value=None,
+              band_names=None, dtype=None, **kwargs):
     if fill_value is None:
         fill_value = FILL_VALUE
-    if nodata_value is None:
-        nodata_value = NODATA_VALUE
+
+    # If no dtype is given, we select it depending on the fill value
+    if dtype is None:
+        dtype = get_minimum_dtype(fill_value)
+
+    nodata_value = kwargs.get('nodata_value', NODATA_VALUE)
+    if nodata_value is not None:
+        warnings.warn(NODATA_DEPRECATION_WARNING, DeprecationWarning)
+
+    # We do not want to use a nodata value that the user is explicitly filling,
+    # so in this case we use an alternative value
+    if fill_value == nodata_value:
+        if np.issubdtype(dtype, np.integer):
+            nodata_value = np.iinfo(dtype).max - nodata_value
+        else:
+            nodata_value = np.finfo(dtype).max - nodata_value
 
     if band_names is None:
         band_names = [1]
