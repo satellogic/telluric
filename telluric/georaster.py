@@ -1353,11 +1353,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     def _overviews_factors(self, blocksize=256):
         return _calc_overviews_factors(self, blocksize=blocksize)
 
-    def save_cloud_optimized(self, dest_url, aligned_to_mercator=False):
+    def save_cloud_optimized(self, dest_url, aligned_to_mercator=False, resampling=Resampling.gauss):
         """Save as Cloud Optimized GeoTiff object to a new file.
 
         :param dest_url: path to the new raster
         :param aligned_to_mercator: if True raster will be aligned to mercator tiles, default False
+        :param resampling: which Resampling to use on reading, default Resampling.gauss
+
         :return: new VirtualGeoRaster of the tiled object
         """
 
@@ -1368,7 +1370,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         with tempfile.NamedTemporaryFile(suffix='.tif') as tf:
             src.save(tf.name, overviews=False)
-            convert_to_cog(tf.name, dest_url)
+            convert_to_cog(tf.name, dest_url, resampling)
 
         geotiff = GeoRaster2.open(dest_url)
         return geotiff
