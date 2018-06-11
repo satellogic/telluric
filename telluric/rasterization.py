@@ -1,5 +1,5 @@
 import warnings
-
+import math
 import numpy as np
 
 from affine import Affine, TransformNotInvertibleError
@@ -53,8 +53,8 @@ def rasterize(shapes, crs, bounds, dest_resolution, *, fill_value=None,
     # Compute size from scale
     dx = maxx - minx
     dy = maxy - miny
-    sx = round(dx / dest_resolution)
-    sy = round(dy / dest_resolution)
+    sx = math.floor(dx / dest_resolution)
+    sy = math.floor(dy / dest_resolution)
     sz = len(band_names)
 
     if sx == 0 or sy == 0:
