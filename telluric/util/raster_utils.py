@@ -58,9 +58,10 @@ def convert_to_cog(source_file, destination_file):
                     mask = dest.dataset_mask()
                     dest.write_mask(mask)
 
+                resampling = Resampling.gauss
                 factors = _calc_overviews_factors(dest)
-                dest.build_overviews(factors, resampling=Resampling.cubic)
-                dest.update_tags(ns='rio_overview', resampling='cubic')
+                dest.build_overviews(factors, resampling=resampling)
+                dest.update_tags(ns='rio_overview', resampling=resampling.name)
 
                 telluric_tags = _get_telluric_tags(source_file)
                 if telluric_tags:
