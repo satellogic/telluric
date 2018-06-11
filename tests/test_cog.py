@@ -97,6 +97,7 @@ def test_cog_move_telluric_tags_to_general_tags_space():
 
 @pytest.mark.parametrize('height, factors', [
                          (800, [2, 4]),
+                         (1024, [2, 4]),
                          (8000, [2, 4, 8, 16, 32])
                          ])
 def test_cog_calc_overviews_factors(height, factors):

@@ -10,9 +10,9 @@ from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.georaster import GeoRaster2
 from telluric.collections import FeatureCollection
-from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS
+from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 
-from telluric.rasterization import ScaleError
+from telluric.rasterization import ScaleError, rasterize
 
 
 def test_rasterization_raise_error_for_too_small_image():
@@ -70,7 +70,7 @@ def test_rasterization_of_line_simple():
 
     expected_result = GeoRaster2(expected_image, expected_affine, expected_crs)
 
-    result = fc.rasterize(resolution, pixels_width, crs=DEFAULT_CRS, bounds=roi)
+    result = fc.rasterize(resolution, polygonize_width=pixels_width, crs=DEFAULT_CRS, bounds=roi)
 
     assert result == expected_result
 
@@ -94,7 +94,7 @@ def test_rasterization_of_line_has_correct_pixel_width(resolution):
 
     expected_result = GeoRaster2(expected_image, expected_affine, expected_crs)
 
-    result = fc.rasterize(resolution, pixels_width, crs=DEFAULT_CRS, bounds=roi)
+    result = fc.rasterize(resolution, polygonize_width=pixels_width, crs=DEFAULT_CRS, bounds=roi)
 
     assert result == expected_result
 
@@ -113,7 +113,93 @@ def test_rasterization_point_single_pixel():
 
     roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=5, ymax=5, crs=WEB_MERCATOR_CRS)
 
-    result = fc.rasterize(1, 1, bounds=roi).image
+    result = fc.rasterize(1, polygonize_width=1, bounds=roi).image
 
     assert_array_equal(result.data, expected_image.data)
     assert_array_equal(result.mask, expected_image.mask)
+
+
+@pytest.mark.parametrize("fill_value,dtype", [
+    (1, np.uint8),
+    (0, np.uint8),
+    (256, np.uint16),
+    (1.0, np.float32),
+    (1.5, np.float32),
+    (0.0, np.float32),
+    (256.0, np.float32)
+])
+def test_rasterization_function_user_dtype(fill_value, dtype):
+    resolution = 1
+
+    line = GeoVector.from_bounds(xmin=2, ymin=0, xmax=3, ymax=3, crs=DEFAULT_CRS)
+    roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=5, ymax=5, crs=DEFAULT_CRS)
+
+    expected_data = np.zeros((5, 5), dtype=dtype)
+    expected_data[2:, 2] = fill_value
+    expected_mask = np.ones((5, 5), dtype=bool)
+    expected_mask[2:, 2] = False
+    expected_image = np.ma.masked_array(
+        expected_data,
+        expected_mask
+    )
+
+    expected_affine = Affine(1.0, 0.0, 0.0, 0.0, -1.0, 5.0)
+
+    expected_crs = DEFAULT_CRS
+
+    expected_result = GeoRaster2(expected_image, expected_affine, expected_crs)
+
+    result = rasterize([line.get_shape(DEFAULT_CRS)], DEFAULT_CRS, roi.get_shape(DEFAULT_CRS),
+                       resolution, fill_value=fill_value, dtype=dtype)
+
+    assert result == expected_result
+
+
+def test_rasterization_function():
+    sq1 = GeoFeature(
+        GeoVector.from_bounds(xmin=0, ymin=2, xmax=1, ymax=3, crs=WGS84_CRS),
+        {'value': 1.0}
+    )
+    sq2 = GeoFeature(
+        GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=2, crs=WGS84_CRS),
+        {'value': 2.0}
+    )
+    fc = FeatureCollection([sq1, sq2])
+
+    def func(feat):
+        return feat['value']
+
+    expected_image = np.ma.masked_array(
+        [[
+            [1.0, 0.0, 0.0],
+            [0.0, 2.0, 2.0],
+            [0.0, 2.0, 2.0]
+        ]],
+        [
+            [False, True, True],
+            [True, False, False],
+            [True, False, False],
+        ]
+    )
+
+    result = fc.rasterize(1.0, fill_value=func, crs=WGS84_CRS, dtype=np.float32)
+
+    assert_array_equal(result.image.mask, expected_image.mask)
+    assert_array_equal(result.image.data, expected_image.data)
+
+
+def test_rasterization_function_raises_error_if_no_dtype_is_given():
+    sq1 = GeoFeature(
+        GeoVector.from_bounds(xmin=0, ymin=2, xmax=1, ymax=3, crs=WGS84_CRS),
+        {'value': 1.0}
+    )
+    sq2 = GeoFeature(
+        GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=2, crs=WGS84_CRS),
+        {'value': 2.0}
+    )
+    fc = FeatureCollection([sq1, sq2])
+
+    with pytest.raises(ValueError) as excinfo:
+        fc.rasterize(1.0, fill_value=lambda x: 1, crs=WGS84_CRS)
+
+    assert "dtype must be specified for multivalue rasterization" in excinfo.exconly()
