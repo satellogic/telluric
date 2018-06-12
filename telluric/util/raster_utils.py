@@ -46,11 +46,12 @@ def _get_telluric_tags(source_file):
         return {"telluric_%s" % k: v for k, v in tags.items()}
 
 
-def convert_to_cog(source_file, destination_file):
+def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss):
     """Convert source file to a Cloud Optimized GeoTiff new file.
 
+    :param source_file: path to the original raster
     :param destination_file: path to the new raster
-    :param destination_file: path to the new raster
+    :param resampling: which Resampling to use on reading, default Resampling.gauss
     """
     with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
         with TemporaryDirectory() as temp_dir:
@@ -62,8 +63,8 @@ def convert_to_cog(source_file, destination_file):
                     dest.write_mask(mask)
 
                 factors = _calc_overviews_factors(dest)
-                dest.build_overviews(factors, resampling=Resampling.cubic)
-                dest.update_tags(ns='rio_overview', resampling='cubic')
+                dest.build_overviews(factors, resampling=resampling)
+                dest.update_tags(ns='rio_overview', resampling=resampling.name)
 
                 telluric_tags = _get_telluric_tags(source_file)
                 if telluric_tags:

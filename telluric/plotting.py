@@ -119,16 +119,17 @@ def plot(feature, mp=None, style_function=None, **map_kwargs):
         Extra parameters to send to folium.Map.
 
     """
+    map_kwargs.setdefault('basemap', basemaps.Stamen.Terrain)
     if feature.is_empty:
         warnings.warn("The geometry is empty.")
-        mp = Map(basemap=basemaps.Stamen.Terrain, **map_kwargs) if mp is None else mp
+        mp = Map(**map_kwargs) if mp is None else mp
 
     else:
         if mp is None:
             center = feature.envelope.centroid.reproject(WGS84_CRS)
             zoom = zoom_level_from_geometry(feature.envelope)
 
-            mp = Map(center=(center.y, center.x), zoom=zoom, basemap=basemaps.Stamen.Terrain, **map_kwargs)
+            mp = Map(center=(center.y, center.x), zoom=zoom, **map_kwargs)
 
         mp.add_layer(layer_from_element(feature, style_function))
 
