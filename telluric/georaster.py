@@ -93,7 +93,8 @@ class MergeStrategy(Enum):
     UNION = 2
 
 
-def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION, shape=None, ul_corner=None, crs=None):
+def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
+              shape=None, ul_corner=None, crs=None):
     """Merge a list of rasters, cropping by a region of interest.
 
     """
@@ -465,13 +466,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return geo_raster
 
     @classmethod
-    def empty_from_roi(cls, roi=None, resolution=None, band_names=None, dtype=np.uint8, ul_corner=None, shape=None, crs=None):
+    def empty_from_roi(cls, roi=None, resolution=None,
+                       band_names=None, dtype=np.uint8, ul_corner=None, shape=None, crs=None):
         from telluric import rasterization
 
         if roi:
             crs = crs or roi.crs
             roi = roi.get_shape(crs)
-
 
         return rasterization.rasterize([], crs, roi,
                                        resolution, band_names=band_names, dtype=dtype, shape=shape, ul_corner=ul_corner)

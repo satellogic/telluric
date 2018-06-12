@@ -291,7 +291,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         tiles = [f['tile'] for f in tiled_features]
         if tiles:
             resolution = mercator_zoom_to_resolution[z]
-            tile = merge_all(tiles, dest_resolution=resolution, ul_corner=(bb.left, bb.top), shape=(256,256), crs=WEB_MERCATOR_CRS)
+            tile = merge_all(tiles, dest_resolution=resolution, ul_corner=(bb.left, bb.top),
+                             shape=(256, 256), crs=WEB_MERCATOR_CRS)
             return tile
         else:
             return None

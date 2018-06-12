@@ -349,12 +349,16 @@ class GeoFeatureThatProduced257():
 
     @property
     def raster(self):
-        bounds = GeoVector.from_bounds(xmin=-295505.5513504914, ymin=4705921.785461731, xmax=-295352.3793504914, ymax=4706074.957461731, crs={'init': 'epsg:3857'})
+        bounds = GeoVector.from_bounds(xmin=-295505.5513504914,
+                                       ymin=4705921.785461731,
+                                       xmax=-295352.3793504914,
+                                       ymax=4706074.957461731,
+                                       crs={'init': 'epsg:3857'})
         resolution = 0.596
 
-        return GeoRaster2.empty_from_roi(roi=bounds, resolution=resolution )
+        return GeoRaster2.empty_from_roi(roi=bounds, resolution=resolution)
 
-    def  __enter__(self):
+    def __enter__(self):
         _file, filename = tempfile.mkstemp(suffix=".tif")
         self._filename = filename
         raster = self.raster
@@ -365,16 +369,12 @@ class GeoFeatureThatProduced257():
         os.remove(self._filename)
 
 
-
 def test_get_tile_that_returend_257():
     with GeoFeatureThatProduced257() as feature:
         features = [feature]
         fc = FeatureCollection(features)
-        tile = fc.get_tile(z=18,x=129139,y=100288)
+        tile = fc.get_tile(z=18, x=129139, y=100288)
         assert tile.shape == (1, 256, 256)
-
-
-
 
 
 @pytest.mark.parametrize("tile", [(4377, 3039, 13), (4376, 3039, 13), (4377, 3039, 13),
