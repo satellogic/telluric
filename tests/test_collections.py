@@ -370,6 +370,9 @@ def test_get_tile_merge_tiles(tile):
                               dest_resolution=mercator_zoom_to_resolution[tile[2]])
     merged = fc.get_tile(*tile, sort_by='created')
     if merged is not None:
+        print(merged.affine.almost_equals(expected_tile.affine))
+        merged.save("merged.tif")
+        expected_tile.save("exec.tif")
         assert merged == expected_tile
     else:
         assert expected_tile.image.mask.all()

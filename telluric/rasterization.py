@@ -22,7 +22,7 @@ class ScaleError(ValueError):
 
 
 def rasterize(shapes, crs, bounds=None, dest_resolution=None, *, fill_value=None,
-              band_names=None, dtype=None, shape=None, upper_left_corner=None, **kwargs):
+              band_names=None, dtype=None, shape=None, ul_corner=None, **kwargs):
     if fill_value is None:
         fill_value = FILL_VALUE
 
@@ -57,11 +57,12 @@ def rasterize(shapes, crs, bounds=None, dest_resolution=None, *, fill_value=None
         dy = maxy - miny
         sx = round(dx / dest_resolution)
         sy = round(dy / dest_resolution)
-    elif shape and upper_left_corner:
-        minx, miny = upper_left_corner
+    elif shape and ul_corner:
+        minx, maxy = ul_corner
         sx, sy = shape
-        maxy = dest_resolution * sy + miny
-        maxx = dest_resolution * sx + minx
+    else:
+        raise ValueError("Either bounds or shape + ul_corner must be specified")
+
 
 
     affine = Affine.translation(minx, maxy) * Affine.scale(dest_resolution, -dest_resolution)
