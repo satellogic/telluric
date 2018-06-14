@@ -18,15 +18,21 @@ def _calc_overviews_factors(one, blocksize=256):
     return factors
 
 
+def _join_masks_from_masked_array(data):
+    """Union of masks."""
+    mask = data.mask[0].copy()
+    for i in range(1, len(data.mask)):
+        mask = np.logical_or(mask, data.mask[i])
+    return mask
+
+
 def _mask_from_masked_array(data):
     """Union of mask and converting from boolean to uint8.
 
     Numpy mask is the invers of the GDAL, True is 0 and False is 255
     https://github.com/mapbox/rasterio/blob/master/docs/topics/masks.rst#numpy-masked-arrays
     """
-    mask = data.mask[0].copy()
-    for i in range(1, len(data.mask)):
-        mask = np.logical_or(mask, data.mask[i])
+    mask = _join_masks_from_masked_array(data)
     mask = (~mask * 255).astype('uint8')
     return mask
 

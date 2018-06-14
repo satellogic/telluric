@@ -726,6 +726,17 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """
         return self.footprint().contains(geometry)
 
+
+    def band(self, band_name):
+        """Return array of the selected band name.
+
+        :param band_name: str name of requested band
+        :return: numpy.ma.array 2d
+        """
+        index = self.band_names.index(band_name)
+        array = self.image[index, :, :]
+        return array
+
     def astype(self, dst_type, stretch=False):
         """ Returns copy of the raster, converted to desired type
         Supported types: uint8, uint16, uint32, int8, int16, int32
