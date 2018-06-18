@@ -726,16 +726,18 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """
         return self.footprint().contains(geometry)
 
-
     def band(self, band_name):
         """Return array of the selected band name.
 
         :param band_name: str name of requested band
         :return: numpy.ma.array 2d
         """
-        index = self.band_names.index(band_name)
-        array = self.image[index, :, :]
-        return array
+        try:
+            index = self.band_names.index(band_name)
+            array = self.image[index, :, :]
+            return array[np.newaxis, :, :]
+        except ValueError:
+            raise GeoRaster2Error("band %s does not exists in raster" % band_name)
 
     def astype(self, dst_type, stretch=False):
         """ Returns copy of the raster, converted to desired type

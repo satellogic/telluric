@@ -1,5 +1,5 @@
 from functools import reduce
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from math import floor, ceil
 import numpy as np
 
@@ -16,7 +16,12 @@ def flatten_two_level_list(main_list):
     return [item for sublist in main_list for item in sublist]
 
 
-class Product():
+Product = namedtuple('Product', ['raster', 'bands_mapping', 'name', 'display_name', 'description',
+                                 'min', 'max', 'type', 'required_bands',
+                                 'output_bands', 'unit', 'default_view', 'used_bands'])
+
+
+class _Product():
     """ this class is the result of applying a product on a raster"""
 
     def __init__(self, raster, bands_mapping, product_generator, **overrides):
@@ -32,9 +37,32 @@ class Product():
         self.required_bands = product_generator['required_bands']
         self.output_bands = product_generator['output_bands']
         self.unit = product_generator['unit']
+        self.default_view = product_generator['default_view']
 
     def used_bands(self):
         return flatten_two_level_list(self.bands_mapping.values())  # flatten bands list
+
+    def namedtuple(self):
+        p = Product(
+            raster=self.raster,
+            bands_mapping=self.bands_mapping,
+            name=self.name,
+            display_name=self.display_name,
+            description=self.description,
+            min=self.min,
+            max=self.max,
+            type=self.type,
+            required_bands=self.required_bands,
+            output_bands=self.output_bands,
+            unit=self.unit,
+            default_view=self.default_view,
+            used_bands=self.used_bands()
+        )
+        return p
+
+
+class ProductError(Exception):
+    pass
 
 
 class ProductsFactory(BaseFactory):
@@ -109,12 +137,12 @@ class ProductGenerator:
             return default
 
     @classmethod
-    def max_wavelength(cls, scensor_bands_info, band_name, default=None):
-        return cls.band_metadata(band_name, scensor_bands_info, 'max', default)
+    def max_wavelength(cls, sensor_bands_info, band_name, default=None):
+        return cls.band_metadata(band_name, sensor_bands_info, 'max', default)
 
     @classmethod
-    def min_wavelength(cls, scensor_bands_info, band_name, default=None):
-        return cls.band_metadata(band_name, scensor_bands_info, 'min', default)
+    def min_wavelength(cls, sensor_bands_info, band_name, default=None):
+        return cls.band_metadata(band_name, sensor_bands_info, 'min', default)
 
     @classmethod
     def min_product_wavelength(cls, band_name):
@@ -125,16 +153,16 @@ class ProductGenerator:
         return cls.band_metadata(band_name, cls.wavelength_map, 'max')
 
     @classmethod
-    def match_bands(cls, scensor_bands_info, bands_list, dest_band):
+    def match_bands(cls, sensor_bands_info, bands_list, dest_band):
         min_val = cls.min_product_wavelength(dest_band)
         max_val = cls.max_product_wavelength(dest_band)
-        return [a for a in bands_list if (min_val <= ceil(cls.min_wavelength(scensor_bands_info, a, default=0)) and
-                                          floor(cls.max_wavelength(scensor_bands_info, a, default=1000)) <= max_val)]
+        return [a for a in bands_list if (min_val <= ceil(cls.min_wavelength(sensor_bands_info, a, default=0)) and
+                                          floor(cls.max_wavelength(sensor_bands_info, a, default=1000)) <= max_val)]
 
     @classmethod
-    def fits_raster_bands(cls, scensor_bands_info, available_bands, bands_restriction=None, silent=True):
+    def fits_raster_bands(cls, sensor_bands_info, available_bands, bands_restriction=None, silent=True):
         bands_restriction = bands_restriction or available_bands
-        matched_bands = cls.match_available_bands_to_required_bands(scensor_bands_info, bands_restriction)
+        matched_bands = cls.match_available_bands_to_required_bands(sensor_bands_info, bands_restriction)
         if matched_bands:
             do_we_have_elements_to_create_required_bands = all(
                 [len(a) > 0 for a in matched_bands.values()])
@@ -145,25 +173,25 @@ class ProductGenerator:
                 if silent:
                     return False
                 missing_restricted_bands = [a for a in used_restricted_bands if a not in available_bands]
-                raise KeyError('raster lacks restricted bands: %s' % ','.join(missing_restricted_bands))
+                raise ProductError('raster lacks restricted bands: %s' % ','.join(missing_restricted_bands))
 
         if silent:
             return False
         zero_bands = [a for a, v in matched_bands.items() if len(v) == 0]
-        raise KeyError('raster lacks bands for: %s' % ','.join(zero_bands))
+        raise ProductError('raster lacks bands for: %s' % ','.join(zero_bands))
 
     @classmethod
-    def match_available_bands_to_required_bands(cls, scensor_bands_info, available_bands, required_bands=None):
+    def match_available_bands_to_required_bands(cls, sensor_bands_info, available_bands, required_bands=None):
         matched_bands = {}
         required_bands = required_bands or cls.required_bands
         bands = set(available_bands)
         for dest_band in required_bands:
-            matched_bands[dest_band] = cls.match_bands(scensor_bands_info, bands, dest_band)
+            matched_bands[dest_band] = cls.match_bands(sensor_bands_info, bands, dest_band)
         return matched_bands
 
     @classmethod
-    def match_bands_for_legend(cls, scensor_bands_info, available_bands):
-        bands_mapping = cls.match_available_bands_to_required_bands(scensor_bands_info, available_bands)
+    def match_bands_for_legend(cls, sensor_bands_info, available_bands):
+        bands_mapping = cls.match_available_bands_to_required_bands(sensor_bands_info, available_bands)
         bands_mapping = cls.override_bands_mapping(bands_mapping)
         return bands_mapping
 
@@ -184,17 +212,18 @@ class ProductGenerator:
         """this function is used in subclasses to modify bands_mapping"""
         return bands_mapping
 
-    def apply(self, raster, scensor_bands_info, bands_restriction=None, **kwargs):
+    def apply(self, sensor_bands_info, raster, bands_restriction=None, metadata=False, **kwargs):
         """
         Apply product calculation on the raster
 
         :param raster: the data raster the product should apply on
         :param bands_restriction: not required list of bands required for the processing of the product,
             if one of this bands not exists in the raster the product should return `no data`
+        :param metadata: when true returns a named tuple with raster and additional information
         :param kwargs: additional arguments
         """
-        self.fits_raster_bands(raster.band_names, bands_restriction, silent=False)
-        bands_mapping = self.match_available_bands_to_required_bands(scensor_bands_info, raster.band_names)
+        self.fits_raster_bands(sensor_bands_info, raster.band_names, bands_restriction, silent=False)
+        bands_mapping = self.match_available_bands_to_required_bands(sensor_bands_info, raster.band_names)
         bands = self.extract_bands(raster, bands_mapping)
         # to silence error on 0 division, which happens at nodata
         with np.errstate(divide='ignore', invalid='ignore'):
@@ -202,36 +231,40 @@ class ProductGenerator:
         used_band_names = [item for sublist in bands_mapping.values() for item in sublist]
         array = self._force_nodata_where_it_was_in_original_raster(array, raster, used_band_names)
 
-        #convert array to ma.array
         product_raster = raster.copy_with(image=array, band_names=self.output_bands)
-        product = Product(raster=product_raster, bands_mapping=bands_mapping, product_generator=self.to_dict())
+        if not metadata:
+            return product_raster
+
+        product = _Product(raster=product_raster, bands_mapping=bands_mapping, product_generator=self.to_dict())
         product = self.override_product_settings(product)
-        return product
+        return product.namedtuple()
 
     def _merge_bands(self, band_names, raster):
         bands = [raster.band(band_name) for band_name in band_names]
+        if len(bands) > 1:
+            # bands = [b[0, :, :] for b in bands]
+            bands = np.stack(bands, axis=1)
+        else:
+            bands = bands[0]
+            bands = bands[np.newaxis, : , :, :]
+
         mask = _join_masks_from_masked_array(bands)
-        ma = np.ma.array(bands, mask=mask)
-        combined_band = ma.mean(axis=0).filled(0).astype(raster.dtype)
+        combined_band = np.ma.array(bands, mask=mask)
+        combined_band = combined_band.mean(axis=1).astype(raster.dtype)
+        combined_band.filled(0)
         return combined_band
 
     def _force_nodata_where_it_was_in_original_raster(self, array, raster, band_names):
-        # if np.issubdtype(array.dtype, float):
-        #     array.data[array.mask] = 1e-10  # firs make all nodata minimal value 'epsilon'
-        # else:
-        #     array.data[array.mask] = 1  # firs make all nodata minimal value '1'
         no_data_mask = self._get_nodata_musk(raster, band_names)
         no_data_mask = np.logical_or(array.mask, no_data_mask)
-        array[no_data_mask] = 0
         new_array = np.ma.array(array.data, mask=no_data_mask)
+        new_array.filled(0)
         return new_array
 
     def _get_nodata_musk(self, raster, band_names=None):
-
         band_names = band_names or raster.band_names
-        bands = [raster.band(band_name).mask for band_name in band_names]
-        mask = reduce(np.logical_or, bands)
-        mask = np.stack([mask] * len(band_names))
+        masks = [raster.band(band_name).mask for band_name in band_names]
+        mask = reduce(np.logical_or, masks)
         return mask
 
 
@@ -380,39 +413,20 @@ class SingleBand(ProductGenerator):
         self.output_bands = [band]
 
     @classmethod
-    def fits_raster_bands(cls, available_bands, silent=True):
+    def fits_raster_bands(cls, sensor_bands_info, available_bands, bands_restriction=None, silent=True):
         if len(available_bands) >= 1:
             return True
         if silent:
             return False
-        raise KeyError('expected 1 band, got: %s' % available_bands)
+        raise ProductError('expected 1 band, got: %s' % available_bands)
 
-    # @classmethod
-    # def min_wavelength(cls, band_name, default=None):
-    #     return cls.band_metadata(band_name, sat_utils.wavelength_map, 'min', default)
-
-    # @classmethod
-    # def min_product_wavelength(cls, band_name, **):
-    #     return cls.min_wavelength(band_name)
-
-    # @classmethod
-    # def max_product_wavelength(cls, band_name):
-    #     return cls.max_wavelength(band_name)
-
-    @classmethod
-    def match_bands(cls, _, bands_list, dest_band):
-        return [dest_band] if dest_band in bands_list else []
-
-    def _apply(self, band, **kwargs):
-        array = band
-        return array
-
-    # def apply(self, raster, **kwargs):
-    #     bands_mapping = self.match_available_bands_to_required_bands(raster.band_names,
-    #                                                                  required_bands=self.required_bands)
-    #     product_raster = raster.limit_to_bands(self.output_bands)
-    #     return Product(raster=product_raster, bands_mapping=bands_mapping, product_generator=self.to_dict(),
-    #                    required_bands=self.required_bands, output_bands=self.output_bands)
+    def apply(self, sensor_bands_info, raster, metadata=False, **kwargs):
+        bands_mapping = {self.output_bands[0]: self.output_bands}
+        product_raster = raster.limit_to_bands(self.output_bands)
+        if not metadata:
+            return product_raster
+        return _Product(raster=product_raster, bands_mapping=bands_mapping, product_generator=self.to_dict(),
+                        required_bands=self.required_bands, output_bands=self.output_bands).namedtuple()
 
 
 class TrueColor(ProductGenerator):
@@ -430,7 +444,9 @@ class TrueColor(ProductGenerator):
     _order = 1
 
     def _apply(self, red, green, blue, **kwargs):
-        array = np.stack((red[0], green[0], blue[0]))
+        data = np.stack((red.data[0], green.data[0], blue.data[0]), )
+        mask = np.stack((red.mask[0], green.mask[0], blue.mask[0]), )
+        array = np.ma.array(data, mask=mask)
         return array
 
 
@@ -453,7 +469,9 @@ class RGBEnhanced(ProductGenerator):
         return [dest_band] if dest_band in bands_list else []
 
     def _apply(self, red_enhanced, green_enhanced, blue_enhanced, **kwargs):
-        array = np.stack((red_enhanced[0], green_enhanced[0], blue_enhanced[0]))
+        data = np.stack((red_enhanced.data[0], green_enhanced.data[0], blue_enhanced.data[0]))
+        mask = np.stack((red_enhanced.mask[0], green_enhanced.mask[0], blue_enhanced.mask[0]))
+        array = np.ma.array(data, mask=mask)
         return array
 
     @classmethod
@@ -494,7 +512,9 @@ class LandCoverIndex(ProductGenerator):
         red = R827
         green = R690
         blue = R550
-        array = np.stack((red[0], green[0], blue[0]))
+        data = np.stack((red.data[0], green.data[0], blue.data[0]), )
+        mask = np.stack((red.mask[0], green.mask[0], blue.mask[0]), )
+        array = np.ma.array(data, mask=mask)
         return array
 
     @classmethod

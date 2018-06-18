@@ -20,10 +20,15 @@ def _calc_overviews_factors(one, blocksize=256):
 
 def _join_masks_from_masked_array(data):
     """Union of masks."""
+    if not isinstance(data.mask, np.ndarray):
+        # workaround to handle mask compressed to single value
+        mask = np.empty(data.data.shape, dtype=np.bool)
+        mask.fill(data.mask)
+        return mask
     mask = data.mask[0].copy()
     for i in range(1, len(data.mask)):
         mask = np.logical_or(mask, data.mask[i])
-    return mask
+    return mask[np.newaxis, :, :]
 
 
 def _mask_from_masked_array(data):

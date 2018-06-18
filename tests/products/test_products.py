@@ -1,9 +1,11 @@
 import unittest
 import numpy as np
+import copy
 
 from affine import Affine
 import telluric as tl
 from telluric.constants import WEB_MERCATOR_CRS
+from telluric.products import ProductError
 
 from telluric.products import (
     ProductsFactory, ProductGenerator, NDVI, EVI2, ENDVI, EXG, EXB, EXR, TrueColor, PRI, NDVI827, NRI, GNDVI, CCI,
@@ -21,6 +23,39 @@ def make_test_raster(value=0, band_names=[], height=3, width=4, dtype=np.uint16,
     return raster
 
 
+def sensor_bands_info():
+    return copy.deepcopy({
+        'blue': {'min': 400, 'max': 510},
+        'green': {'min': 515, 'max': 580},
+        'pan': {'min': 400, 'max': 750},
+        'red': {'min': 590, 'max': 690},
+        'nir': {'min': 750, 'max': 900},
+        'HC_450': {'min': 445, 'max': 456},
+        'HC_500': {'min': 493, 'max': 510},
+        'HC_530': {'min': 521, 'max': 538},
+        'HC_550': {'min': 540, 'max': 559},
+        'HC_570': {'min': 560, 'max': 579},
+        'HC_580': {'min': 572, 'max': 592},
+        'HC_595': {'min': 583, 'max': 605},
+        'HC_610': {'min': 596, 'max': 619},
+        'HC_659': {'min': 646, 'max': 671},
+        'HC_670': {'min': 657, 'max': 683},
+        'HC_680': {'min': 666, 'max': 693},
+        'HC_690': {'min': 676, 'max': 703},
+        'HC_700': {'min': 686, 'max': 714},
+        'HC_710': {'min': 696, 'max': 724},
+        'HC_720': {'min': 705, 'max': 734},
+        'HC_730': {'min': 714, 'max': 744},
+        'HC_740': {'min': 725, 'max': 755},
+        'HC_750': {'min': 735, 'max': 765},
+        'HC_760': {'min': 744, 'max': 775},
+        'HC_770': {'min': 753, 'max': 785},
+        'HC_830': {'min': 809, 'max': 844},
+    })
+
+macro_wavelengths = (450, 500, 530, 550, 570, 580, 595, 610, 670, 680,
+                     690, 700, 710, 720, 730, 740, 750, 760, 770, 830)
+
 micro_values = {
     'green': 55,
     'red': 77,
@@ -28,15 +63,15 @@ micro_values = {
     'blue': 118
 }
 
-expected_nir = ['HyperCube_770_nm', 'HyperCube_827_nm']
-expected_red = ['HyperCube_670_nm', 'HyperCube_608_nm']
-expected_green = ['HyperCube_570_nm', 'HyperCube_550_nm', 'HyperCube_530_nm']
-expected_blue = ['HyperCube_450_nm', 'HyperCube_502_nm']
+expected_nir = ['HC_770', 'HC_830']
+expected_red = ['HC_670', 'HC_610']
+expected_green = ['HC_570', 'HC_550', 'HC_530']
+expected_blue = ['HC_450', 'HC_500']
 
 # calculated micro values
-nir_value = 135    # nir values 134 136 avg 135
-red_value = 113    # red values 112 114 avg 113
-green_value = 116  # green values 104 106 138 avg 105
+nir_value = 137    # nir values 138 136 avg 137
+red_value = 115    # red values 116 114 avg 115
+green_value = 106  # green values 104 106 108 avg 106
 blue_value = 101   # blue values 100 102 avg 101
 
 
@@ -50,20 +85,16 @@ def micro_raster():
     return source_raster.copy_with(image=array)
 
 
-
 def micro_raster_with_no_data():
     source_raster = micro_raster()
-    source_raster.image.data[0, 1, 2] = source_raster.nodata
-    source_raster.image.data[1, 2, 3] = source_raster.nodata
-    source_raster.image.data[2, 0, 0] = source_raster.nodata
-    source_raster.image.data[3, 1, 3] = source_raster.nodata
+    source_raster.image.mask[0, 1, 2] = True
+    source_raster.image.mask[1, 2, 3] = True
+    source_raster.image.mask[2, 0, 0] = True
+    source_raster.image.mask[3, 1, 3] = True
     return source_raster
 
 
-macro_wavelengths = (450, 502, 530, 570, 582, 595, 608, 670, 680,
-                     690, 700, 710, 720, 730, 740, 750, 760, 770, 827, 550)
-
-macro_bands = ["HyperCube_%i_nm" % wl for wl in macro_wavelengths]
+macro_bands = ["HC_%i" % wl for wl in macro_wavelengths]
 
 
 def macro_raster():
@@ -75,11 +106,11 @@ def macro_raster():
 
 def macro_raster_with_no_data():
     source_raster = macro_raster()
-    source_raster.image.data[:, 1, 2] = source_raster.nodata
-    source_raster.image.data[2, 2, 3] = source_raster.nodata
-    source_raster.image.data[5, 0, 0] = source_raster.nodata
-    source_raster.image.data[14, 1, 3] = source_raster.nodata
-    source_raster.image.data[15, 1, 3] = source_raster.nodata
+    source_raster.image.mask[:, 1, 2] = True
+    source_raster.image.mask[2, 2, 3] = True
+    source_raster.image.mask[5, 0, 0] = True
+    source_raster.image.mask[14, 1, 3] = True
+    source_raster.image.mask[15, 1, 3] = True
     return source_raster
 
 
@@ -93,7 +124,7 @@ class TestProductsFuctory(unittest.TestCase):
     def test_it_is_case_insensitive(self):
         self.assertIsInstance(ProductsFactory.get_object('ndvi'), NDVI)
 
-    def test_it_is_raises_key_error_whene_product_not_exists(self):
+    def test_it_is_raises_error_whene_product_not_exists(self):
         self.assertRaises(KeyError, ProductsFactory.get_object, 'invalid_product')
 
     def test_produc_is_not_instaciable(self):
@@ -116,25 +147,25 @@ class TestProductGenerator(unittest.TestCase):
 
     def test_setting_minimal_value_for_zero_uint16(self):
         raster = make_test_raster(42, ['nir', 'red'])
-        arr = np.ma.array(np.zeros(raster.shape, dtype=np.uint16))
-        bands = {band_name: raster.band(band_name) for band_name in raster.band_names}
-        output_arr = NDVI()._force_nodata_where_it_was_in_original_raster(arr, raster, bands)
-        self.assertTrue((output_arr == 0).all())
+        shape = (1, raster.height, raster.width)
+        arr = np.ma.array(np.zeros(shape, dtype=np.uint16))
+        output_arr = NDVI()._force_nodata_where_it_was_in_original_raster(arr, raster, raster.band_names)
+        self.assertTrue((output_arr.data == 0).all())
         self.assertFalse(output_arr.mask.any())
 
     def test_setting_minimal_value_for_zero_uint8(self):
         raster = make_test_raster(42, ['nir', 'red'])
-        arr = np.ma.array(np.zeros(raster.shape, dtype=np.uint8))
-        bands = {band_name: raster.band(band_name) for band_name in raster.band_names}
-        output_arr = NDVI()._force_nodata_where_it_was_in_original_raster(arr, raster, bands)
+        shape = (1, raster.height, raster.width)
+        arr = np.ma.array(np.zeros(shape, dtype=np.uint8))
+        output_arr = NDVI()._force_nodata_where_it_was_in_original_raster(arr, raster, raster.band_names)
         self.assertTrue((output_arr == 0).all())
         self.assertFalse(output_arr.mask.any())
 
     def test_setting_minimal_value_for_zero_float32(self):
         raster = make_test_raster(0.42, ['nir', 'red'], dtype=np.float32)
-        arr = np.ma.array(np.zeros(raster.shape, dtype=np.float32))
-        bands = {band_name: raster.band(band_name) for band_name in raster.band_names}
-        output_arr = NDVI()._force_nodata_where_it_was_in_original_raster(arr, raster, bands)
+        shape = (1, raster.height, raster.width)
+        arr = np.ma.array(np.zeros(shape, dtype=np.float32))
+        output_arr = NDVI()._force_nodata_where_it_was_in_original_raster(arr, raster, raster.band_names)
         self.assertTrue((output_arr == 0).all())
         self.assertFalse(output_arr.mask.any())
 
@@ -144,9 +175,9 @@ class TestProductGenerator(unittest.TestCase):
         mask = raster.image.mask
         mask[:, :, :] = True
         raster = raster.copy_with(image=np.ma.array(data=array, mask=mask))
-        arr = np.ma.array(np.zeros(raster.shape))
-        bands = {band_name: raster.band(band_name) for band_name in raster.band_names}
-        output_arr = NDVI()._force_nodata_where_it_was_in_original_raster(arr, raster, bands)
+        shape = (1, raster.height, raster.width)
+        arr = np.ma.array(np.zeros(shape))
+        output_arr = NDVI()._force_nodata_where_it_was_in_original_raster(arr, raster, raster.band_names)
         self.assertTrue(output_arr.mask.all())
 
     def test_setting_minimal_value_for_nodata_float32(self):
@@ -155,8 +186,8 @@ class TestProductGenerator(unittest.TestCase):
         mask = raster.image.mask
         mask[:, :, :] = True
         raster = raster.copy_with(image=np.ma.array(data=array, mask=mask))
-        arr = np.ma.array(np.zeros(raster.shape))
-        # bands = {band_name: raster.band(band_name) for band_name in raster.band_names}
+        shape = (1, raster.height, raster.width)
+        arr = np.ma.array(np.zeros(shape))
         output_arr = NDVI()._force_nodata_where_it_was_in_original_raster(arr, raster, raster.band_names)
         self.assertTrue(output_arr.mask.all())
 
@@ -164,18 +195,18 @@ class TestProductGenerator(unittest.TestCase):
 class TestBandsMatching(unittest.TestCase):
 
     def test_it_matches_all_bands(self):
-        self.assertTrue(set(ProductsFactory.get_matchings(
-            ['blue', 'nir', 'red'])).issuperset(['NDVI', 'EVI2']))
-        self.assertTrue(set(ProductsFactory.get_matchings(['nir', 'red'])).issuperset(['NDVI', 'EVI2']))
-        self.assertNotIn('EXR', ProductsFactory.get_matchings(['nir', 'red']))
-        self.assertEqual(set(ProductsFactory.get_matchings(['red'])), {'SingleBand'})
+        self.assertTrue(set(ProductsFactory.get_matchings(sensor_bands_info(),
+                        ['blue', 'nir', 'red'])).issuperset(['NDVI', 'EVI2']))
+        self.assertTrue(set(ProductsFactory.get_matchings(sensor_bands_info(),
+                        ['nir', 'red'])).issuperset(['NDVI', 'EVI2']))
+        self.assertNotIn('EXR', ProductsFactory.get_matchings(sensor_bands_info(), ['nir', 'red']))
+        self.assertEqual(set(ProductsFactory.get_matchings(sensor_bands_info(), ['red'])), {'SingleBand'})
 
 
-class TestNDVI(unittest.TestCase):
+class TestNDVIStraite(unittest.TestCase):
 
     def test_ndvi(self):
-        product = NDVI().apply(micro_raster())
-        raster = product.raster
+        raster = NDVI().apply(sensor_bands_info(), micro_raster())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, NDVI.output_bands)
         self.assertEqual(raster.dtype, NDVI.type)
@@ -186,9 +217,9 @@ class TestNDVI(unittest.TestCase):
         )
         self.assertTrue((raster.image.data == expected_value).all())
 
-    def test_NDVI_product(self):
+    def test_NDVI_product_base(self):
         product_generator = NDVI()
-        product = product_generator.apply(micro_raster())
+        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -198,23 +229,25 @@ class TestNDVI(unittest.TestCase):
         self.assertEqual(product.output_bands, product_generator.output_bands)
         self.assertEqual(product.unit, product_generator.unit)
         self.assertEqual(product.bands_mapping, {'nir': ['nir'], 'red': ['red']})
+        self.assertCountEqual(product.used_bands, ['nir', 'red'])
+        self.assertEqual(product.default_view, product_generator.default_view)
 
     def test_for_no_data(self):
-        product = NDVI().apply(micro_raster_with_no_data())
-        raster = product.raster
+        raster = NDVI().apply(sensor_bands_info(), micro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, NDVI.output_bands)
         self.assertEqual(raster.dtype, NDVI.type)
         self.assertEqual(raster.height, micro_raster().height)
         self.assertEqual(raster.width, micro_raster().width)
-        self.assertFalse(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertFalse(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertTrue(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
     def test_NDVI_product_for_macro(self):
         product_generator = NDVI()
-        product = product_generator.apply(macro_raster())
+        # import pdb; pdb.set_trace()
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -226,35 +259,33 @@ class TestNDVI(unittest.TestCase):
         self.assertCountEqual(product.bands_mapping, {'nir': expected_nir, 'red': expected_red})
         expected_value = (nir_value - red_value) / (nir_value + red_value)
         self.assertTrue((product.raster.image.data == expected_value).all())
-        self.assertCountEqual(product.used_bands(), expected_nir + expected_red)
+        self.assertCountEqual(product.used_bands, expected_nir + expected_red)
 
     def test_for_macro_with_no_data(self):
-        product = NDVI().apply(macro_raster_with_no_data())
-        raster = product.raster
+        raster = NDVI().apply(sensor_bands_info(), macro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, NDVI.output_bands)
         self.assertEqual(raster.dtype, NDVI.type)
         self.assertEqual(raster.height, macro_raster().height)
         self.assertEqual(raster.width, macro_raster().width)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertFalse(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
     def test_NDVI_product_fail_for_macro_with_missing_restricted_bands(self):
         product_generator = NDVI()
         mr = macro_raster()
-        restricted_bands = mr.band_names + ['b659']
-        with self.assertRaises(KeyError) as ex:
-            product_generator.apply(mr, bands_restriction=restricted_bands)
-        self.assertEqual(str(ex.exception), "'raster lacks restricted bands: b659'")
+        restricted_bands = mr.band_names + ['HC_659']
+        with self.assertRaises(ProductError) as ex:
+            product_generator.apply(sensor_bands_info(), mr, bands_restriction=restricted_bands)
+        self.assertEqual(str(ex.exception), "raster lacks restricted bands: HC_659")
 
     def test_NDVI_product_for_macro_with_all_restricted_bands(self):
         product_generator = NDVI()
         mr = macro_raster()
         restricted_bands = mr.band_names
-        product = product_generator.apply(mr, bands_restriction=restricted_bands)
-        raster = product.raster
+        raster = product_generator.apply(sensor_bands_info(), mr, bands_restriction=restricted_bands)
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, NDVI.output_bands)
         self.assertEqual(raster.dtype, NDVI.type)
@@ -265,8 +296,7 @@ class TestNDVI(unittest.TestCase):
 class TestEVI2(unittest.TestCase):
 
     def test_evi2(self):
-        product = EVI2().apply(micro_raster())
-        raster = product.raster
+        raster = EVI2().apply(sensor_bands_info(), micro_raster())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EVI2.output_bands)
         self.assertEqual(raster.dtype, EVI2.type)
@@ -280,7 +310,7 @@ class TestEVI2(unittest.TestCase):
 
     def test_EVI2_product(self):
         product_generator = EVI2()
-        product = product_generator.apply(micro_raster())
+        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -292,21 +322,20 @@ class TestEVI2(unittest.TestCase):
         self.assertEqual(product.bands_mapping, {'nir': ['nir'], 'red': ['red']})
 
     def test_for_no_data(self):
-        product = EVI2().apply(micro_raster_with_no_data())
-        raster = product.raster
+        raster = EVI2().apply(sensor_bands_info(), micro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EVI2.output_bands)
         self.assertEqual(raster.dtype, EVI2.type)
         self.assertEqual(raster.height, micro_raster().height)
         self.assertEqual(raster.width, micro_raster().width)
-        self.assertFalse(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertFalse(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertTrue(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
     def test_EVI2_product_for_macro(self):
         product_generator = EVI2()
-        product = product_generator.apply(macro_raster())
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -321,24 +350,22 @@ class TestEVI2(unittest.TestCase):
         self.assertAlmostEqual(product.raster.image.data[0, 0, 0], expected_value)
 
     def test_for_macro_with_no_data(self):
-        product = EVI2().apply(macro_raster_with_no_data())
-        raster = product.raster
+        raster = EVI2().apply(sensor_bands_info(), macro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EVI2.output_bands)
         self.assertEqual(raster.dtype, EVI2.type)
         self.assertEqual(raster.height, macro_raster().height)
         self.assertEqual(raster.width, macro_raster().width)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertFalse(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestENDVI(unittest.TestCase):
 
     def test_endvi(self):
-        product = ENDVI().apply(micro_raster())
-        raster = product.raster
+        raster = ENDVI().apply(sensor_bands_info(), micro_raster())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, ENDVI.output_bands)
         self.assertEqual(raster.dtype, ENDVI.type)
@@ -352,7 +379,7 @@ class TestENDVI(unittest.TestCase):
 
     def test_ENDVI_product(self):
         product_generator = ENDVI()
-        product = product_generator.apply(micro_raster())
+        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -364,21 +391,20 @@ class TestENDVI(unittest.TestCase):
         self.assertEqual(product.bands_mapping, {'nir': ['nir'], 'green': ['green'], 'blue': ['blue']})
 
     def test_for_no_data(self):
-        product = ENDVI().apply(micro_raster_with_no_data())
-        raster = product.raster
+        raster = ENDVI().apply(sensor_bands_info(), micro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, ENDVI.output_bands)
         self.assertEqual(raster.dtype, ENDVI.type)
         self.assertEqual(raster.height, micro_raster().height)
         self.assertEqual(raster.width, micro_raster().width)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertFalse(raster.image.mask[0, 2, 3])
+        self.assertTrue(raster.image.mask[0, 0, 0])
+        self.assertTrue(raster.image.mask[0, 1, 3])
 
     def test_ENDVI_product_for_macro(self):
         product_generator = ENDVI()
-        product = product_generator.apply(macro_raster())
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -398,24 +424,22 @@ class TestENDVI(unittest.TestCase):
         self.assertTrue((product.raster.image.data == expected_value).all())
 
     def test_for_macro_with_no_data(self):
-        product = ENDVI().apply(macro_raster_with_no_data())
-        raster = product.raster
+        raster = ENDVI().apply(sensor_bands_info(), macro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, ENDVI.output_bands)
         self.assertEqual(raster.dtype, ENDVI.type)
         self.assertEqual(raster.height, macro_raster().height)
         self.assertEqual(raster.width, macro_raster().width)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestExcessIndices(unittest.TestCase):
 
     def test_exg(self):
-        product = EXG().apply(micro_raster())
-        raster = product.raster
+        raster = EXG().apply(sensor_bands_info(), micro_raster())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EXG.output_bands)
         self.assertEqual(raster.dtype, EXG.type)
@@ -431,7 +455,7 @@ class TestExcessIndices(unittest.TestCase):
 
     def test_EXG_product(self):
         product_generator = EXG()
-        product = product_generator.apply(micro_raster())
+        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -443,17 +467,16 @@ class TestExcessIndices(unittest.TestCase):
         self.assertEqual(product.bands_mapping, {'red': ['red'], 'green': ['green'], 'blue': ['blue']})
 
     def test_for_no_data(self):
-        product = EXG().apply(micro_raster_with_no_data())
-        raster = product.raster
+        raster = EXG().apply(sensor_bands_info(), micro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 1)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertTrue(raster.image.mask[0, 1, 3])
 
     def test_EXG_product_for_macro(self):
         product_generator = EXG()
-        product = product_generator.apply(macro_raster())
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -473,21 +496,19 @@ class TestExcessIndices(unittest.TestCase):
         self.assertAlmostEqual(product.raster.image.data[0, 0, 0], expected_value)
 
     def test_exg_for_macro_with_no_data(self):
-        product = EXG().apply(macro_raster_with_no_data())
-        raster = product.raster
+        raster = EXG().apply(sensor_bands_info(), macro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EXG.output_bands)
         self.assertEqual(raster.dtype, EXG.type)
         self.assertEqual(raster.height, macro_raster().height)
         self.assertEqual(raster.width, macro_raster().width)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
     def test_exr(self):
-        product = EXR().apply(micro_raster())
-        raster = product.raster
+        raster = EXR().apply(sensor_bands_info(), micro_raster())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EXR.output_bands)
         self.assertEqual(raster.dtype, EXR.type)
@@ -502,7 +523,7 @@ class TestExcessIndices(unittest.TestCase):
 
     def test_EXR_product(self):
         product_generator = EXR()
-        product = product_generator.apply(micro_raster())
+        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -515,7 +536,7 @@ class TestExcessIndices(unittest.TestCase):
 
     def test_EXR_product_for_macro(self):
         product_generator = EXR()
-        product = product_generator.apply(macro_raster())
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -534,21 +555,19 @@ class TestExcessIndices(unittest.TestCase):
         self.assertAlmostEqual(product.raster.image.data[0, 0, 0], expected_value)
 
     def test_exr_for_macro_with_no_data(self):
-        product = EXR().apply(macro_raster_with_no_data())
-        raster = product.raster
+        raster = EXR().apply(sensor_bands_info(), macro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EXR.output_bands)
         self.assertEqual(raster.dtype, EXR.type)
         self.assertEqual(raster.height, macro_raster().height)
         self.assertEqual(raster.width, macro_raster().width)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
     def test_exb(self):
-        product = EXB().apply(micro_raster())
-        raster = product.raster
+        raster = EXB().apply(sensor_bands_info(), micro_raster())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EXB.output_bands)
         self.assertEqual(raster.dtype, EXB.type)
@@ -562,7 +581,7 @@ class TestExcessIndices(unittest.TestCase):
 
     def test_EXB_product(self):
         product_generator = EXB()
-        product = product_generator.apply(micro_raster())
+        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -575,7 +594,7 @@ class TestExcessIndices(unittest.TestCase):
 
     def test_EXB_product_for_macro(self):
         product_generator = EXB()
-        product = product_generator.apply(macro_raster())
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -594,24 +613,22 @@ class TestExcessIndices(unittest.TestCase):
         self.assertAlmostEqual(product.raster.image.data[0, 0, 0], expected_value)
 
     def test_exb_for_macro_with_no_data(self):
-        product = EXB().apply(macro_raster_with_no_data())
-        raster = product.raster
+        raster = EXB().apply(sensor_bands_info(), macro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EXB.output_bands)
         self.assertEqual(raster.dtype, EXB.type)
         self.assertEqual(raster.height, macro_raster().height)
         self.assertEqual(raster.width, macro_raster().width)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestTrueColor(unittest.TestCase):
 
     def test_true_color(self):
-        product = TrueColor().apply(micro_raster())
-        raster = product.raster
+        raster = TrueColor().apply(sensor_bands_info(), micro_raster())
         self.assertEqual(raster.band_names, TrueColor.output_bands)
         self.assertEqual(raster.num_bands, 3)
         # TODO what should I do here
@@ -619,11 +636,11 @@ class TestTrueColor(unittest.TestCase):
         self.assertEqual(raster.height, micro_raster().height)
         self.assertEqual(raster.width, micro_raster().width)
         for band in ['red', 'green', 'blue']:
-            self.assertTrue((raster.band(band) == micro_raster()[band]).all())
+            self.assertTrue((raster.band(band) == micro_raster().band(band)).all())
 
     def test_TrueColor_product(self):
         product_generator = TrueColor()
-        product = product_generator.apply(micro_raster())
+        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -635,22 +652,21 @@ class TestTrueColor(unittest.TestCase):
         self.assertEqual(product.bands_mapping, {'red': ['red'], 'green': ['green'], 'blue': ['blue']})
 
     def test_for_no_data(self):
-        product = TrueColor().apply(micro_raster_with_no_data())
-        raster = product.raster
+        raster = TrueColor().apply(sensor_bands_info(), micro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 3)
         self.assertEqual(raster.band_names, TrueColor.output_bands)
         # TODO what to do here
         # self.assertEqual(raster.dtype, TrueColor.type)
         self.assertEqual(raster.height, micro_raster().height)
         self.assertEqual(raster.width, micro_raster().width)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertTrue(raster.image.mask[0, 1, 3])
 
     def test_TrueColor_product_for_macro(self):
         product_generator = TrueColor()
-        product = product_generator.apply(macro_raster())
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -667,66 +683,64 @@ class TestTrueColor(unittest.TestCase):
             self.assertTrue((product.raster.band(band) == expected_values[band]).all())
 
     def test_truecolor_for_macro_with_no_data(self):
-        product = TrueColor().apply(macro_raster_with_no_data())
-        raster = product.raster
+        raster = TrueColor().apply(sensor_bands_info(), macro_raster_with_no_data())
         self.assertEqual(raster.num_bands, 3)
         self.assertEqual(raster.band_names, TrueColor.output_bands)
         self.assertEqual(raster.dtype, macro_raster().dtype)
         self.assertEqual(raster.height, macro_raster().height)
         self.assertEqual(raster.width, macro_raster().width)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
     def test_fits_raster_bands_for_entire_macro_band(self):
         true_color = ProductsFactory.get_object('truecolor')
-        fits = true_color.fits_raster_bands(macro_bands)
+        fits = true_color.fits_raster_bands(sensor_bands_info(), macro_bands)
         self.assertEqual(fits, True)
 
     def test_fits_raster_bands_false_for_RGB(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(['red, green, blue'])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['red, green, blue'])
         self.assertEqual(fits, False)
 
     def test_fits_raster_bands_false_for_part_of_the_macro_bands(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(macro_bands[15:])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), macro_bands[15:])
         self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(macro_bands[:6])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), macro_bands[:6])
         self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(macro_bands[7:15])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), macro_bands[7:15])
         self.assertEqual(fits, False)
 
     def test_fits_raster_bands_true_for_one_band_per_range(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(['b457', 'b550', 'b620'])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_610'])
         self.assertEqual(fits, True)
 
     def test_fits_raster_bands_true_niglecting_out_of_range_bands(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(['b444', 'b550', 'b620', 'b300'])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_610', 'HC_300'])
         self.assertEqual(fits, True)
-        fits = hs_true_color.fits_raster_bands(['b444', 'b550', 'b620', 'b585'])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_610', 'HC_580'])
         self.assertEqual(fits, True)
-        fits = hs_true_color.fits_raster_bands(['b444', 'b550', 'b620', 'b700'])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_610', 'HC_700'])
         self.assertEqual(fits, True)
 
     def test_fits_raster_bands_false_for_bands_in_range_hols_and_out_of_renge(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(['b444', 'b550', 'b585'])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_580'])
         self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(['b444', 'b512', 'b590'])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_512', 'HC_590'])
         self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(['b444', 'b550', 'b700'])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_700'])
         self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(['b340', 'b550', 'b620'])
+        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_340', 'HC_550', 'HC_610'])
         self.assertEqual(fits, False)
 
     def test_hs_true_color(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        product = hs_true_color.apply(macro_raster())
-        raster = product.raster
+        raster = hs_true_color.apply(sensor_bands_info(), macro_raster())
         self.assertEqual(raster.band_names, hs_true_color.output_bands)
         self.assertEqual(raster.num_bands, 3)
         self.assertEqual(raster.dtype, hs_true_color.type)
@@ -738,27 +752,26 @@ class TestTrueColor(unittest.TestCase):
 
     def test_for_no_data_extended(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        product = hs_true_color.apply(macro_raster_with_no_data())
-        raster = product.raster
+        raster = hs_true_color.apply(sensor_bands_info(), macro_raster_with_no_data())
         self.assertEqual(raster.band_names, hs_true_color.output_bands)
         self.assertEqual(raster.num_bands, 3)
         self.assertEqual(raster.dtype, hs_true_color.type)
         self.assertEqual(raster.height, macro_raster_with_no_data().height)
         self.assertEqual(raster.width, macro_raster_with_no_data().width)
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[1, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[2, 1, 2] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[1, 1, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[2, 1, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[1, 0, 0] == raster.nodata)
-        self.assertTrue(raster.image.data[2, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[2, 0, 0] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[1, 1, 2])
+        self.assertTrue(raster.image.mask[2, 1, 2])
+        self.assertFalse(raster.image.mask[0, 1, 3])
+        self.assertFalse(raster.image.mask[1, 1, 3])
+        self.assertFalse(raster.image.mask[2, 1, 3])
+        self.assertFalse(raster.image.mask[1, 0, 0])
+        self.assertFalse(raster.image.mask[2, 0, 0])
+        self.assertTrue(raster.image.mask[2, 2, 3])
+        self.assertTrue(raster.image.mask[0, 2, 3])
 
     def test_HSTrueColor_product(self):
         product_generator = ProductsFactory.get_object('truecolor')
-        product = product_generator.apply(macro_raster())
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -767,19 +780,20 @@ class TestTrueColor(unittest.TestCase):
         self.assertEqual(product.required_bands, product_generator.required_bands)
         self.assertEqual(product.output_bands, product_generator.output_bands)
         self.assertEqual(product.unit, product_generator.unit)
-        expected_bands_mapping = {'blue': ['b444', 'b456', 'b468', 'b481', 'b494', 'b507'],
-                                  'green': ['b520', 'b532', 'b545', 'b558', 'b571'],
-                                  'red': ['b648', 'b661', 'b673', 'b686', 'b597', 'b609', 'b622', 'b635']}
+        expected_bands_mapping = {'blue': expected_blue,
+                                  'green': expected_green,
+                                  'red': expected_red}
 
-        self.assertCountEqual(product.bands_mapping, expected_bands_mapping)
+        for band in ['red', 'green', 'blue']:
+            self.assertCountEqual(product.bands_mapping[band], expected_bands_mapping[band])
 
 
 class TestSingleBand(unittest.TestCase):
 
     def test_single_band(self):
         raster = micro_raster()
-        product = ProductsFactory.get_object('SingleBand', 'blue').apply(raster)
-        self.assertEqual(product.raster, raster.limit_to_bands(['blue']))
+        product_raster = ProductsFactory.get_object('SingleBand', 'blue').apply(sensor_bands_info(), raster)
+        self.assertEqual(product_raster, raster.limit_to_bands(['blue']))
 
     def test_object_vs_class(self):
         obj = ProductsFactory.get_object('SingleBand', 'blue')
@@ -788,7 +802,7 @@ class TestSingleBand(unittest.TestCase):
 
     def test_SingleBand_product(self):
         product_generator = ProductsFactory.get_object('SingleBand', 'blue')
-        product = product_generator.apply(micro_raster())
+        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -800,16 +814,16 @@ class TestSingleBand(unittest.TestCase):
         self.assertEqual(product.bands_mapping, {'blue': ['blue']})
 
     def test_elements_in_bands(self):
-        product_generator = ProductsFactory.get_object('SingleBand', 'HyperCube_450_nm')
-        product = product_generator.apply(macro_raster())
-        self.assertEqual(product.output_bands, ['HyperCube_450_nm'])
+        product_generator = ProductsFactory.get_object('SingleBand', 'HC_450')
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
+        self.assertEqual(product.output_bands, ['HC_450'])
 
 
 class BaseTestMacroProduct(unittest.TestCase):
 
     def do_test_product_for_macro(self, product_generator, expected_bands_mapping,
                                   expected_bands_names, expected_value):
-        product = product_generator.apply(macro_raster())
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -818,13 +832,14 @@ class BaseTestMacroProduct(unittest.TestCase):
         self.assertEqual(product.required_bands, product_generator.required_bands)
         self.assertEqual(product.output_bands, product_generator.output_bands)
         self.assertEqual(product.unit, product_generator.unit)
-        self.assertCountEqual(product.bands_mapping, expected_bands_mapping)
+        for band in expected_bands_mapping:
+            self.assertCountEqual(product.bands_mapping[band], expected_bands_mapping[band])
         self.assertTrue((product.raster.image.data == expected_value).all())
-        self.assertCountEqual(product.used_bands(), expected_bands_names)
+        self.assertCountEqual(product.used_bands, expected_bands_names)
         return product
 
     def do_test_for_macro_with_no_data(self, product_generator):
-        product = product_generator.apply(macro_raster_with_no_data())
+        product = product_generator.apply(sensor_bands_info(), macro_raster_with_no_data(), metadata=True)
         raster = product.raster
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, product_generator.output_bands)
@@ -837,145 +852,145 @@ class BaseTestMacroProduct(unittest.TestCase):
 class TestPRI(BaseTestMacroProduct):
 
     def test_PRI_product_for_macro(self):
-        expected_bands_mapping = {'R530': ['HyperCube_530_nm'], 'R570': ['HyperCube_570_nm']}
+        expected_bands_mapping = {'R530': ['HC_530'], 'R570': ['HC_570']}
         expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        expected_value = (106.0 - 104.0) / (106.0 + 104.0)
+        expected_value = (108.0 - 104.0) / (108.0 + 104.0)
         self.do_test_product_for_macro(PRI(), expected_bands_mapping,
                                        expected_bands_names, expected_value)
 
     def test_for_macro_with_no_data(self):
         product = self.do_test_for_macro_with_no_data(PRI())
         raster = product.raster
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestNDVI827(BaseTestMacroProduct):
 
     def test_product_for_macro(self):
-        expected_bands_mapping = {'R827': ['HyperCube_827_nm'], 'R690': ['HyperCube_690_nm']}
+        expected_bands_mapping = {'R827': ['HC_830'], 'R690': ['HC_690']}
         expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        expected_value = (136.0 - 118.0) / (136.0 + 118.0)
+        expected_value = (138.0 - 120.0) / (138.0 + 120.0)
         self.do_test_product_for_macro(NDVI827(), expected_bands_mapping,
                                        expected_bands_names, expected_value)
 
     def test_for_macro_with_no_data(self):
         product = self.do_test_for_macro_with_no_data(NDVI827())
         raster = product.raster
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertFalse(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestNRI(BaseTestMacroProduct):
 
     def test_product_for_macro(self):
-        expected_bands_mapping = {'R570': ['HyperCube_570_nm'], 'R670': ['HyperCube_670_nm']}
+        expected_bands_mapping = {'R570': ['HC_570'], 'R670': ['HC_670']}
         expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        expected_value = (106.0 - 114.0) / (106.0 + 114.0)
+        expected_value = (108.0 - 116.0) / (108.0 + 116.0)
         self.do_test_product_for_macro(NRI(), expected_bands_mapping,
                                        expected_bands_names, expected_value)
 
     def test_for_macro_with_no_data(self):
         product = self.do_test_for_macro_with_no_data(NRI())
         raster = product.raster
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertFalse(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestGNDVI(BaseTestMacroProduct):
 
     def test_product_for_macro(self):
-        expected_bands_mapping = {'R750': ['HyperCube_750_nm'], 'R550': ['HyperCube_550_nm']}
+        expected_bands_mapping = {'R750': ['HC_750'], 'R550': ['HC_550']}
         expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        expected_value = (130.0 - 138.0) / (130.0 + 138.0)
+        expected_value = (132.0 - 106.0) / (132.0 + 106.0)
         self.do_test_product_for_macro(GNDVI(), expected_bands_mapping,
                                        expected_bands_names, expected_value)
 
     def test_for_macro_with_no_data(self):
         product = self.do_test_for_macro_with_no_data(GNDVI())
         raster = product.raster
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertFalse(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestCCI(BaseTestMacroProduct):
 
     def test_product_for_macro(self):
-        expected_bands_mapping = {'R530': ['HyperCube_530_nm'], 'R670': ['HyperCube_670_nm']}
+        expected_bands_mapping = {'R530': ['HC_530'], 'R670': ['HC_670']}
         expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        expected_value = (104.0 - 114.0) / (104.0 + 114.0)
+        expected_value = (104.0 - 116.0) / (104.0 + 116.0)
         self.do_test_product_for_macro(CCI(), expected_bands_mapping,
                                        expected_bands_names, expected_value)
 
     def test_for_macro_with_no_data(self):
         product = self.do_test_for_macro_with_no_data(CCI())
         raster = product.raster
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertTrue(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestNPCI(BaseTestMacroProduct):
 
     def test_product_for_macro(self):
-        expected_bands_mapping = {'R582': ['HyperCube_582_nm'], 'R450': ['HyperCube_450_nm']}
+        expected_bands_mapping = {'R582': ['HC_580'], 'R450': ['HC_450']}
         expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        expected_value = (108.0 - 100.0) / (108.0 + 100.0)
+        expected_value = (110.0 - 100.0) / (110.0 + 100.0)
         self.do_test_product_for_macro(NPCI(), expected_bands_mapping,
                                        expected_bands_names, expected_value)
 
     def test_for_macro_with_no_data(self):
         product = self.do_test_for_macro_with_no_data(NPCI())
         raster = product.raster
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertFalse(raster.image.mask[0, 2, 3])
+        self.assertTrue(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestPPR(BaseTestMacroProduct):
 
     def test_product_for_macro(self):
-        expected_bands_mapping = {'R550': ['HyperCube_550_nm'], 'R450': ['HyperCube_450_nm']}
+        expected_bands_mapping = {'R550': ['HC_550'], 'R450': ['HC_450']}
         expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        expected_value = (138.0 - 100.0) / (138.0 + 100.0)
+        expected_value = (106.0 - 100.0) / (106.0 + 100.0)
         self.do_test_product_for_macro(PPR(), expected_bands_mapping,
                                        expected_bands_names, expected_value)
 
     def test_for_macro_with_no_data(self):
         product = self.do_test_for_macro_with_no_data(PPR())
         raster = product.raster
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertFalse(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestNDVI750(BaseTestMacroProduct):
 
     def test_product_for_macro(self):
-        expected_bands_mapping = {'R750': ['HyperCube_750_nm'], 'R700': ['HyperCube_700_nm']}
+        expected_bands_mapping = {'R750': ['HC_750'], 'R700': ['HC_700']}
         expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        expected_value = (130.0 - 120.0) / (130.0 + 120.0)
+        expected_value = (132.0 - 122.0) / (132.0 + 122.0)
         self.do_test_product_for_macro(NDVI750(), expected_bands_mapping,
                                        expected_bands_names, expected_value)
 
     def test_for_macro_with_no_data(self):
         product = self.do_test_for_macro_with_no_data(NDVI750())
         raster = product.raster
-        self.assertTrue(raster.image.data[0, 1, 2] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 2, 3] == raster.nodata)
-        self.assertFalse(raster.image.data[0, 0, 0] == raster.nodata)
-        self.assertTrue(raster.image.data[0, 1, 3] == raster.nodata)
+        self.assertTrue(raster.image.mask[0, 1, 2])
+        self.assertFalse(raster.image.mask[0, 2, 3])
+        self.assertFalse(raster.image.mask[0, 0, 0])
+        self.assertFalse(raster.image.mask[0, 1, 3])
 
 
 class TestLandCoverIndex(unittest.TestCase):
@@ -983,12 +998,12 @@ class TestLandCoverIndex(unittest.TestCase):
     def test_product_for_macro(self):
         product_generator = LandCoverIndex()
         expected_bands_mapping = {
-            'red': ['HyperCube_827_nm'],
-            'green': ['HyperCube_690_nm'],
-            'blue': ['HyperCube_550_nm']
+            'red': ['HC_830'],
+            'green': ['HC_690'],
+            'blue': ['HC_550']
         }
         expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        product = product_generator.apply(macro_raster())
+        product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -998,20 +1013,20 @@ class TestLandCoverIndex(unittest.TestCase):
         self.assertEqual(product.output_bands, product_generator.output_bands)
         self.assertEqual(product.unit, product_generator.unit)
         self.assertCountEqual(product.bands_mapping, expected_bands_mapping)
-        self.assertCountEqual(product.used_bands(), expected_bands_names)
+        self.assertCountEqual(product.used_bands, expected_bands_names)
         raster = product.raster
-        self.assertTrue((raster.band('red') == 136.0).all())
-        self.assertTrue((raster.band('green') == 118.0).all())
-        self.assertTrue((raster.band('blue') == 138.0).all())
+        self.assertTrue((raster.band('red') == 138.0).all())
+        self.assertTrue((raster.band('green') == 120.0).all())
+        self.assertTrue((raster.band('blue') == 106.0).all())
 
     def test_match_bands_for_legend(self):
         product_generator = LandCoverIndex()
         expected_bands_mapping = {
-            'red': ['HyperCube_827_nm'],
-            'green': ['HyperCube_690_nm'],
-            'blue': ['HyperCube_550_nm']
+            'red': ['HC_830'],
+            'green': ['HC_690'],
+            'blue': ['HC_550']
         }
-        bands_mapping = product_generator.match_bands_for_legend(macro_raster().band_names)
+        bands_mapping = product_generator.match_bands_for_legend(sensor_bands_info(), macro_raster().band_names)
         self.assertCountEqual(bands_mapping, expected_bands_mapping)
 
 
@@ -1033,7 +1048,7 @@ class TestRGBEnhanced(unittest.TestCase):
             'blue': ['blue_enhanced']
         }
         expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        product = product_generator.apply(self.enhanced_raster())
+        product = product_generator.apply(sensor_bands_info(), self.enhanced_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -1043,7 +1058,7 @@ class TestRGBEnhanced(unittest.TestCase):
         self.assertEqual(product.output_bands, product_generator.output_bands)
         self.assertEqual(product.unit, product_generator.unit)
         self.assertCountEqual(product.bands_mapping, expected_bands_mapping)
-        self.assertCountEqual(product.used_bands(), expected_bands_names)
+        self.assertCountEqual(product.used_bands, expected_bands_names)
         raster = product.raster
         self.assertTrue((raster.band('red') == 100.0).all())
         self.assertTrue((raster.band('green') == 102.0).all())
@@ -1056,14 +1071,14 @@ class TestRGBEnhanced(unittest.TestCase):
             'green': ['green_enhanced'],
             'blue': ['blue_enhanced']
         }
-        bands_mapping = product_generator.match_bands_for_legend(macro_raster().band_names)
+        bands_mapping = product_generator.match_bands_for_legend(sensor_bands_info(), macro_raster().band_names)
         self.assertCountEqual(bands_mapping, expected_bands_mapping)
 
     def test_product_fail_for_macro_raster(self):
         product_generator = ProductsFactory.get_object('rgbenhanced')
         mr = macro_raster()
-        with self.assertRaises(KeyError) as ex:
-            product_generator.apply(mr)
+        with self.assertRaises(ProductError) as ex:
+            product_generator.apply(sensor_bands_info(), mr)
         print(str(ex.exception))
         self.assertTrue('blue_enhanced' in str(ex.exception))
         self.assertTrue('red_enhanced' in str(ex.exception))
