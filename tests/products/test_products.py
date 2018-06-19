@@ -1145,4 +1145,27 @@ raster.visualize_product(bands_mapping, 'NDVI')  # type: GeoRaster2
 raster.apply_product(bands_mapping, 'NDVI', metadata=True)  # type: tuple(GeoRaster2, dict)
 raster.visualize_product(bands_mapping, 'NDVI', 'cm-jet', metadata=True)  # type: tuple(GeoRaster2, dict)
 raster.visualize_product(bands_mapping, 'NDVI', metadata=True)  # type: tuple(GeoRaster2, dict)
+
+
+
+#custom calculation
+
+# input bands to the calculation, band names must have entries in ProductGenerator.wavelength_map
+required_bands = ['red', 'blue']
+
+# output bands of the calculation, the name of the bands in the resulting raster
+output_bands = ['special_reflection']
+
+# calculation function, argument names must be same as required_bands
+# the returned value should be a 3D masked array,
+# these means you should take care of the mask if it is required for example see RGBEnhanced._apply
+def special_reflection_func(red, blue):
+    result = np.log(np.divide(blue.data, red.data))
+    return result
+
+# applying the custom product
+special_reflection_raster = raster.apply(bands_mapping, 'custom',
+                                         calculation=special_reflection_func,
+                                         required_bands=required_bands,
+                                         output_bands=output_bands)
 """

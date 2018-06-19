@@ -37,7 +37,7 @@ def _mask_from_masked_array(data):
     Numpy mask is the invers of the GDAL, True is 0 and False is 255
     https://github.com/mapbox/rasterio/blob/master/docs/topics/masks.rst#numpy-masked-arrays
     """
-    mask = _join_masks_from_masked_array(data)
+    mask = _join_masks_from_masked_array(data)[0]
     mask = (~mask * 255).astype('uint8')
     return mask
 
