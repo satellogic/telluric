@@ -37,6 +37,7 @@ from telluric.util.general import convert_resolution_from_meters_to_deg
 from telluric.util.histogram import stretch_histogram
 
 from telluric.util.raster_utils import convert_to_cog, _calc_overviews_factors, _mask_from_masked_array
+from telluric.products_mixin import ProductsMixin
 
 with warnings.catch_warnings():  # silences warning, see https://github.com/matplotlib/matplotlib/issues/5836
     warnings.simplefilter("ignore", UserWarning)
@@ -403,7 +404,7 @@ class _Raster():
         return self._image
 
 
-class GeoRaster2(WindowMethodsMixin, _Raster):
+class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
     """
     Represents multiband georeferenced image, supporting nodata pixels.
     The name "GeoRaster2" is temporary.

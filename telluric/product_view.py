@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from affine import Affine
-from telluric import GeoRaster2
 from telluric.constants import WGS84_CRS
 from telluric.util.raster_utils import _join_masks_from_masked_array
 
@@ -29,6 +28,7 @@ class ProductView():
 
     @classmethod
     def legend_thumbnail_raster(cls, min, max, band_names, dtype):
+        from telluric.georaster import GeoRaster2
         num_bands = len(band_names)
         array3d = np.ones((num_bands, 10, 256), dtype=dtype)
         for band in range(num_bands):
@@ -53,9 +53,8 @@ class ColormapView(ProductView):
 
     def apply(self, raster, vmin=None, vmax=None):
         self.fits_raster_bands(raster.band_names, silent=False)
-        # import pdb; pdb.set_trace()
-        vmin = vmin or raster.min()[0]
-        vmax = vmax or raster.max()[0]
+        vmin = vmin or min(raster.min())
+        vmax = vmax or max(raster.max())
         cmap = plt.get_cmap(self._cmap)
         normalized = (raster.image.data[0, :, :] - vmin) / (vmax - vmin)
         image_data = cmap(normalized)
