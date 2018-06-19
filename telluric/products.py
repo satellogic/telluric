@@ -160,7 +160,7 @@ class ProductGenerator:
                                           floor(cls.max_wavelength(sensor_bands_info, a, default=1000)) <= max_val)]
 
     @classmethod
-    def fits_raster_bands(cls, sensor_bands_info, available_bands, bands_restriction=None, silent=True):
+    def fits_raster_bands(cls, available_bands, sensor_bands_info, bands_restriction=None, silent=True):
         bands_restriction = bands_restriction or available_bands
         matched_bands = cls.match_available_bands_to_required_bands(sensor_bands_info, bands_restriction)
         if matched_bands:
@@ -222,7 +222,7 @@ class ProductGenerator:
         :param metadata: when true returns a named tuple with raster and additional information
         :param kwargs: additional arguments
         """
-        self.fits_raster_bands(sensor_bands_info, raster.band_names, bands_restriction, silent=False)
+        self.fits_raster_bands(raster.band_names, sensor_bands_info, bands_restriction, silent=False)
         bands_mapping = self.match_available_bands_to_required_bands(sensor_bands_info, raster.band_names)
         bands = self.extract_bands(raster, bands_mapping)
         # to silence error on 0 division, which happens at nodata
@@ -249,16 +249,18 @@ class ProductGenerator:
             bands = bands[np.newaxis, : , :, :]
 
         mask = _join_masks_from_masked_array(bands)
-        combined_band = np.ma.array(bands, mask=mask)
-        combined_band = combined_band.mean(axis=1).astype(raster.dtype)
-        combined_band.filled(0)
+        array = np.ma.array(bands, mask=mask)
+        array = array.mean(axis=1).astype(raster.dtype)
+        combined_band = array.filled(0)  # type: np.ndarray
+        combined_band = np.ma.array(combined_band, mask=array.mask)
         return combined_band
 
     def _force_nodata_where_it_was_in_original_raster(self, array, raster, band_names):
         no_data_mask = self._get_nodata_musk(raster, band_names)
         no_data_mask = np.logical_or(array.mask, no_data_mask)
         new_array = np.ma.array(array.data, mask=no_data_mask)
-        new_array.filled(0)
+        new_array = new_array.filled(0)  # type: np.ndarray 
+        new_array = np.ma.array(new_array, mask=no_data_mask)
         return new_array
 
     def _get_nodata_musk(self, raster, band_names=None):
@@ -413,7 +415,7 @@ class SingleBand(ProductGenerator):
         self.output_bands = [band]
 
     @classmethod
-    def fits_raster_bands(cls, sensor_bands_info, available_bands, bands_restriction=None, silent=True):
+    def fits_raster_bands(cls, available_bands, sensor_bands_info, bands_restriction=None, silent=True):
         if len(available_bands) >= 1:
             return True
         if silent:

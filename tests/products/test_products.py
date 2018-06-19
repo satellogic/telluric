@@ -195,12 +195,12 @@ class TestProductGenerator(unittest.TestCase):
 class TestBandsMatching(unittest.TestCase):
 
     def test_it_matches_all_bands(self):
-        self.assertTrue(set(ProductsFactory.get_matchings(sensor_bands_info(),
-                        ['blue', 'nir', 'red'])).issuperset(['NDVI', 'EVI2']))
-        self.assertTrue(set(ProductsFactory.get_matchings(sensor_bands_info(),
-                        ['nir', 'red'])).issuperset(['NDVI', 'EVI2']))
-        self.assertNotIn('EXR', ProductsFactory.get_matchings(sensor_bands_info(), ['nir', 'red']))
-        self.assertEqual(set(ProductsFactory.get_matchings(sensor_bands_info(), ['red'])), {'SingleBand'})
+        self.assertTrue(set(ProductsFactory.get_matchings(['blue', 'nir', 'red'],
+                                                          sensor_bands_info())).issuperset(['NDVI', 'EVI2']))
+        self.assertTrue(set(ProductsFactory.get_matchings(['nir', 'red'],
+                                                          sensor_bands_info())).issuperset(['NDVI', 'EVI2']))
+        self.assertNotIn('EXR', ProductsFactory.get_matchings(['nir', 'red'], sensor_bands_info()))
+        self.assertEqual(set(ProductsFactory.get_matchings(['red'], sensor_bands_info())), {'SingleBand'})
 
 
 class TestNDVIStraite(unittest.TestCase):
@@ -246,7 +246,6 @@ class TestNDVIStraite(unittest.TestCase):
 
     def test_NDVI_product_for_macro(self):
         product_generator = NDVI()
-        # import pdb; pdb.set_trace()
         product = product_generator.apply(sensor_bands_info(), macro_raster(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
@@ -696,46 +695,46 @@ class TestTrueColor(unittest.TestCase):
 
     def test_fits_raster_bands_for_entire_macro_band(self):
         true_color = ProductsFactory.get_object('truecolor')
-        fits = true_color.fits_raster_bands(sensor_bands_info(), macro_bands)
+        fits = true_color.fits_raster_bands(macro_bands, sensor_bands_info())
         self.assertEqual(fits, True)
 
     def test_fits_raster_bands_false_for_RGB(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['red, green, blue'])
+        fits = hs_true_color.fits_raster_bands(['red, green, blue'], sensor_bands_info())
         self.assertEqual(fits, False)
 
     def test_fits_raster_bands_false_for_part_of_the_macro_bands(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), macro_bands[15:])
+        fits = hs_true_color.fits_raster_bands(macro_bands[15:], sensor_bands_info())
         self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), macro_bands[:6])
+        fits = hs_true_color.fits_raster_bands(macro_bands[:6], sensor_bands_info())
         self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), macro_bands[7:15])
+        fits = hs_true_color.fits_raster_bands(macro_bands[7:15], sensor_bands_info())
         self.assertEqual(fits, False)
 
     def test_fits_raster_bands_true_for_one_band_per_range(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_610'])
+        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610'], sensor_bands_info())
         self.assertEqual(fits, True)
 
     def test_fits_raster_bands_true_niglecting_out_of_range_bands(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_610', 'HC_300'])
+        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610', 'HC_300'], sensor_bands_info())
         self.assertEqual(fits, True)
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_610', 'HC_580'])
+        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610', 'HC_580'], sensor_bands_info())
         self.assertEqual(fits, True)
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_610', 'HC_700'])
+        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610', 'HC_700'], sensor_bands_info())
         self.assertEqual(fits, True)
 
     def test_fits_raster_bands_false_for_bands_in_range_hols_and_out_of_renge(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_580'])
+        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_580'], sensor_bands_info())
         self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_512', 'HC_590'])
+        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_512', 'HC_590'], sensor_bands_info())
         self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_450', 'HC_550', 'HC_700'])
+        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_700'], sensor_bands_info())
         self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(sensor_bands_info(), ['HC_340', 'HC_550', 'HC_610'])
+        fits = hs_true_color.fits_raster_bands(['HC_340', 'HC_550', 'HC_610'], sensor_bands_info())
         self.assertEqual(fits, False)
 
     def test_hs_true_color(self):

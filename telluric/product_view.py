@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from affine import Affine
 from telluric import GeoRaster2
 from telluric.constants import WGS84_CRS
+from telluric.util.raster_utils import _join_masks_from_masked_array
+
 from .base_renderer import BaseFactory
 
 
@@ -42,7 +44,7 @@ class ColormapView(ProductView):
     output_bands = ['red', 'green', 'blue']
 
     @classmethod
-    def fits_raster_bands(cls, available_bands, silent=True):
+    def fits_raster_bands(cls, available_bands, silent=True, *args, **kwargs):
         if len(available_bands) == 1:
             return True
         if silent:
@@ -51,12 +53,14 @@ class ColormapView(ProductView):
 
     def apply(self, raster, vmin=None, vmax=None):
         self.fits_raster_bands(raster.band_names, silent=False)
-        vmin = vmin or raster.min()
-        vmax = vmax or raster.max()
+        # import pdb; pdb.set_trace()
+        vmin = vmin or raster.min()[0]
+        vmax = vmax or raster.max()[0]
         cmap = plt.get_cmap(self._cmap)
         normalized = (raster.image.data[0, :, :] - vmin) / (vmax - vmin)
         image_data = cmap(normalized)
         image_data = image_data[:, :, 0:3]
+        
         # convert floats [0,1] to uint8 [0,255]
         image_data = image_data * 255
         image_data = image_data.astype(self.type)
@@ -64,10 +68,12 @@ class ColormapView(ProductView):
         image_data = np.rollaxis(image_data, 2)
 
         # force nodata where it was in original raster:
-        image_data[image_data[:, :, :] == raster.nodata] = 1
-        image_data[0:3, raster.image.data[0, :, :] == raster.nodata] = raster.nodata
-
-        return raster.copy_with(image=image_data, band_names=self.output_bands)
+        mask = _join_masks_from_masked_array(raster.image)
+        mask = np.stack([mask[0, :, :]] * 3)
+        array = np.ma.array(image_data, mask=mask).filled(0)  # type: np.ndarray 
+        array = np.ma.array(array, mask=mask)
+        
+        return raster.copy_with(image=array, band_names=self.output_bands)
 
     @classmethod
     def legend_thumbnail(cls):
@@ -84,7 +90,7 @@ class FirstBandGrayColormapView(ColormapView):
     description = ""
 
     @classmethod
-    def fits_raster_bands(cls, available_bands, silent=True):
+    def fits_raster_bands(cls, available_bands, silent=True, *args, **kwargs):
         if len(available_bands) > 0:
             return True
         if silent:
@@ -105,7 +111,7 @@ class BandsComposer(ProductView):
         return raster
 
     @classmethod
-    def fits_raster_bands(self, available_bands, silent=True):
+    def fits_raster_bands(self, available_bands, silent=True, *args, **kwargs):
         required_bands = set(self.required_bands)
         available_bands = set(available_bands)
         if required_bands.issubset(available_bands):
@@ -166,7 +172,7 @@ class OneBanders(ProductView):
         return raster
 
     @classmethod
-    def fits_raster_bands(cls, available_bands, silent=True):
+    def fits_raster_bands(cls, available_bands, silent=True, *args, **kwargs):
         if len(available_bands) == 1:
             return True
         if silent:

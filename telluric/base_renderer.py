@@ -1,8 +1,8 @@
 class BaseFactory(object):
     @classmethod
-    def get_matchings(cls, scensor_bands_info, bands):
+    def get_matchings(cls, bands, sensor_bands_info=None):
         return [obj.name for obj in cls.objects().values()
-                if obj.fits_raster_bands(scensor_bands_info, available_bands=bands)]
+                if obj.fits_raster_bands(available_bands=bands, sensor_bands_info=sensor_bands_info)]
 
     @classmethod
     def objects(cls):
