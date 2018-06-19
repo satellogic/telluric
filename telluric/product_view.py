@@ -203,11 +203,6 @@ class MagnifyingGlass(OneBanders):
     def _apply(cls, raster):
         array = (raster.image.data + 1) * 100
         raster = raster.copy_with(image=array)
-        raster = raster.astype(np.uint8)
-        # if np.issubdtype(raster.dtype, np.integer):
-        #     raster = raster.astype(np.uint8)
-        # else:
-        #     raster.array = raster.array.astype(np.uint8)
         return raster
 
 
