@@ -91,7 +91,7 @@ class TestCloromapView(unittest.TestCase):
         self.assertTrue((heatmap.image.data[1, heatmap.image.data[1] > 0] == 0).all())
         self.assertTrue((heatmap.image.data[2, heatmap.image.data[2] > 0] == 0).all())
         mask = heatmap.image.mask
-        self.assertEqual(len(mask[mask >= True]), 3)
+        self.assertEqual(len(mask[mask == np.True_]), 3)
 
 
 class TestFirstBandGrayColormapView(unittest.TestCase):
