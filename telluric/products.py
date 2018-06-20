@@ -259,9 +259,9 @@ class ProductGenerator:
         no_data_mask = self._get_nodata_musk(raster, band_names)
         no_data_mask = np.logical_or(array.mask, no_data_mask)
         new_array = np.ma.array(array.data, mask=no_data_mask)
-        new_array = new_array.filled(0)  # type: np.ndarray
-        new_array = np.ma.array(new_array, mask=no_data_mask)
-        return new_array
+        filled_array = new_array.filled(0)  # type: np.ndarray
+        ma_array = np.ma.array(filled_array, mask=no_data_mask)
+        return ma_array
 
     def _get_nodata_musk(self, raster, band_names=None):
         band_names = band_names or raster.band_names
@@ -405,8 +405,8 @@ class SingleBand(ProductGenerator):
     min = None
     max = None
     type = None
-    required_bands = {}
-    output_bands = []
+    required_bands = {}  # type: dict
+    output_bands = []  # type: list
     unit = 'DN'
     _order = 3
 
@@ -541,7 +541,7 @@ class FalseColor(ProductGenerator):
     min = 0
     max = 255
     type = np.uint8
-    required_bands = {}
+    required_bands = {}  # type: dict
     output_bands = ['red', 'green', 'blue']
     unit = 'DN'
     should_convert_to_float = False
@@ -549,7 +549,9 @@ class FalseColor(ProductGenerator):
     dont_add_to_factory = True
 
     def __init__(self, band_mapping):
-        assert list(band_mapping.keys()).sort() == ['blue', 'green', 'red'].sort()
+        band_names = list(band_mapping.keys())
+        band_names.sort()
+        assert band_names == ['blue', 'green', 'red']
         self.required_bands = set(band_mapping.values())
         self.band_mapping = band_mapping
 

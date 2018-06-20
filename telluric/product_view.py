@@ -40,7 +40,7 @@ class ProductView():
 
 # see http://matplotlib.org/examples/color/colormaps_reference.html for cmaps catalog
 class ColormapView(ProductView):
-    required_bands = {}
+    required_bands = {}  # type: dict
     output_bands = ['red', 'green', 'blue']
 
     @classmethod
@@ -161,7 +161,7 @@ class Grayscale(BandsComposer):
 class OneBanders(ProductView):
     """ This family of renderers play with a single band, can be parametrised or not. """
 
-    required_bands = []
+    required_bands = {}  # type: dict
     output_bands = ['gray']
 
     def apply(cls, raster, **kwargs):
