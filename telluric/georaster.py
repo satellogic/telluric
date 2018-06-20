@@ -96,7 +96,9 @@ class MergeStrategy(Enum):
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
               shape=None, ul_corner=None, crs=None):
     """Merge a list of rasters, cropping by a region of interest.
-
+       There are cases that the roi is not precise enough for this cases one can use,
+       the upper left corner the shape and crs to percisly define the roi.
+       When roi is provieded the ul_corner, shape and crs are ignored
     """
     if dest_resolution is None:
         dest_resolution = rasters[0].resolution()
