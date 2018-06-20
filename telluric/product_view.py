@@ -56,7 +56,7 @@ class ColormapView(ProductView):
         vmin = vmin or min(raster.min())
         vmax = vmax or max(raster.max())
         cmap = plt.get_cmap(self._cmap)
-        normalized = (raster.image.data[0, :, :] - vmin) / (vmax - vmin)
+        normalized = np.divide(raster.image.data[0, :, :] - vmin, vmax - vmin)
         image_data = cmap(normalized)
         image_data = image_data[:, :, 0:3]
         

@@ -50,7 +50,7 @@ def test_macro_apply_product():
                                     macro_raster_with_no_data(),
                                     micro_raster_with_no_data()])
 def test_it_visualized_to_colormap(raster):
-    result = raster.apply(sensor_bands_info(), 'ndvi').visualize('cm-jet')
+    result = raster.apply(sensor_bands_info(), 'ndvi').visualize('cm-jet', vmax=1, vmin=-1)
     assert isinstance(result, GeoRaster2)
     assert result.band_names == ['red', 'green', 'blue']
 
