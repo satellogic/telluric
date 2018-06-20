@@ -345,34 +345,18 @@ def test_feature_collection_with_dates_serializes_correctly():
         assert fc[0].attributes == expected_attributes
 
 
-class GeoFeatureThatProduced257():
-
-    @property
-    def raster(self):
-        bounds = GeoVector.from_bounds(xmin=-295505.5513504914,
-                                       ymin=4705921.785461731,
-                                       xmax=-295352.3793504914,
-                                       ymax=4706074.957461731,
-                                       crs={'init': 'epsg:3857'})
-        resolution = 0.596
-
-        return GeoRaster2.empty_from_roi(roi=bounds, resolution=resolution)
-
-    def __enter__(self):
-        _file, filename = tempfile.mkstemp(suffix=".tif")
-        self._filename = filename
-        raster = self.raster
-        raster.save(self._filename)
-        return GeoFeature(raster.footprint(), {"raster_url": self._filename})
-
-    def __exit__(self, type, value, traceback):
-        os.remove(self._filename)
-
-
 def test_get_tile_that_returend_257():
-    with GeoFeatureThatProduced257() as feature:
-        features = [feature]
-        fc = FeatureCollection(features)
+    bounds = GeoVector.from_bounds(xmin=-295505.5513504914,
+                                   ymin=4705921.785461731,
+                                   xmax=-295352.3793504914,
+                                   ymax=4706074.957461731,
+                                   crs={'init': 'epsg:3857'})
+    resolution = 0.596
+    raster = GeoRaster2.empty_from_roi(roi=bounds, resolution=resolution)
+    with tempfile.NamedTemporaryFile(suffix='.tif') as fp:
+        raster.save(fp.name)
+        feature = GeoFeature(raster.footprint(), {"raster_url": fp.name})
+        fc = FeatureCollection([feature])
         tile = fc.get_tile(z=18, x=129139, y=100288)
         assert tile.shape == (1, 256, 256)
 
