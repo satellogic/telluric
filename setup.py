@@ -23,7 +23,7 @@ setup(
         'dsnparse',
         'fiona>=1.7.2,<2.*',
         'folium',
-        'ipyleaflet',
+        'ipyleaflet!=0.8.2',
         'pyproj',
         'shapely>=1.6.3,<2.*',
         'rasterio>=1.0a12',
