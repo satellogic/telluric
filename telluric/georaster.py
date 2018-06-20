@@ -93,9 +93,12 @@ class MergeStrategy(Enum):
     UNION = 2
 
 
-def merge_all(rasters, roi, dest_resolution=None, merge_strategy=MergeStrategy.UNION):
+def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
+              shape=None, ul_corner=None, crs=None):
     """Merge a list of rasters, cropping by a region of interest.
-
+       There are cases that the roi is not precise enough for this cases one can use,
+       the upper left corner the shape and crs to percisly define the roi.
+       When roi is provieded the ul_corner, shape and crs are ignored
     """
     if dest_resolution is None:
         dest_resolution = rasters[0].resolution()
@@ -103,7 +106,7 @@ def merge_all(rasters, roi, dest_resolution=None, merge_strategy=MergeStrategy.U
     # Create empty raster
     empty = GeoRaster2.empty_from_roi(
         roi, resolution=dest_resolution, band_names=rasters[0].band_names,
-        dtype=rasters[0].dtype)
+        dtype=rasters[0].dtype, shape=shape, ul_corner=ul_corner, crs=crs)
 
     projected_rasters = [_prepare_other_raster(empty, raster) for raster in rasters]
     projected_rasters = [raster for raster in projected_rasters if raster is not None]
@@ -465,11 +468,16 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return geo_raster
 
     @classmethod
-    def empty_from_roi(cls, roi, resolution, band_names=None, dtype=np.uint8):
+    def empty_from_roi(cls, roi=None, resolution=None,
+                       band_names=None, dtype=np.uint8, ul_corner=None, shape=None, crs=None):
         from telluric import rasterization
 
-        return rasterization.rasterize([], roi.crs, roi.get_shape(roi.crs),
-                                       resolution, band_names=band_names, dtype=dtype)
+        if roi:
+            crs = crs or roi.crs
+            roi = roi.get_shape(crs)
+
+        return rasterization.rasterize([], crs, roi,
+                                       resolution, band_names=band_names, dtype=dtype, shape=shape, ul_corner=ul_corner)
 
     def _populate_from_rasterio_object(self, read_image):
         with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
