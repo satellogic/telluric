@@ -8,6 +8,7 @@ from affine import Affine
 from rasterio.enums import Resampling
 from PIL import Image
 from shapely.geometry import Point, Polygon
+from common_for_tests import make_test_raster
 
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning
@@ -29,16 +30,6 @@ some_raster_alt = GeoRaster2(some_image_2d_alt, affine=some_affine, crs=some_crs
 some_raster_multiband = GeoRaster2(
     some_image_3d_multiband, band_names=['r', 'g', 'b'], affine=some_affine, crs=some_crs)
 default_factors = [2, 4, 8, 16]
-
-
-def make_test_raster(value=0, band_names=[], height=3, width=4, dtype=np.uint16,
-                     crs=WEB_MERCATOR_CRS, affine=Affine.identity()):
-    shape = [len(band_names), height, width]
-    array = np.full(shape, value, dtype=dtype)
-    mask = np.full(shape, False, dtype=np.bool)
-    image = np.ma.array(data=array, mask=mask)
-    raster = GeoRaster2(image=image, affine=affine, crs=crs, band_names=band_names)
-    return raster
 
 
 def test_construction():

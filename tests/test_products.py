@@ -1,117 +1,22 @@
 import unittest
 import numpy as np
-import copy
+# import copy
 
-from affine import Affine
-import telluric as tl
-from telluric.constants import WEB_MERCATOR_CRS
+# from affine import Affine
+# import telluric as tl
+# from telluric.constants import WEB_MERCATOR_CRS
 from telluric.products import ProductError
+
+from common_for_tests import (
+    make_test_raster, micro_raster_8b, micro_values_8b, expected_nir, expected_red, expected_green, sensor_bands_info,
+    expected_blue, nir_value, red_value, green_value, blue_value, macro_raster, macro_raster_with_no_data,
+    micro_raster_with_no_data, macro_bands,
+)
 
 from telluric.products import (
     ProductsFactory, ProductGenerator, NDVI, EVI2, ENDVI, EXG, EXB, EXR, TrueColor, PRI, NDVI827, NRI, GNDVI, CCI,
     NPCI, PPR, NDVI750, LandCoverIndex
 )
-
-
-def make_test_raster(value=0, band_names=[], height=3, width=4, dtype=np.uint16,
-                     crs=WEB_MERCATOR_CRS, affine=Affine.identity()):
-    shape = [len(band_names), height, width]
-    array = np.full(shape, value, dtype=dtype)
-    mask = np.full(shape, False, dtype=np.bool)
-    image = np.ma.array(data=array, mask=mask)
-    raster = tl.GeoRaster2(image=image, affine=affine, crs=crs, band_names=band_names)
-    return raster
-
-
-def sensor_bands_info():
-    return copy.deepcopy({
-        'blue': {'min': 400, 'max': 510},
-        'green': {'min': 515, 'max': 580},
-        'pan': {'min': 400, 'max': 750},
-        'red': {'min': 590, 'max': 690},
-        'nir': {'min': 750, 'max': 900},
-        'HC_450': {'min': 445, 'max': 456},
-        'HC_500': {'min': 493, 'max': 510},
-        'HC_530': {'min': 521, 'max': 538},
-        'HC_550': {'min': 540, 'max': 559},
-        'HC_570': {'min': 560, 'max': 579},
-        'HC_580': {'min': 572, 'max': 592},
-        'HC_595': {'min': 583, 'max': 605},
-        'HC_610': {'min': 596, 'max': 619},
-        'HC_659': {'min': 646, 'max': 671},
-        'HC_670': {'min': 657, 'max': 683},
-        'HC_680': {'min': 666, 'max': 693},
-        'HC_690': {'min': 676, 'max': 703},
-        'HC_700': {'min': 686, 'max': 714},
-        'HC_710': {'min': 696, 'max': 724},
-        'HC_720': {'min': 705, 'max': 734},
-        'HC_730': {'min': 714, 'max': 744},
-        'HC_740': {'min': 725, 'max': 755},
-        'HC_750': {'min': 735, 'max': 765},
-        'HC_760': {'min': 744, 'max': 775},
-        'HC_770': {'min': 753, 'max': 785},
-        'HC_830': {'min': 809, 'max': 844},
-    })
-
-macro_wavelengths = (450, 500, 530, 550, 570, 580, 595, 610, 670, 680,
-                     690, 700, 710, 720, 730, 740, 750, 760, 770, 830)
-
-micro_values = {
-    'green': 55,
-    'red': 77,
-    'nir': 100,
-    'blue': 118
-}
-
-expected_nir = ['HC_770', 'HC_830']
-expected_red = ['HC_670', 'HC_610']
-expected_green = ['HC_570', 'HC_550', 'HC_530']
-expected_blue = ['HC_450', 'HC_500']
-
-# calculated micro values
-nir_value = 137    # nir values 138 136 avg 137
-red_value = 115    # red values 116 114 avg 115
-green_value = 106  # green values 104 106 108 avg 106
-blue_value = 101   # blue values 100 102 avg 101
-
-
-def micro_raster():
-    source_raster = make_test_raster(4200, ['green', 'red', 'nir', 'blue'], dtype=np.uint16)
-    array = source_raster.image.data
-    array[0, :, :] = micro_values['green']
-    array[1, :, :] = micro_values['red']
-    array[2, :, :] = micro_values['nir']
-    array[3, :, :] = micro_values['blue']
-    return source_raster.copy_with(image=array)
-
-
-def micro_raster_with_no_data():
-    source_raster = micro_raster()
-    source_raster.image.mask[0, 1, 2] = True
-    source_raster.image.mask[1, 2, 3] = True
-    source_raster.image.mask[2, 0, 0] = True
-    source_raster.image.mask[3, 1, 3] = True
-    return source_raster
-
-
-macro_bands = ["HC_%i" % wl for wl in macro_wavelengths]
-
-
-def macro_raster():
-    source_raster = make_test_raster(142, macro_bands, dtype=np.uint8)
-    for i, band in enumerate(macro_bands):
-        source_raster.image.data[i, :, :] = 2 * i + 100
-    return source_raster
-
-
-def macro_raster_with_no_data():
-    source_raster = macro_raster()
-    source_raster.image.mask[:, 1, 2] = True
-    source_raster.image.mask[2, 2, 3] = True
-    source_raster.image.mask[5, 0, 0] = True
-    source_raster.image.mask[14, 1, 3] = True
-    source_raster.image.mask[15, 1, 3] = True
-    return source_raster
 
 
 class TestProductsFuctory(unittest.TestCase):
@@ -206,20 +111,20 @@ class TestBandsMatching(unittest.TestCase):
 class TestNDVIStraite(unittest.TestCase):
 
     def test_ndvi(self):
-        raster = NDVI().apply(sensor_bands_info(), micro_raster())
+        raster = NDVI().apply(sensor_bands_info(), micro_raster_8b())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, NDVI.output_bands)
         self.assertEqual(raster.dtype, NDVI.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
-        expected_value = (micro_values['nir'] - micro_values['red']) / (
-            micro_values['nir'] + micro_values['red']
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
+        expected_value = (micro_values_8b['nir'] - micro_values_8b['red']) / (
+            micro_values_8b['nir'] + micro_values_8b['red']
         )
         self.assertTrue((raster.image.data == expected_value).all())
 
     def test_NDVI_product_base(self):
         product_generator = NDVI()
-        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
+        product = product_generator.apply(sensor_bands_info(), micro_raster_8b(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -237,8 +142,8 @@ class TestNDVIStraite(unittest.TestCase):
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, NDVI.output_bands)
         self.assertEqual(raster.dtype, NDVI.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
         self.assertFalse(raster.image.mask[0, 1, 2])
         self.assertTrue(raster.image.mask[0, 2, 3])
         self.assertTrue(raster.image.mask[0, 0, 0])
@@ -295,21 +200,21 @@ class TestNDVIStraite(unittest.TestCase):
 class TestEVI2(unittest.TestCase):
 
     def test_evi2(self):
-        raster = EVI2().apply(sensor_bands_info(), micro_raster())
+        raster = EVI2().apply(sensor_bands_info(), micro_raster_8b())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EVI2.output_bands)
         self.assertEqual(raster.dtype, EVI2.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
-        expected_value = 2.5 * (micro_values['nir'] - micro_values['red']) / (
-            micro_values['nir'] + 2.4 * micro_values['red'] + 1
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
+        expected_value = 2.5 * (micro_values_8b['nir'] - micro_values_8b['red']) / (
+            micro_values_8b['nir'] + 2.4 * micro_values_8b['red'] + 1
             )
         # expected_value = round(expected_value, 8)
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
 
     def test_EVI2_product(self):
         product_generator = EVI2()
-        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
+        product = product_generator.apply(sensor_bands_info(), micro_raster_8b(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -325,8 +230,8 @@ class TestEVI2(unittest.TestCase):
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EVI2.output_bands)
         self.assertEqual(raster.dtype, EVI2.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
         self.assertFalse(raster.image.mask[0, 1, 2])
         self.assertTrue(raster.image.mask[0, 2, 3])
         self.assertTrue(raster.image.mask[0, 0, 0])
@@ -364,21 +269,21 @@ class TestEVI2(unittest.TestCase):
 class TestENDVI(unittest.TestCase):
 
     def test_endvi(self):
-        raster = ENDVI().apply(sensor_bands_info(), micro_raster())
+        raster = ENDVI().apply(sensor_bands_info(), micro_raster_8b())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, ENDVI.output_bands)
         self.assertEqual(raster.dtype, ENDVI.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
-        numerator = micro_values['nir'] + micro_values['green'] - 2 * micro_values['blue']
-        denominator = micro_values['nir'] + micro_values['green'] + 2 * micro_values['blue']
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
+        numerator = micro_values_8b['nir'] + micro_values_8b['green'] - 2 * micro_values_8b['blue']
+        denominator = micro_values_8b['nir'] + micro_values_8b['green'] + 2 * micro_values_8b['blue']
         expected_value = numerator / denominator
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
         self.assertTrue((raster.image.data == expected_value).all())
 
     def test_ENDVI_product(self):
         product_generator = ENDVI()
-        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
+        product = product_generator.apply(sensor_bands_info(), micro_raster_8b(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -394,8 +299,8 @@ class TestENDVI(unittest.TestCase):
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, ENDVI.output_bands)
         self.assertEqual(raster.dtype, ENDVI.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
         self.assertTrue(raster.image.mask[0, 1, 2])
         self.assertFalse(raster.image.mask[0, 2, 3])
         self.assertTrue(raster.image.mask[0, 0, 0])
@@ -438,23 +343,23 @@ class TestENDVI(unittest.TestCase):
 class TestExcessIndices(unittest.TestCase):
 
     def test_exg(self):
-        raster = EXG().apply(sensor_bands_info(), micro_raster())
+        raster = EXG().apply(sensor_bands_info(), micro_raster_8b())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EXG.output_bands)
         self.assertEqual(raster.dtype, EXG.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
-        comon_denominator = micro_values['red'] + micro_values['green'] + micro_values['blue']
-        r = micro_values['red'] / comon_denominator
-        g = micro_values['green'] / comon_denominator
-        b = micro_values['blue'] / comon_denominator
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
+        comon_denominator = micro_values_8b['red'] + micro_values_8b['green'] + micro_values_8b['blue']
+        r = micro_values_8b['red'] / comon_denominator
+        g = micro_values_8b['green'] / comon_denominator
+        b = micro_values_8b['blue'] / comon_denominator
         expected_value = 2 * g - r - b
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
         self.assertTrue((raster.image.data == expected_value).all())
 
     def test_EXG_product(self):
         product_generator = EXG()
-        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
+        product = product_generator.apply(sensor_bands_info(), micro_raster_8b(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -507,22 +412,22 @@ class TestExcessIndices(unittest.TestCase):
         self.assertFalse(raster.image.mask[0, 1, 3])
 
     def test_exr(self):
-        raster = EXR().apply(sensor_bands_info(), micro_raster())
+        raster = EXR().apply(sensor_bands_info(), micro_raster_8b())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EXR.output_bands)
         self.assertEqual(raster.dtype, EXR.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
-        comon_denominator = micro_values['red'] + micro_values['green'] + micro_values['blue']
-        r = micro_values['red'] / comon_denominator
-        g = micro_values['green'] / comon_denominator
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
+        comon_denominator = micro_values_8b['red'] + micro_values_8b['green'] + micro_values_8b['blue']
+        r = micro_values_8b['red'] / comon_denominator
+        g = micro_values_8b['green'] / comon_denominator
         expected_value = 1.4 * r - g
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
         self.assertTrue((raster.image.data == expected_value).all())
 
     def test_EXR_product(self):
         product_generator = EXR()
-        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
+        product = product_generator.apply(sensor_bands_info(), micro_raster_8b(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -566,21 +471,21 @@ class TestExcessIndices(unittest.TestCase):
         self.assertFalse(raster.image.mask[0, 1, 3])
 
     def test_exb(self):
-        raster = EXB().apply(sensor_bands_info(), micro_raster())
+        raster = EXB().apply(sensor_bands_info(), micro_raster_8b())
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.band_names, EXB.output_bands)
         self.assertEqual(raster.dtype, EXB.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
-        comon_denominator = micro_values['red'] + micro_values['green'] + micro_values['blue']
-        g = micro_values['green'] / comon_denominator
-        b = micro_values['blue'] / comon_denominator
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
+        comon_denominator = micro_values_8b['red'] + micro_values_8b['green'] + micro_values_8b['blue']
+        g = micro_values_8b['green'] / comon_denominator
+        b = micro_values_8b['blue'] / comon_denominator
         expected_value = 1.4 * b - g
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
 
     def test_EXB_product(self):
         product_generator = EXB()
-        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
+        product = product_generator.apply(sensor_bands_info(), micro_raster_8b(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -627,19 +532,19 @@ class TestExcessIndices(unittest.TestCase):
 class TestTrueColor(unittest.TestCase):
 
     def test_true_color(self):
-        raster = TrueColor().apply(sensor_bands_info(), micro_raster())
+        raster = TrueColor().apply(sensor_bands_info(), micro_raster_8b())
         self.assertEqual(raster.band_names, TrueColor.output_bands)
         self.assertEqual(raster.num_bands, 3)
         # TODO what should I do here
         # self.assertEqual(raster.dtype, TrueColor.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
         for band in ['red', 'green', 'blue']:
-            self.assertTrue((raster.band(band) == micro_raster().band(band)).all())
+            self.assertTrue((raster.band(band) == micro_raster_8b().band(band)).all())
 
     def test_TrueColor_product(self):
         product_generator = TrueColor()
-        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
+        product = product_generator.apply(sensor_bands_info(), micro_raster_8b(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -656,8 +561,8 @@ class TestTrueColor(unittest.TestCase):
         self.assertEqual(raster.band_names, TrueColor.output_bands)
         # TODO what to do here
         # self.assertEqual(raster.dtype, TrueColor.type)
-        self.assertEqual(raster.height, micro_raster().height)
-        self.assertEqual(raster.width, micro_raster().width)
+        self.assertEqual(raster.height, micro_raster_8b().height)
+        self.assertEqual(raster.width, micro_raster_8b().width)
         self.assertTrue(raster.image.mask[0, 1, 2])
         self.assertTrue(raster.image.mask[0, 2, 3])
         self.assertFalse(raster.image.mask[0, 0, 0])
@@ -790,7 +695,7 @@ class TestTrueColor(unittest.TestCase):
 class TestSingleBand(unittest.TestCase):
 
     def test_single_band(self):
-        raster = micro_raster()
+        raster = micro_raster_8b()
         product_raster = ProductsFactory.get_object('SingleBand', 'blue').apply(sensor_bands_info(), raster)
         self.assertEqual(product_raster, raster.limit_to_bands(['blue']))
 
@@ -801,7 +706,7 @@ class TestSingleBand(unittest.TestCase):
 
     def test_SingleBand_product(self):
         product_generator = ProductsFactory.get_object('SingleBand', 'blue')
-        product = product_generator.apply(sensor_bands_info(), micro_raster(), metadata=True)
+        product = product_generator.apply(sensor_bands_info(), micro_raster_8b(), metadata=True)
         self.assertEqual(product.name, product_generator.name)
         self.assertEqual(product.display_name, product_generator.display_name)
         self.assertEqual(product.description, product_generator.description)
@@ -1082,89 +987,3 @@ class TestRGBEnhanced(unittest.TestCase):
         self.assertTrue('blue_enhanced' in str(ex.exception))
         self.assertTrue('red_enhanced' in str(ex.exception))
         self.assertTrue('green_enhanced' in str(ex.exception))
-
-
-"""
-import telluric as tl
-from telluric.georaster.util.products import ProductFactory, BandsMapping
-from telluric.georaster.util.product_view import ProductViewsFactory
-# satellites util is the new repository with our bands settings
-from satellites_utils import newsat_bands
-
-# instanciate a prodacts factury for the selected supplier
-products_factory = ProductFactory(newsat_bands)  # type: ProductFuctory
-
-# open a multiband raster
-raster = tl.GeoRaster2.open('test_raster.tif')
-
-# retrieve all products matching this raster
-products_list = products_factory.get_matchings(raster.band_names)
-
-# generate a product
-product_generator = products_factory.get_object('NDVI')  # type: ProductGenerator
-product = product_generator.apply(raster)  # type: GeoRaster2
-
-# generate a product view for the requested product using the product default view
-renderer = ProductViewsFactory.get_object(product_generator.default_view)  # type: ProductView
-product_view = renderer.apply(product)  # type: GeoRaster2
-
-# generating a single bands product for band red and product view using jet colormap
-single_red_generator = products_factory.get_object('singleband', 'red')  # type: ProductGenerator
-red_band = single_red_generator.apply(raster)  # type: GeoRaster2
-red_jet = ProductViewsFactory.get_object('cm-jet').apply(red_value)  # type: GeoRaster2
-
-# building a band: when the user does not have the band to bandlength mapping
-# the user is require to pass the list of bands in the right order and we generate the mapping based on our internal mapping
-
-bands_mapping = BandsMapping(['red', 'green', 'blue']).generate()  # type Dict
-# {
-#     0: {'min': 590, 'mean': 640, 'max': 690},
-#     1: {'min': 515, 'mean': 547.5, 'max': 580},
-#     2: {'min': 400, 'mean': 455, 'max': 510},
-# }
-
-products_factory = ProductFactory(bands_mapping)  # type: ProductFuctory
-# from here it continues the same
-
-## MIXIN
-
-# get all products applicable to raster
-raster.get_products(bands_mapping)  # type list(str)
-
-# apply product on raster
-raster.apply_product(bands_mapping, 'NDVI')  # type: GeoRaster2
-
-# apply product and visualization
-raster.visualize_product(bands_mapping, 'NDVI', 'cm-jet')  # type: GeoRaster2
-
-# apply product and visualization using default visualization
-raster.visualize_product(bands_mapping, 'NDVI')  # type: GeoRaster2
-
-# all above can return product metadata
-raster.apply_product(bands_mapping, 'NDVI', metadata=True)  # type: tuple(GeoRaster2, dict)
-raster.visualize_product(bands_mapping, 'NDVI', 'cm-jet', metadata=True)  # type: tuple(GeoRaster2, dict)
-raster.visualize_product(bands_mapping, 'NDVI', metadata=True)  # type: tuple(GeoRaster2, dict)
-
-
-
-#custom calculation
-
-# input bands to the calculation, band names must have entries in ProductGenerator.wavelength_map
-required_bands = ['red', 'blue']
-
-# output bands of the calculation, the name of the bands in the resulting raster
-output_bands = ['special_reflection']
-
-# calculation function, argument names must be same as required_bands
-# the returned value should be a 3D masked array,
-# these means you should take care of the mask if it is required for example see RGBEnhanced._apply
-def special_reflection_func(red, blue):
-    result = np.log(np.divide(blue.data, red.data))
-    return result
-
-# applying the custom product
-special_reflection_raster = raster.apply(bands_mapping, 'custom',
-                                         calculation=special_reflection_func,
-                                         required_bands=required_bands,
-                                         output_bands=output_bands)
-"""

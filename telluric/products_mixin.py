@@ -2,9 +2,9 @@ from telluric.products import ProductsFactory
 from telluric.product_view import ProductViewsFactory
 
 
-class ProductsMixin():
-    def apply(self, sensor_bands_info, product_name, metadata=False, *args, **kwargs):
-        generator = ProductsFactory.get_object(product_name, *args, **kwargs)
+class ProductsMixin:
+    def apply(self, sensor_bands_info, product_name, metadata=False, **kwargs):
+        generator = ProductsFactory.get_object(product_name, **kwargs)
         product = generator.apply(sensor_bands_info, self, metadata=metadata)
         return product
     
@@ -14,4 +14,4 @@ class ProductsMixin():
         return view
 
     def get_products(self, sensor_bands_info):
-        return ProductsFactory.get_matchings(self, sensor_bands_info)
+        return ProductsFactory.get_matchings(self.band_names, sensor_bands_info)
