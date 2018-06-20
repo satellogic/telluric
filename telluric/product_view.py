@@ -19,6 +19,10 @@ class ProductView():
     type = np.uint8
 
     @classmethod
+    def get_name(self):
+        return self.name
+
+    @classmethod
     def to_dict(cls):
         attributes = "name display_name description type output_bands required_bands".split()
         d = {}
@@ -219,7 +223,7 @@ class ProductViewsFactory(BaseFactory):
 
     @classmethod
     def load_colormaps_subs(cls):
-        return {p.name.lower(): p for p in ColormapView.__subclasses__()}
+        return {p.get_name().lower(): p for p in ColormapView.__subclasses__()}
 
     @classmethod
     def load_colormaps(cls):
@@ -238,8 +242,8 @@ class ProductViewsFactory(BaseFactory):
 
     @classmethod
     def load_bands_composer(cls):
-        return {p.name.lower(): p for p in BandsComposer.__subclasses__()}
+        return {p.get_name().lower(): p for p in BandsComposer.__subclasses__()}
 
     @classmethod
     def load_one_banders(cls):
-        return {p.name.lower(): p for p in OneBanders.__subclasses__()}
+        return {p.get_name().lower(): p for p in OneBanders.__subclasses__()}

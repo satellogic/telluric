@@ -71,12 +71,12 @@ class ProductsFactory(BaseFactory):
     @classmethod
     def objects(cls):
         if not cls.__objects:
-            subclasses = sorted(ProductGenerator.__subclasses__(), key=lambda p: (p._order, p.name.lower()))
+            subclasses = sorted(ProductGenerator.__subclasses__(), key=lambda p: (p.get_order(), p.get_name().lower()))
             cls.__objects = OrderedDict()
             for p in subclasses:
                 if p.dont_add_to_factory:
                     continue
-                cls.__objects[p.name.lower()] = p
+                cls.__objects[p.get_name().lower()] = p
         return cls.__objects
 
 
@@ -113,6 +113,14 @@ class ProductGenerator:
         'R750': {'min': 735, 'mean': 750, 'max': 765},
         'R827': {'min': 809, 'mean': 827, 'max': 845},  # should be confirmed with Martin
     }
+
+    @classmethod
+    def get_name(cls):
+        return cls.name
+
+    @classmethod
+    def get_order(cls):
+        return cls._order
 
     @classmethod
     def to_dict(cls):
@@ -242,14 +250,13 @@ class ProductGenerator:
     def _merge_bands(self, band_names, raster):
         bands = [raster.band(band_name) for band_name in band_names]
         if len(bands) > 1:
-            # bands = [b[0, :, :] for b in bands]
-            bands = np.stack(bands, axis=1)
+            bands_array = np.stack(bands, axis=1)
         else:
-            bands = bands[0]
-            bands = bands[np.newaxis, :, :, :]
+            bands_array = bands[0]
+            bands_array = bands_array[np.newaxis, :, :, :]
 
-        mask = _join_masks_from_masked_array(bands)
-        array = np.ma.array(bands, mask=mask)
+        mask = _join_masks_from_masked_array(bands_array)
+        array = np.ma.array(bands_array, mask=mask)
         array = array.mean(axis=1).astype(raster.dtype)
         combined_band = array.filled(0)  # type: np.ndarray
         combined_band = np.ma.array(combined_band, mask=array.mask)
