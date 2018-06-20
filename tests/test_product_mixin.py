@@ -66,6 +66,7 @@ def test_it_visualized_to_default(raster):
     assert isinstance(result, GeoRaster2)
     assert result.band_names == ['red', 'green', 'blue']
 
+
 @pytest.mark.parametrize("raster", [micro_raster_16b(),
                                     micro_raster_8b(),
                                     macro_raster(),
@@ -75,6 +76,7 @@ def test_it_visualized_to_rgb_(raster):
     result = raster.apply(sensor_bands_info(), 'TrueColor').visualize('TrueColor')
     assert isinstance(result, GeoRaster2)
     assert result.band_names == ['red', 'green', 'blue']
+
 
 @pytest.mark.parametrize("raster", [micro_raster_16b(),
                                     micro_raster_8b(),

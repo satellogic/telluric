@@ -1,5 +1,5 @@
 import numpy as np
-from  affine import Affine
+from affine import Affine
 import copy
 import telluric as tl
 from telluric.constants import WEB_MERCATOR_CRS
@@ -55,8 +55,10 @@ def sensor_bands_info():
         'HC_830': {'min': 809, 'max': 844},
     })
 
+
 macro_wavelengths = (450, 500, 530, 550, 570, 580, 595, 610, 670, 680,
                      690, 700, 710, 720, 730, 740, 750, 760, 770, 830)
+
 
 micro_values_8b = {
     'green': 55,
@@ -64,6 +66,7 @@ micro_values_8b = {
     'nir': 100,
     'blue': 118
 }
+
 
 expected_nir = ['HC_770', 'HC_830']
 expected_red = ['HC_670', 'HC_610']

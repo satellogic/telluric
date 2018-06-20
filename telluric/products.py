@@ -246,7 +246,7 @@ class ProductGenerator:
             bands = np.stack(bands, axis=1)
         else:
             bands = bands[0]
-            bands = bands[np.newaxis, : , :, :]
+            bands = bands[np.newaxis, :, :, :]
 
         mask = _join_masks_from_masked_array(bands)
         array = np.ma.array(bands, mask=mask)
@@ -259,7 +259,7 @@ class ProductGenerator:
         no_data_mask = self._get_nodata_musk(raster, band_names)
         no_data_mask = np.logical_or(array.mask, no_data_mask)
         new_array = np.ma.array(array.data, mask=no_data_mask)
-        new_array = new_array.filled(0)  # type: np.ndarray 
+        new_array = new_array.filled(0)  # type: np.ndarray
         new_array = np.ma.array(new_array, mask=no_data_mask)
         return new_array
 

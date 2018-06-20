@@ -59,7 +59,7 @@ class ColormapView(ProductView):
         normalized = np.divide(raster.image.data[0, :, :] - vmin, vmax - vmin)
         image_data = cmap(normalized)
         image_data = image_data[:, :, 0:3]
-        
+
         # convert floats [0,1] to uint8 [0,255]
         image_data = image_data * 255
         image_data = image_data.astype(self.type)
@@ -69,9 +69,9 @@ class ColormapView(ProductView):
         # force nodata where it was in original raster:
         mask = _join_masks_from_masked_array(raster.image)
         mask = np.stack([mask[0, :, :]] * 3)
-        array = np.ma.array(image_data, mask=mask).filled(0)  # type: np.ndarray 
+        array = np.ma.array(image_data, mask=mask).filled(0)  # type: np.ndarray
         array = np.ma.array(array, mask=mask)
-        
+
         return raster.copy_with(image=array, band_names=self.output_bands)
 
     @classmethod

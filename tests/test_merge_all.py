@@ -7,6 +7,7 @@ from telluric import constants, GeoVector
 from telluric.georaster import GeoRaster2, MergeStrategy, merge_all, merge, merge_to_first
 from common_for_tests import make_test_raster
 
+
 def black_and_white_raster(band_names=[], height=10, width=10, dtype=np.uint16,
                            crs=constants.WEB_MERCATOR_CRS, affine=None):
     if affine is None:

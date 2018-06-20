@@ -60,7 +60,7 @@ class TestBandsMatching(unittest.TestCase):
 class TestCloromapView(unittest.TestCase):
     def test_heatmap(self):
         raster = tl.GeoRaster2(image=np.array(range(256), dtype=np.uint8).reshape((1, 16, 16)),
-                               band_names=['red'], 
+                               band_names=['red'],
                                crs=WGS84_CRS,
                                affine=affine.Affine(2, 0, 0, 0, 1, 0))
 
@@ -78,7 +78,7 @@ class TestCloromapView(unittest.TestCase):
 
     def test_with_range(self):
         raster = tl.GeoRaster2(image=np.array(range(256), dtype=np.uint8).reshape((1, 16, 16)),
-                               band_names=['red'], 
+                               band_names=['red'],
                                crs=WGS84_CRS,
                                affine=affine.Affine(2, 0, 0, 0, 1, 0))
 
@@ -90,13 +90,14 @@ class TestCloromapView(unittest.TestCase):
         self.assertTrue((heatmap.image.data[0, heatmap.image.data[0] > 0] == 127).all())
         self.assertTrue((heatmap.image.data[1, heatmap.image.data[1] > 0] == 0).all())
         self.assertTrue((heatmap.image.data[2, heatmap.image.data[2] > 0] == 0).all())
-        self.assertEqual(len(heatmap.image.mask == True), 3)
+        mask = heatmap.image.mask
+        self.assertEqual(len(mask[mask >= True]), 3)
 
 
 class TestFirstBandGrayColormapView(unittest.TestCase):
     def test_view(self):
         raster = tl.GeoRaster2(image=np.array(range(512), dtype=np.uint8).reshape((2, 16, 16)),
-                               band_names=['main', 'else'], 
+                               band_names=['main', 'else'],
                                crs=WGS84_CRS,
                                affine=affine.Affine(2, 0, 0, 0, 1, 0))
 
@@ -106,7 +107,8 @@ class TestFirstBandGrayColormapView(unittest.TestCase):
         self.assertTrue(np.array_equal(colormap.image.data[:, 0, 0], [0, 0, 0]))  # nodata remains nodata
         self.assertTrue(np.array_equal(colormap.image.mask[:, 0, 0], [True, True, True]))  # nodata remains nodata
         self.assertTrue(np.array_equal(colormap.image.data[:, 0, 1], [0, 0, 0]))
-        self.assertTrue(np.array_equal(colormap.image.data[:, colormap.height - 1, colormap.width - 1], [255, 255, 255]))
+        self.assertTrue(np.array_equal(colormap.image.data[:, colormap.height - 1, colormap.width - 1],
+                                       [255, 255, 255]))
 
 
 def to_uint8(val):
@@ -146,7 +148,9 @@ class TestBandComposer(unittest.TestCase):
         self.assertEqual(raster.num_bands, 1)
         self.assertEqual(raster.height, micro_raster_16b().height)
         self.assertEqual(raster.width, micro_raster_16b().width)
-        expected_value = 0.2989 * micro_values_16b['red'] + 0.5870 * micro_values_16b['green'] + 0.1140 * micro_values_16b['blue']
+        expected_value = 0.2989 * micro_values_16b['red'] + \
+            0.5870 * micro_values_16b['green'] + \
+            0.1140 * micro_values_16b['blue']
         self.assertEqual(raster.image.data[0, 0, 0], to_uint8(expected_value))
 
     def test_grayscale_raises_on_no_fiting_requirements(self):

@@ -7,7 +7,7 @@ class ProductsMixin:
         generator = ProductsFactory.get_object(product_name, **kwargs)
         product = generator.apply(sensor_bands_info, self, metadata=metadata)
         return product
-    
+
     def visualize(self, product_view_name, **kwargs):
         generator = ProductViewsFactory.get_object(product_view_name)
         view = generator.apply(self, **kwargs)

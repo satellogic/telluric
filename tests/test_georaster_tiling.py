@@ -444,7 +444,6 @@ class GeoRasterMaskedTest(TestCase):
         cls.masked_raster().save(path)
         cls.read_only_vgr = GeoRaster2.open(path)
 
-
     @classmethod
     def tearDownClass(cls):
         cls.dir.cleanup()
