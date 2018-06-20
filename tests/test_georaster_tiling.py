@@ -497,6 +497,16 @@ class GeoRasterMaskedTest(TestCase):
         assert (~cropped.image[:, :, :-1].mask).all()  # The rest is not masked
 
 
+def test_small_geographic_raster_crop():
+    # See https://github.com/satellogic/telluric/issues/61
+    roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=2, crs=WGS84_CRS)
+    resolution = 1.0  # deg / px
+
+    raster = GeoRaster2.empty_from_roi(roi, resolution)
+
+    assert raster.crop(roi) == raster.crop(roi, raster.resolution())
+
+
 @manualtest
 class GeoRaster2ManualTest(TestCase):
     """manual testing To be run manually only."""

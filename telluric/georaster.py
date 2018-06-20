@@ -823,7 +823,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         """
         crops raster outside vector (convex hull)
         :param vector: GeoVector
-        :param output resolution in m/pixel, None for full resolution
+        :param resolution: output resolution, None for full resolution
         :return: GeoRaster
         """
         bounds, window = self._vector_to_raster_bounds(vector)
@@ -859,15 +859,8 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         return bounds, window
 
     def _resolution_to_output_shape(self, bounds, resolution):
-        if resolution is None:
-            xscale = yscale = 1
-        elif self.crs.is_geographic:
-            xresolution, yresolution = convert_resolution_from_meters_to_deg(self.affine[6], resolution)
-            xscale = xresolution / abs(self.affine[0])
-            yscale = yresolution / abs(self.affine[4])
-        else:
-            base_resolution = abs(self.affine[0])
-            xscale = yscale = resolution / base_resolution
+        base_resolution = abs(self.affine[0])
+        xscale = yscale = resolution / base_resolution
 
         width = bounds[2] - bounds[0]
         height = bounds[3] - bounds[1]
