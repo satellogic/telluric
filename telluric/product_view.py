@@ -19,8 +19,8 @@ class ProductView():
     type = np.uint8
 
     @classmethod
-    def get_name(self):
-        return self.name
+    def get_name(cls):
+        return cls.name
 
     @classmethod
     def to_dict(cls):
