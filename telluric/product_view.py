@@ -107,15 +107,15 @@ class BandsComposer(ProductView):
 
     output_bands = ['red', 'green', 'blue']
 
-    def apply(cls, rast, **kwargs):
-        cls.fits_raster_bands(rast.band_names, silent=False)
-        raster = rast.limit_to_bands(cls.required_bands)
+    def apply(self, rast, **kwargs):
+        self.fits_raster_bands(rast.band_names, silent=False)
+        raster = rast.limit_to_bands(self.required_bands)
         raster = raster.astype(np.uint8)
         return raster
 
     @classmethod
-    def fits_raster_bands(self, available_bands, silent=True, *args, **kwargs):
-        required_bands = set(self.required_bands)
+    def fits_raster_bands(cls, available_bands, silent=True, *args, **kwargs):
+        required_bands = set(cls.required_bands)
         available_bands = set(available_bands)
         if required_bands.issubset(available_bands):
             return True
@@ -150,14 +150,14 @@ class Grayscale(BandsComposer):
     display_name = "Grayscale"
     description = ""
 
-    def apply(cls, raster, **kwargs):
-        cls.fits_raster_bands(raster.band_names, silent=False)
+    def apply(self, raster, **kwargs):
+        self.fits_raster_bands(raster.band_names, silent=False)
         data_type = raster.dtype
         array = np.multiply(raster.band('red').astype(np.float32), 0.2989) +\
             np.multiply(raster.band('green').astype(np.float32), 0.5870) +\
             np.multiply(raster.band('blue').astype(np.float32), 0.1140)
         array = array.astype(data_type)
-        raster = raster.copy_with(image=array, band_names=cls.output_bands)
+        raster = raster.copy_with(image=array, band_names=self.output_bands)
         raster = raster.astype(np.uint8)
         return raster
 
@@ -168,9 +168,9 @@ class OneBanders(ProductView):
     required_bands = {}  # type: dict
     output_bands = ['gray']
 
-    def apply(cls, raster, **kwargs):
-        cls.fits_raster_bands(raster.band_names, silent=False)
-        raster = cls._apply(raster)
+    def apply(self, raster, **kwargs):
+        self.fits_raster_bands(raster.band_names, silent=False)
+        raster = self._apply(raster)
         raster = raster.astype(np.uint8)
         return raster
 
@@ -193,7 +193,7 @@ class SingleBand(OneBanders):
     display_name = "SingleBand"
     description = ""
 
-    def _apply(cls, raster):
+    def _apply(self, raster):
         return raster
 
 
@@ -203,7 +203,7 @@ class MagnifyingGlass(OneBanders):
     display_name = "MagnifyingGlass"
     description = ""
 
-    def _apply(cls, raster):
+    def _apply(self, raster):
         array = (raster.image.data + 1) * 100
         raster = raster.copy_with(image=array)
         return raster
