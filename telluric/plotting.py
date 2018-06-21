@@ -25,7 +25,7 @@ def simple_plot(feature, *, mp=None, **map_kwargs):
 
     Parameters
     ----------
-    feature : Any object with __geo_interface__
+    feature : telluric.vectors.GeoVector, telluric.features.GeoFeature, telluric.collections.BaseCollection
         Data to plot.
 
     """
@@ -109,14 +109,14 @@ def plot(feature, mp=None, style_function=None, **map_kwargs):
 
     Parameters
     ----------
-    feature : Any object with __geo_interface__
+    feature : telluric.vectors.GeoVector, telluric.features.GeoFeature, telluric.collections.BaseCollection
         Data to plot.
     mp : ipyleaflet.Map, optional
         Map in which to plot, default to None (creates a new one).
     style_function : func
         Function that returns an style dictionary for
     map_kwargs : kwargs, optional
-        Extra parameters to send to folium.Map.
+        Extra parameters to send to ipyleaflet.Map.
 
     """
     map_kwargs.setdefault('basemap', basemaps.Stamen.Terrain)
