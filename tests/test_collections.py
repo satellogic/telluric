@@ -345,6 +345,22 @@ def test_feature_collection_with_dates_serializes_correctly():
         assert fc[0].attributes == expected_attributes
 
 
+def test_get_tile_that_returend_257():
+    bounds = GeoVector.from_bounds(xmin=-295505.5513504914,
+                                   ymin=4705921.785461731,
+                                   xmax=-295352.3793504914,
+                                   ymax=4706074.957461731,
+                                   crs={'init': 'epsg:3857'})
+    resolution = 0.596
+    raster = GeoRaster2.empty_from_roi(roi=bounds, resolution=resolution)
+    with tempfile.NamedTemporaryFile(suffix='.tif') as fp:
+        raster.save(fp.name)
+        feature = GeoFeature(raster.footprint(), {"raster_url": fp.name})
+        fc = FeatureCollection([feature])
+        tile = fc.get_tile(z=18, x=129139, y=100288)
+        assert tile.shape == (1, 256, 256)
+
+
 @pytest.mark.parametrize("tile", [(4377, 3039, 13), (4376, 3039, 13), (4377, 3039, 13),
                                   (2189, 1519, 12), (8756, 6076, 14), (8751, 6075, 14)])
 def test_get_tile_merge_tiles(tile):
