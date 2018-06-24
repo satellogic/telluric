@@ -7,8 +7,6 @@ from telluric.util.raster_utils import _join_masks_from_masked_array
 
 
 from .base_renderer import BaseFactory
-# from rastile.satellite import sat_utils
-# from bands_definitions import bands_definition
 
 
 def flatten_two_level_list(main_list):
@@ -172,9 +170,9 @@ class ProductGenerator:
         bands_restriction = bands_restriction or available_bands
         matched_bands = cls.match_available_bands_to_required_bands(sensor_bands_info, bands_restriction)
         if matched_bands:
-            do_we_have_elements_to_create_required_bands = all(
+            do_we_have_input_bands_to_create_required_bands = all(
                 [len(a) > 0 for a in matched_bands.values()])
-            if do_we_have_elements_to_create_required_bands:
+            if do_we_have_input_bands_to_create_required_bands:
                 used_restricted_bands = flatten_two_level_list(matched_bands.values())
                 if set(available_bands).issuperset(used_restricted_bands):
                     return True
@@ -225,7 +223,7 @@ class ProductGenerator:
         Apply product calculation on the raster
 
         :param raster: the data raster the product should apply on
-        :param bands_restriction: not required list of bands required for the processing of the product,
+        :param bands_restriction: optional list of bands required for the processing of the product,
             if one of this bands not exists in the raster the product should return `no data`
         :param metadata: when true returns a named tuple with raster and additional information
         :param kwargs: additional arguments
@@ -263,14 +261,14 @@ class ProductGenerator:
         return combined_band
 
     def _force_nodata_where_it_was_in_original_raster(self, array, raster, band_names):
-        no_data_mask = self._get_nodata_musk(raster, band_names)
+        no_data_mask = self._get_nodata_mask(raster, band_names)
         no_data_mask = np.logical_or(array.mask, no_data_mask)
         new_array = np.ma.array(array.data, mask=no_data_mask)
         filled_array = new_array.filled(0)  # type: np.ndarray
         ma_array = np.ma.array(filled_array, mask=no_data_mask)
         return ma_array
 
-    def _get_nodata_musk(self, raster, band_names=None):
+    def _get_nodata_mask(self, raster, band_names=None):
         band_names = band_names or raster.band_names
         masks = [raster.band(band_name).mask for band_name in band_names]
         mask = reduce(np.logical_or, masks)
