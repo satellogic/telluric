@@ -738,10 +738,21 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         """
         return self.footprint().contains(geometry)
 
-    def astype(self, dst_type, stretch=False):
+    def astype(self, dst_type, in_range='dtype', out_range='dtype', clip_negative=False, stretch=False):
         """ Returns copy of the raster, converted to desired type
-        Supported types: uint8, uint16, uint32, int8, int16, int32
-        For integer types, pixel values are within min/max range of the type.
+        Supported types: uint8, uint16, uint32, int8, int16, int32, float16, float32, float64
+
+        :param dst_type: desired type
+        :param in_range: str or 2-tuple, default 'dtype':
+            'image': use image min/max as the intensity range,
+            'dtype': use min/max of the image's dtype as the intensity range,
+            2-tuple: use explicit min/max intensities
+        :param out_range: str or 2-tuple, default 'dtype':
+            'dtype': use min/max of the image's dtype as the intensity range,
+            2-tuple: use explicit min/max intensities
+        :param clip_negative: boolean, if `True` - clip the negative range, default False
+        :param stretch: boolean, if `True` - sretch histogram, default False
+        :return: numpy array of values
         """
 
         def type_max(dtype):
@@ -750,22 +761,57 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         def type_min(dtype):
             return np.iinfo(dtype).min
 
-        if not np.issubdtype(dst_type, np.integer):
-            raise GeoRaster2Error('astype to non integer type is not supported - requested dtype: %s' % dst_type)
+        if (
+            in_range is None and out_range is not None or
+            out_range is None and in_range is not None
+        ):
+            raise GeoRaster2Error("Both ranges should be specified or none of them.")
 
         src_type = self.image.dtype
-        if not np.issubdtype(src_type, np.integer):
-            raise GeoRaster2Error('astype from non integer type is not supported - raster dtype: %s' % src_type)
+        if not np.issubdtype(src_type, np.integer) and in_range == 'dtype':
+            in_range = 'image'
+            warnings.warn("Value 'dtype' of in_range parameter is supported only for integer type. "
+                          "Instead 'image' will be used.", GeoRaster2Warning)
 
-        if dst_type == src_type:
+        if not np.issubdtype(dst_type, np.integer) and out_range == 'dtype':
+            raise GeoRaster2Error("Value 'dtype' of out_range parameter is supported only for integer type.")
+
+        if (
+            dst_type == src_type and
+            in_range == out_range == 'dtype'
+        ):
             return self
 
-        conversion_gain = \
-            (type_max(dst_type) - type_min(dst_type)) / (type_max(src_type) - type_min(src_type))
+        # streching or shrinking intensity levels is required
+        if out_range is not None:
+            if out_range == 'dtype':
+                omax = type_max(dst_type)
+                omin = type_min(dst_type)
+                if clip_negative and omin < 0:
+                    omin = 0
+            else:
+                omin, omax = out_range
 
-        # temp conversion, to handle saturation
-        dst_array = conversion_gain * (self.image.astype(np.float) - type_min(src_type)) + type_min(dst_type)
-        dst_array = np.clip(dst_array, type_min(dst_type), type_max(dst_type))
+            if in_range == 'dtype':
+                imin = type_min(src_type)
+                imax = type_max(src_type)
+            elif in_range == 'image':
+                imin = min(self.min())
+                imax = max(self.max())
+            else:
+                imin, imax = in_range
+
+            if imin == imax:
+                conversion_gain = 0
+            else:
+                conversion_gain = (omax - omin) / (imax - imin)
+
+            # temp conversion, to handle saturation
+            dst_array = conversion_gain * (self.image.astype(np.float) - imin) + omin
+            dst_array = np.clip(dst_array, omin, omax)
+        else:
+            dst_array = self.image
+
         dst_array = dst_array.astype(dst_type)
         if stretch:
             dst_array = stretch_histogram(dst_array)

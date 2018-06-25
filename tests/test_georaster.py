@@ -31,6 +31,9 @@ some_raster_multiband = GeoRaster2(
     some_image_3d_multiband, band_names=['r', 'g', 'b'], affine=some_affine, crs=some_crs)
 default_factors = [2, 4, 8, 16]
 
+some_float32_array = np.array([[[0.0, 0.2], [0.4, 0.6]], [[0.7, 0.8], [0.9, 1.0]]], dtype=np.float32)
+some_float32_raster = GeoRaster2(some_float32_array, band_names=[1, 2], affine=some_affine, crs=some_crs, nodata=None)
+
 
 def test_construction():
     # test image - different formats yield identical rasters:
@@ -467,22 +470,139 @@ def test_astype_uint8_to_int32_conversion():
     assert raster_int32 == expected_raster_int32
 
 
-def test_astype_uint8_to_float32_conversion():
-    raster_uint8 = make_test_raster(42, band_names=[1, 2], dtype=np.uint8)
-    with pytest.raises(GeoRaster2Error) as err:
-        raster_uint8.astype(np.float32)
-    expected_error_message = 'astype to non integer type is not supported - requested dtype: %s' % np.float32
-    print(err.exconly())
-    assert expected_error_message in err.exconly()
+def test_astype_raises_error_for_missing_ranges():
+    raster = make_test_raster(value=20, band_names=[1, 2], dtype=np.uint8)
+    with pytest.raises(GeoRaster2Error) as excinfo:
+        raster.astype(np.uint8, in_range=None, out_range='dtype')
+
+    assert "Both ranges should be specified or none of them." in excinfo.exconly()
+
+    with pytest.raises(GeoRaster2Error) as excinfo:
+        raster.astype(np.uint8, in_range='dtype', out_range=None)
+
+    assert "Both ranges should be specified or none of them." in excinfo.exconly()
+
+
+def test_astype_raises_error_for_dtype_out_range_for_non_integer():
+    raster = make_test_raster(value=20, band_names=[1, 2], dtype=np.uint8)
+    with pytest.raises(GeoRaster2Error) as excinfo:
+        raster.astype(np.float32, out_range='dtype')
+
+    assert "Value 'dtype' of out_range parameter is supported only for integer type." in excinfo.exconly()
 
 
 def test_astype_float32_to_uint8_conversion():
-    with pytest.raises(GeoRaster2Error) as err:
-        raster_float32 = make_test_raster(1.42, band_names=[1, 2], dtype=np.float32)
-        raster_float32.astype(np.uint8)
-    expected_error_message = \
-        'astype from non integer type is not supported - raster dtype: %s' % raster_float32.image.dtype
-    assert expected_error_message in err.exconly()
+    with pytest.warns(GeoRaster2Warning):
+        raster_uint8 = some_float32_raster.astype(np.uint8)
+    expected_raster_uint8 = GeoRaster2(image=np.array([
+        [[0, 51], [102, 153]],
+        [[178, 204], [229, 255]]], dtype=np.uint8),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_uint8 == expected_raster_uint8
+
+
+def test_astype_float32_to_uint8_conversion_with_out_range():
+    with pytest.warns(GeoRaster2Warning):
+        raster_uint8 = some_float32_raster.astype(np.uint8, out_range=(100, 200))
+    expected_raster_uint8 = GeoRaster2(image=np.array([
+        [[100, 120], [140, 160]],
+        [[169, 180], [189, 200]]], dtype=np.uint8),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_uint8 == expected_raster_uint8
+
+
+def test_astype_float32_to_uint8_conversion_with_in_range():
+    raster_uint8 = some_float32_raster.astype(np.uint8, in_range=(0.5, 1.0))
+    expected_raster_uint8 = GeoRaster2(image=np.array([
+        [[0, 0], [0, 51]],
+        [[101, 153], [203, 255]]], dtype=np.uint8),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_uint8 == expected_raster_uint8
+
+
+def test_astype_float32_to_uint8_conversion_without_stretching():
+    raster_float32 = make_test_raster(10.0, band_names=[1, 2], dtype=np.float32)
+    raster_uint8 = raster_float32.astype(np.uint8, in_range=None, out_range=None)
+    expected_raster_uint8 = make_test_raster(10, band_names=[1, 2], dtype=np.uint8)
+    assert raster_uint8 == expected_raster_uint8
+
+
+def test_astype_float32_to_int8_conversion():
+    with pytest.warns(GeoRaster2Warning):
+        raster_uint8 = some_float32_raster.astype(np.int8)
+    expected_raster_uint8 = GeoRaster2(image=np.array([
+        [[-128, -76], [-25, 25]],
+        [[50, 76], [101, 127]]], dtype=np.int8),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_uint8 == expected_raster_uint8
+
+
+def test_astype_float32_to_int8_conversion_with_clip_negative():
+    with pytest.warns(GeoRaster2Warning):
+        raster_uint8 = some_float32_raster.astype(np.int8, clip_negative=True)
+    expected_raster_uint8 = GeoRaster2(image=np.array([
+        [[0, 25], [50, 76]],
+        [[88, 101], [114, 127]]], dtype=np.int8),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_uint8 == expected_raster_uint8
+
+
+def test_astype_float32_to_float16_conversion():
+    with pytest.warns(GeoRaster2Warning):
+        raster_float16 = some_float32_raster.astype(np.float16, out_range=(0.0, 10.0))
+    expected_raster_float16 = GeoRaster2(image=np.array([
+        [[0.0, 2.0], [4.0, 6.0]],
+        [[7.0, 8.0], [9.0, 10.0]]], dtype=np.float16),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_float16 == expected_raster_float16
+
+
+def test_astype_float32_to_float16_conversion_without_stretching():
+    raster_float16 = some_float32_raster.astype(np.float16, in_range=None, out_range=None)
+    expected_raster_float16 = GeoRaster2(
+        some_float32_array.astype(np.float16),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_float16 == expected_raster_float16
+
+
+def test_astype_uint8_to_float32_conversion():
+    raster_float32 = some_raster.astype(np.float32, out_range=(0, 1))
+    expected_raster_float32 = GeoRaster2(image=np.ma.array(
+        np.array([
+            [0.0, 0.003921568859368563, 0.007843137718737125],
+            [0.0117647061124444, 0.01568627543747425, 1.0]
+        ], dtype=np.float32), mask=some_raster.image.mask),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_float32 == expected_raster_float32
+
+
+def test_astype_uint8_to_float32_conversion_with_image_in_range():
+    raster_float32 = some_raster.astype(np.float32, in_range='image', out_range=(0, 1))
+    expected_raster_float32 = GeoRaster2(image=np.ma.array(
+        np.array([
+            [0.0, 0.25, 0.5],
+            [0.75, 1.0, 1.0]
+        ], dtype=np.float32), mask=some_raster.image.mask),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_float32 == expected_raster_float32
+
+
+def test_astype_uint8_to_float32_conversion_with_custom_in_range():
+    raster_float32 = some_raster.astype(np.float32, in_range=(2, 4), out_range=(0, 1))
+    expected_raster_float32 = GeoRaster2(image=np.ma.array(
+        np.array([
+            [0.0, 0.0, 0.0],
+            [0.5, 1.0, 1.0]
+        ], dtype=np.float32), mask=some_raster.image.mask),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_float32 == expected_raster_float32
+
+
+def test_astype_uint8_to_float32_conversion_without_stretching():
+    raster_uint8 = make_test_raster(value=20, band_names=[1, 2], dtype=np.uint8)
+    raster_float32 = raster_uint8.astype(np.float32, in_range=None, out_range=None)
+    expected_raster_float32 = make_test_raster(value=20, band_names=[1, 2], dtype=np.float32)
+    assert raster_float32 == expected_raster_float32
 
 
 def test_png_thumbnail_has_expected_properties():
