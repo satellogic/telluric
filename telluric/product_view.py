@@ -153,9 +153,9 @@ class Grayscale(BandsComposer):
     def apply(self, raster, **kwargs):
         self.fits_raster_bands(raster.band_names, silent=False)
         data_type = raster.dtype
-        array = np.multiply(raster.band('red').astype(np.float32), 0.2989) +\
-            np.multiply(raster.band('green').astype(np.float32), 0.5870) +\
-            np.multiply(raster.band('blue').astype(np.float32), 0.1140)
+        array = np.multiply(raster.bands_data('red').astype(np.float32), 0.2989) +\
+            np.multiply(raster.bands_data('green').astype(np.float32), 0.5870) +\
+            np.multiply(raster.bands_data('blue').astype(np.float32), 0.1140)
         array = array.astype(data_type)
         raster = raster.copy_with(image=array, band_names=self.output_bands)
         raster = raster.astype(np.uint8)

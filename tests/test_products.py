@@ -540,7 +540,7 @@ class TestTrueColor(unittest.TestCase):
         self.assertEqual(raster.height, micro_raster_8b().height)
         self.assertEqual(raster.width, micro_raster_8b().width)
         for band in ['red', 'green', 'blue']:
-            self.assertTrue((raster.band(band) == micro_raster_8b().band(band)).all())
+            self.assertTrue((raster.bands_data(band) == micro_raster_8b().bands_data(band)).all())
 
     def test_TrueColor_product(self):
         product_generator = TrueColor()
@@ -584,7 +584,7 @@ class TestTrueColor(unittest.TestCase):
         self.assertCountEqual(product.bands_mapping['blue'], expected_blue)
         expected_values = {'red': red_value, 'green': green_value, 'blue': blue_value}
         for band in ['red', 'green', 'blue']:
-            self.assertTrue((product.raster.band(band) == expected_values[band]).all())
+            self.assertTrue((product.raster.bands_data(band) == expected_values[band]).all())
 
     def test_truecolor_for_macro_with_no_data(self):
         raster = TrueColor().apply(sensor_bands_info(), macro_raster_with_no_data())
@@ -650,9 +650,9 @@ class TestTrueColor(unittest.TestCase):
         self.assertEqual(raster.dtype, hs_true_color.type)
         self.assertEqual(raster.height, macro_raster().height)
         self.assertEqual(raster.width, macro_raster().width)
-        self.assertTrue((raster.band('red') == red_value).all())
-        self.assertTrue((raster.band('green') == green_value).all())
-        self.assertTrue((raster.band('blue') == blue_value).all())
+        self.assertTrue((raster.bands_data('red') == red_value).all())
+        self.assertTrue((raster.bands_data('green') == green_value).all())
+        self.assertTrue((raster.bands_data('blue') == blue_value).all())
 
     def test_for_no_data_extended(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
@@ -919,9 +919,9 @@ class TestLandCoverIndex(unittest.TestCase):
         self.assertCountEqual(product.bands_mapping, expected_bands_mapping)
         self.assertCountEqual(product.used_bands, expected_bands_names)
         raster = product.raster
-        self.assertTrue((raster.band('red') == 138.0).all())
-        self.assertTrue((raster.band('green') == 120.0).all())
-        self.assertTrue((raster.band('blue') == 106.0).all())
+        self.assertTrue((raster.bands_data('red') == 138.0).all())
+        self.assertTrue((raster.bands_data('green') == 120.0).all())
+        self.assertTrue((raster.bands_data('blue') == 106.0).all())
 
     def test_match_bands_for_legend(self):
         product_generator = LandCoverIndex()
@@ -964,9 +964,9 @@ class TestRGBEnhanced(unittest.TestCase):
         self.assertCountEqual(product.bands_mapping, expected_bands_mapping)
         self.assertCountEqual(product.used_bands, expected_bands_names)
         raster = product.raster
-        self.assertTrue((raster.band('red') == 100.0).all())
-        self.assertTrue((raster.band('green') == 102.0).all())
-        self.assertTrue((raster.band('blue') == 104.0).all())
+        self.assertTrue((raster.bands_data('red') == 100.0).all())
+        self.assertTrue((raster.bands_data('green') == 102.0).all())
+        self.assertTrue((raster.bands_data('blue') == 104.0).all())
 
     def test_match_bands_for_legend(self):
         product_generator = ProductsFactory.get_object('rgbenhanced')

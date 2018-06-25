@@ -99,6 +99,7 @@ class ProductGenerator:
         'pan': {'min': 400, 'mean': 575, 'max': 750},
         'red': {'min': 590, 'mean': 640, 'max': 690},
         'nir': {'min': 750, 'mean': 825, 'max': 900},
+        # new micro def
         'R450': {'min': 443, 'mean': 450, 'max': 457},
         'R530': {'min': 521, 'mean': 530, 'max': 539},
         'R550': {'min': 540, 'mean': 550, 'max': 560},
@@ -245,7 +246,7 @@ class ProductGenerator:
         return product.namedtuple()
 
     def _merge_bands(self, band_names, raster):
-        bands = [raster.band(band_name) for band_name in band_names]
+        bands = [raster.bands_data(band_name) for band_name in band_names]
         if len(bands) > 1:
             bands_array = np.stack(bands, axis=1)
         else:
@@ -269,7 +270,7 @@ class ProductGenerator:
 
     def _get_nodata_mask(self, raster, band_names=None):
         band_names = band_names or raster.band_names
-        masks = [raster.band(band_name).mask for band_name in band_names]
+        masks = [raster.bands_data(band_name).mask for band_name in band_names]
         mask = reduce(np.logical_or, masks)
         return mask
 
