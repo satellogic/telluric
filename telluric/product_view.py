@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from affine import Affine
-from telluric.constants import WGS84_CRS
 from telluric.util.raster_utils import _join_masks_from_masked_array
 
 from .base_renderer import BaseFactory
@@ -29,17 +27,6 @@ class ProductView():
         for attr in attributes:
             d[attr] = getattr(cls, attr)
         return d
-
-    @classmethod
-    def legend_thumbnail_raster(cls, min, max, band_names, dtype):
-        from telluric.georaster import GeoRaster2
-        num_bands = len(band_names)
-        array3d = np.ones((num_bands, 10, 256), dtype=dtype)
-        for band in range(num_bands):
-            for x in range(array3d.shape[1]):
-                    array3d[band, x, :] = np.linspace(min, max, num=256)
-        raster = GeoRaster2(array3d, Affine.scale(1, -1), WGS84_CRS, band_names=band_names)
-        return raster
 
 
 # see http://matplotlib.org/examples/color/colormaps_reference.html for cmaps catalog
@@ -78,13 +65,6 @@ class ColormapView(ProductView):
 
         return raster.copy_with(image=array, band_names=self.output_bands)
 
-    @classmethod
-    def legend_thumbnail(cls):
-        r = cls().apply(cls.legend_thumbnail_raster(-1, 1, band_names=['band1'], dtype=np.float32))
-        array = np.round(r.image.data)
-        array = array.astype(np.uint8)
-        return r.copy_with(image=array)
-
 
 class FirstBandGrayColormapView(ColormapView):
     _cmap = 'gray'
@@ -122,11 +102,6 @@ class BandsComposer(ProductView):
         if silent:
             return False
         raise KeyError('Raster lacks required bands: %s' % ','.join(required_bands - available_bands))
-
-    @classmethod
-    def legend_thumbnail(cls):
-        r = cls().apply(cls.legend_thumbnail_raster(0, 255, band_names=['red', 'green', 'blue', 'nir'], dtype=np.uint8))
-        return r
 
 
 class TrueColor(BandsComposer):
@@ -181,11 +156,6 @@ class OneBanders(ProductView):
         if silent:
             return False
         raise KeyError('%s renderer expects one band and got %d bands' % (cls.display_name, len(available_bands)))
-
-    @classmethod
-    def legend_thumbnail(cls):
-        r = cls().apply(cls.legend_thumbnail_raster(0, 255, band_names=['one_band'], dtype=np.uint8))
-        return r
 
 
 class SingleBand(OneBanders):
