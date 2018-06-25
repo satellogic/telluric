@@ -16,7 +16,7 @@ class ProductsMixin:
             Optional, when True it returns a namedtuple withe resulting raster and additional product information
         kwargs: dict
             Additional arguments, required to generate the poduct like the band name for SingleBand product
-        
+
         Rerturns
         --------
         GeoRaster2
@@ -29,7 +29,7 @@ class ProductsMixin:
     def visualize(self, product_view_name, **kwargs):
         """Converts raster to RGB representation based on visualization name.
 
-        Visualized a raster using a colormap, TrueColor or other. 
+        Visualized a raster using a colormap, TrueColor or other.
 
         Parameters
         ----------
@@ -37,7 +37,7 @@ class ProductsMixin:
             Name of requested visualization
         kwargs: dict
             Additional arguments if required
-        
+
         Rerturns
         --------
         GeoRaster2
@@ -53,7 +53,7 @@ class ProductsMixin:
         ----------
         sensor_bands_info: dict
             Bands wave lenght definition including max and min wave per bands name
-        
+
         Rerturns
         --------
         list(str)

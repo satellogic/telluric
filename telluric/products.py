@@ -99,17 +99,16 @@ class ProductGenerator:
         'pan': {'min': 400, 'mean': 575, 'max': 750},
         'red': {'min': 590, 'mean': 640, 'max': 690},
         'nir': {'min': 750, 'mean': 825, 'max': 900},
-        # new micro def
         'R450': {'min': 443, 'mean': 450, 'max': 457},
         'R530': {'min': 521, 'mean': 530, 'max': 539},
         'R550': {'min': 540, 'mean': 550, 'max': 560},
         'R570': {'min': 560, 'mean': 570, 'max': 580},
         'R582': {'min': 572, 'mean': 582, 'max': 592},
         'R670': {'min': 657, 'mean': 670, 'max': 683},
-        'R690': {'min': 676, 'mean': 690, 'max': 703},  # should be confirmed with Martin
+        'R690': {'min': 676, 'mean': 690, 'max': 703},
         'R700': {'min': 686, 'mean': 700, 'max': 714},
         'R750': {'min': 735, 'mean': 750, 'max': 765},
-        'R827': {'min': 809, 'mean': 827, 'max': 845},  # should be confirmed with Martin
+        'R827': {'min': 809, 'mean': 827, 'max': 845},
     }
 
     @classmethod
