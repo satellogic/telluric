@@ -17,7 +17,7 @@ def make_test_raster(value=0, band_names=[], height=3, width=4, dtype=np.uint16,
     return raster
 
 
-micro_values_16b = {
+multi_values_16b = {
     'green': 5500,
     'red': 7700,
     'nir': 10000,
@@ -56,11 +56,11 @@ def sensor_bands_info():
     })
 
 
-macro_wavelengths = (450, 500, 530, 550, 570, 580, 595, 610, 670, 680,
+hyper_wavelengths = (450, 500, 530, 550, 570, 580, 595, 610, 670, 680,
                      690, 700, 710, 720, 730, 740, 750, 760, 770, 830)
 
 
-micro_values_8b = {
+multi_values_8b = {
     'green': 55,
     'red': 77,
     'nir': 100,
@@ -80,28 +80,28 @@ green_value = 106  # green values 104 106 108 avg 106
 blue_value = 101   # blue values 100 102 avg 101
 
 
-def micro_raster_16b():
+def multi_raster_16b():
     source_raster = make_test_raster(4200, ['green', 'red', 'nir', 'blue'], dtype=np.uint16)
     array = source_raster.image.data
-    array[0, :, :] = micro_values_16b['green']
-    array[1, :, :] = micro_values_16b['red']
-    array[2, :, :] = micro_values_16b['nir']
-    array[3, :, :] = micro_values_16b['blue']
+    array[0, :, :] = multi_values_16b['green']
+    array[1, :, :] = multi_values_16b['red']
+    array[2, :, :] = multi_values_16b['nir']
+    array[3, :, :] = multi_values_16b['blue']
     return source_raster.copy_with(image=array)
 
 
-def micro_raster_8b():
+def multi_raster_8b():
     source_raster = make_test_raster(4200, ['green', 'red', 'nir', 'blue'], dtype=np.uint16)
     array = source_raster.image.data
-    array[0, :, :] = micro_values_8b['green']
-    array[1, :, :] = micro_values_8b['red']
-    array[2, :, :] = micro_values_8b['nir']
-    array[3, :, :] = micro_values_8b['blue']
+    array[0, :, :] = multi_values_8b['green']
+    array[1, :, :] = multi_values_8b['red']
+    array[2, :, :] = multi_values_8b['nir']
+    array[3, :, :] = multi_values_8b['blue']
     return source_raster.copy_with(image=array)
 
 
-def micro_raster_with_no_data():
-    source_raster = micro_raster_8b()
+def multi_raster_with_no_data():
+    source_raster = multi_raster_8b()
     source_raster.image.mask[0, 1, 2] = True
     source_raster.image.mask[1, 2, 3] = True
     source_raster.image.mask[2, 0, 0] = True
@@ -109,18 +109,18 @@ def micro_raster_with_no_data():
     return source_raster
 
 
-macro_bands = ["HC_%i" % wl for wl in macro_wavelengths]
+hyper_bands = ["HC_%i" % wl for wl in hyper_wavelengths]
 
 
-def macro_raster():
-    source_raster = make_test_raster(142, macro_bands, dtype=np.uint8)
-    for i, band in enumerate(macro_bands):
+def hyper_raster():
+    source_raster = make_test_raster(142, hyper_bands, dtype=np.uint8)
+    for i, band in enumerate(hyper_bands):
         source_raster.image.data[i, :, :] = 2 * i + 100
     return source_raster
 
 
-def macro_raster_with_no_data():
-    source_raster = macro_raster()
+def hyper_raster_with_no_data():
+    source_raster = hyper_raster()
     source_raster.image.mask[:, 1, 2] = True
     source_raster.image.mask[2, 2, 3] = True
     source_raster.image.mask[5, 0, 0] = True

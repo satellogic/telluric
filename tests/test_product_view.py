@@ -5,8 +5,8 @@ import numpy as np
 import affine
 import telluric as tl
 from telluric.constants import WGS84_CRS
+from common_for_tests import make_test_raster, multi_raster_16b, multi_values_16b
 
-from common_for_tests import make_test_raster, micro_raster_16b, micro_values_16b
 
 from telluric.product_view import (
     ProductViewsFactory, SingleBand, Grayscale, TrueColor, FalseColor, ProductView, BandsComposer,
@@ -40,7 +40,7 @@ class TestProductViewsFactory(unittest.TestCase):
 
 
 class TestProductView(unittest.TestCase):
-    def test_it_matches_all_bands(self):
+    def test_to_dict(self):
         d = Grayscale.to_dict()
         attributes = "name display_name description type output_bands required_bands".split()
         for att in attributes:
@@ -122,20 +122,20 @@ class TestBandComposer(unittest.TestCase):
             raster = TrueColor().apply(raster)
 
     def test_true_color(self):
-        raster = TrueColor().apply(micro_raster_16b())
+        raster = TrueColor().apply(multi_raster_16b())
         self.assertEqual(raster.num_bands, 3)
         self.assertEqual(raster.band_names, ['red', 'green', 'blue'])
-        self.assertEqual(raster.height, micro_raster_16b().height)
-        self.assertEqual(raster.width, micro_raster_16b().width)
-        self.assertTrue((raster.image.data[0, :, :] == to_uint8(micro_values_16b['red'])).all())
-        self.assertTrue((raster.image.data[1, :, :] == to_uint8(micro_values_16b['green'])).all())
-        self.assertTrue((raster.image.data[2, :, :] == to_uint8(micro_values_16b['blue'])).all())
+        self.assertEqual(raster.height, multi_raster_16b().height)
+        self.assertEqual(raster.width, multi_raster_16b().width)
+        self.assertTrue((raster.image.data[0, :, :] == to_uint8(multi_values_16b['red'])).all())
+        self.assertTrue((raster.image.data[1, :, :] == to_uint8(multi_values_16b['green'])).all())
+        self.assertTrue((raster.image.data[2, :, :] == to_uint8(multi_values_16b['blue'])).all())
 
     def test_false_color(self):
-        raster = FalseColor().apply(micro_raster_16b())
-        self.assertTrue((raster.image.data[0, :, :] == to_uint8(micro_values_16b['nir'])).all())
-        self.assertTrue((raster.image.data[1, :, :] == to_uint8(micro_values_16b['red'])).all())
-        self.assertTrue((raster.image.data[2, :, :] == to_uint8(micro_values_16b['green'])).all())
+        raster = FalseColor().apply(multi_raster_16b())
+        self.assertTrue((raster.image.data[0, :, :] == to_uint8(multi_values_16b['nir'])).all())
+        self.assertTrue((raster.image.data[1, :, :] == to_uint8(multi_values_16b['red'])).all())
+        self.assertTrue((raster.image.data[2, :, :] == to_uint8(multi_values_16b['green'])).all())
 
     def test_false_color_raises_on_no_fiting_requirements(self):
         raster = make_test_raster(4200, ['green', 'blue'], dtype=np.uint16)
@@ -143,14 +143,14 @@ class TestBandComposer(unittest.TestCase):
             raster = FalseColor().apply(raster)
 
     def test_grayscale(self):
-        raster = ProductViewsFactory.get_object('Grayscale').apply(micro_raster_16b())
+        raster = ProductViewsFactory.get_object('Grayscale').apply(multi_raster_16b())
         self.assertEqual(raster.band_names, ['grayscale'])
         self.assertEqual(raster.num_bands, 1)
-        self.assertEqual(raster.height, micro_raster_16b().height)
-        self.assertEqual(raster.width, micro_raster_16b().width)
-        expected_value = 0.2989 * micro_values_16b['red'] + \
-            0.5870 * micro_values_16b['green'] + \
-            0.1140 * micro_values_16b['blue']
+        self.assertEqual(raster.height, multi_raster_16b().height)
+        self.assertEqual(raster.width, multi_raster_16b().width)
+        expected_value = 0.2989 * multi_values_16b['red'] + \
+            0.5870 * multi_values_16b['green'] + \
+            0.1140 * multi_values_16b['blue']
         self.assertEqual(raster.image.data[0, 0, 0], to_uint8(expected_value))
 
     def test_grayscale_raises_on_no_fiting_requirements(self):
@@ -162,14 +162,14 @@ class TestBandComposer(unittest.TestCase):
 class TestOneBanders(unittest.TestCase):
 
     def test_single_band(self):
-        product = micro_raster_16b().limit_to_bands('red').astype(np.uint8)
+        product = multi_raster_16b().limit_to_bands('red').astype(np.uint8)
         view = ProductViewsFactory.get_object('SingleBand').apply(product)
         self.assertEqual(view.shape, product.shape)
         self.assertEqual(view.dtype, product.dtype)
 
     def test_single_band_fails_on_multiband(self):
         with self.assertRaises(KeyError):
-            multiband_product = micro_raster_16b()
+            multiband_product = multi_raster_16b()
             ProductViewsFactory.get_object('SingleBand').apply(multiband_product)
 
     @pytest.mark.xfail(reason="waiting for implementing astype for non integers")
