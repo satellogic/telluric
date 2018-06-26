@@ -215,10 +215,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
 
         if one_remaining_bands:
             all_data.insert(0, one.bands_data(one_remaining_bands).data)
-            # This is not necessary, as new_mask already includes
-            # at least all the values of one.image.mask because it comes
-            # either from one or from the intersection of one and other
-            # new_mask |= one.image.mask[0]
+            new_mask |= one.image.mask[0]
             new_bands = one_remaining_bands + new_bands
 
         if other_remaining_bands:

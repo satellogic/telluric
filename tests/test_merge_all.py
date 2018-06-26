@@ -1,15 +1,19 @@
 import unittest
 import pytest
 import copy
+
 import numpy as np
+from numpy.testing import assert_array_equal
 from affine import Affine
-from telluric import constants, GeoVector
+
+from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
+from telluric.vectors import GeoVector
 from telluric.georaster import GeoRaster2, MergeStrategy, merge_all, merge, merge_to_first
 from common_for_tests import make_test_raster
 
 
 def black_and_white_raster(band_names=[], height=10, width=10, dtype=np.uint16,
-                           crs=constants.WEB_MERCATOR_CRS, affine=None):
+                           crs=WEB_MERCATOR_CRS, affine=None):
     if affine is None:
         eps = 1e-100
         affine = Affine.translation(10, 12) * Affine.scale(1, -1)
@@ -167,7 +171,7 @@ def test_rasters_covering_different_overlapping_areas_on_x():
     raster_a = make_test_raster(1, [1], height=10, width=20, affine=affine_a)
     affine_b = Affine.translation(10, 2) * Affine.scale(1, -1)
     raster_b = make_test_raster(2, [1], height=10, width=20, affine=affine_b)
-    roi = GeoVector.from_bounds(xmin=1, ymin=-8, xmax=30, ymax=2, crs=constants.WEB_MERCATOR_CRS)
+    roi = GeoVector.from_bounds(xmin=1, ymin=-8, xmax=30, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
     merged = merge_all(rasters, roi)
     assert(merged.affine.almost_equals(affine_a))
@@ -181,7 +185,7 @@ def test_rasters_covering_different_overlapping_areas_on_y():
     raster_a = make_test_raster(1, [1], height=20, width=20, affine=affine_a)
     affine_b = Affine.translation(1, -9) * Affine.scale(1, -1)
     raster_b = make_test_raster(2, [1], height=20, width=20, affine=affine_b)
-    roi = GeoVector.from_bounds(xmin=1, ymin=-29, xmax=21, ymax=2, crs=constants.WEB_MERCATOR_CRS)
+    roi = GeoVector.from_bounds(xmin=1, ymin=-29, xmax=21, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
     merged = merge_all(rasters, roi)
     assert(merged.affine.almost_equals(affine_a))
@@ -195,7 +199,7 @@ def test_rasters_covering_different_areas_with_gap_on_x():
     raster_a = make_test_raster(1, [1], height=10, width=10, affine=affine_a)
     affine_b = Affine.translation(21, 2) * Affine.scale(1, -1)
     raster_b = make_test_raster(2, [1], height=10, width=10, affine=affine_b)
-    roi = GeoVector.from_bounds(xmin=1, ymin=-8, xmax=30, ymax=2, crs=constants.WEB_MERCATOR_CRS)
+    roi = GeoVector.from_bounds(xmin=1, ymin=-8, xmax=30, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
     merged = merge_all(rasters, roi)
     assert(merged.affine.almost_equals(affine_a))
@@ -212,7 +216,7 @@ def test_rasters_covering_different_areas_with_gap_on_y():
     raster_a = make_test_raster(1, [1], height=10, width=10, affine=affine_a)
     affine_b = Affine.translation(1, -19) * Affine.scale(1, -1)
     raster_b = make_test_raster(2, [1], height=10, width=10, affine=affine_b)
-    roi = GeoVector.from_bounds(xmin=1, ymin=-29, xmax=11, ymax=2, crs=constants.WEB_MERCATOR_CRS)
+    roi = GeoVector.from_bounds(xmin=1, ymin=-29, xmax=11, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
     merged = merge_all(rasters, roi)
     assert(merged.affine.almost_equals(affine_a))
@@ -274,3 +278,68 @@ def test_merge_all_on_non_overlapping_rasters_returns_first_raster():
     raster2 = make_test_raster(value=2, band_names=['blue'], affine=affine2, height=30, width=40)
     merged = merge_all([raster1, raster2], raster1.footprint())
     assert merged == raster1
+
+
+def test_merge_does_not_uncover_masked_pixels():
+    # See https://github.com/satellogic/telluric/issues/65
+    affine = Affine.translation(0, 2) * Affine.scale(1, -1)
+
+    rs_a = GeoRaster2(
+        image=np.ma.masked_array([
+            [
+                [100, 89],
+                [100, 89]
+            ],
+            [
+                [110, 99],
+                [110, 99]
+            ]
+        ], [
+            [
+                [False, True],
+                [False, True]
+            ],
+            [
+                [False, True],
+                [False, True]
+            ]
+        ], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['red', 'green'],
+    )
+
+    rs_b = GeoRaster2(
+        image=np.array([[
+            [0, 210],
+            [0, 210]
+        ]], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['green'],
+    )
+
+    expected_image = np.ma.masked_array([
+        [
+            [100, 89],
+            [100, 89]
+        ],
+        [
+            [110, 99],
+            [110, 99]
+        ]
+        ], [
+            [
+                [False, True],
+                [False, True]
+            ],
+            [
+                [False, True],
+                [False, True]
+            ]
+        ], dtype=np.uint8)
+
+    result = merge(rs_a, rs_b)
+
+    assert_array_equal(np.ma.filled(result.image, 0), np.ma.filled(expected_image, 0))
+    assert_array_equal(result.image.mask, expected_image.mask)
