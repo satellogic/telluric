@@ -30,7 +30,7 @@ from shapely.geometry import Point, Polygon
 
 from PIL import Image
 
-from telluric.constants import DEFAULT_CRS
+from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 from telluric.util.general import convert_resolution_from_meters_to_deg
@@ -62,36 +62,16 @@ gdal_drivers = {
     'jpeg': 'JPEG',
 }
 
-# source: http://wiki.openstreetmap.org/wiki/Zoom_levels
-mercator_zoom_to_resolution = {
-    0: 156412.,
-    1: 78206.,
-    2: 39103.,
-    3: 19551.,
-    4: 9776.,
-    5: 4888.,
-    6: 2444.,
-    7: 1222.,
-    8: 610.984,
-    9: 305.492,
-    10: 152.746,
-    11: 76.373,
-    12: 38.187,
-    13: 19.093,
-    14: 9.547,
-    15: 4.773,
-    16: 2.387,
-    17: 1.193,
-    18: 0.596,
-    19: 0.298,
-}
-
 
 class MergeStrategy(Enum):
     LEFT_ALL = 0
     INTERSECTION = 1
     UNION = 2
 
+def _mercator_zoom_to_resolution(zoom_level):
+        return (2* 20037508.342789244) / (256 * pow(2, zoom_level))
+
+mercator_zoom_to_resolution = dict((i, _mercator_zoom_to_resolution(i)) for i in range(19))
 
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
               shape=None, ul_corner=None, crs=None):
@@ -1331,32 +1311,42 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         tile_ul = mercantile.ul(*tile)
         return all(np.isclose(list(tile_ul), [x, y], rtol=rtol))
 
-    def _mercator_upper_zoom_level(self):
+    def mercator_upper_zoom_level(self):
         r = self.resolution()
         for zoom, resolution in mercator_zoom_to_resolution.items():
             if r > resolution:
                 return zoom
         raise GeoRaster2Error("resolution out of range (grater than zoom level 19)")
 
+    def mercator_alligned_bouding_box(self, zoom = None):
+        if zoom is None:
+            zoom = self.mercator_upper_zoom_level()
+        bounds = []
+        for corner in self.corners().values():
+            p = corner.reproject(WGS84_CRS)
+            tile = mercantile.tile(p.x, p.y, zoom)
+            bounds.append(mercantile.bounds(tile))
+        xmin = min([p.west for p in bounds])
+        xmax = max([p.east for p in bounds])
+        ymax = max([p.north for p in bounds])
+        ymin = min([p.south for p in bounds])
+        new_bounds = GeoVector.from_bounds(xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax, crs=WGS84_CRS)
+        return new_bounds.reproject(WEB_MERCATOR_CRS)
+
+
+
     def align_raster_to_mercator_tiles(self):
         """Return new raster aligned to compasing tile.
 
         :return: GeoRaster2
         """
-        if not self._is_resolution_in_mercator_zoom_level():
-            upper_zoom_level = self._mercator_upper_zoom_level()
-            raster = self.resize(self.resolution() / mercator_zoom_to_resolution[upper_zoom_level])
-        else:
-            raster = self
+        aligned_zoom_level = self.mercator_upper_zoom_level()
         # this requires geographical crs
-        gv = raster.footprint().reproject(DEFAULT_CRS)
-        bounding_tile = mercantile.bounding_tile(*gv.shape.bounds)
-        window = raster._tile_to_window(*bounding_tile)
-        width = math.ceil(abs(window.width))
-        height = math.ceil(abs(window.height))
-        affine = raster.window_transform(window)
-        aligned_raster = self.reproject(width, height, affine)
-        return aligned_raster
+        bouding_box = self.mercator_alligned_bouding_box()
+
+        # affine = raster.window_transform(window)
+        # aligned_raster = self.reproject(width, height, affine)
+        # return aligned_raster
 
     def _overviews_factors(self, blocksize=256):
         return _calc_overviews_factors(self, blocksize=blocksize)
