@@ -37,6 +37,7 @@ from telluric.util.general import convert_resolution_from_meters_to_deg
 from telluric.util.histogram import stretch_histogram
 
 from telluric.util.raster_utils import convert_to_cog, _calc_overviews_factors, _mask_from_masked_array
+from telluric.products_mixin import ProductsMixin
 
 with warnings.catch_warnings():  # silences warning, see https://github.com/matplotlib/matplotlib/issues/5836
     warnings.simplefilter("ignore", UserWarning)
@@ -114,7 +115,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
     if merge_strategy is MergeStrategy.LEFT_ALL:
         # If the bands are not the same, return one
         try:
-            other = _Raster(image=other.subimage(one.band_names), band_names=one.band_names)
+            other = _Raster(image=other.bands_data(one.band_names), band_names=one.band_names)
         except GeoRaster2Error:
             return one
 
@@ -139,8 +140,8 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
             raise ValueError("rasters have no bands in common, use another merge strategy")
 
         # Change the binary mask to stay "under" the first raster
-        new_image = one.subimage(common_bands).copy()
-        other_image = other.subimage(common_bands)
+        new_image = one.bands_data(common_bands).copy()
+        other_image = other.bands_data(common_bands)
 
         # The values that I want to mask are the ones that:
         # * Were already masked in the other array, _or_
@@ -194,7 +195,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
         other_remaining_bands = [band for band in other.band_names if band not in set(common_bands)]
 
         if one_remaining_bands:
-            all_data.insert(0, one.subimage(one_remaining_bands).data)
+            all_data.insert(0, one.bands_data(one_remaining_bands).data)
             # This is not necessary, as new_mask already includes
             # at least all the values of one.image.mask because it comes
             # either from one or from the intersection of one and other
@@ -202,7 +203,7 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
             new_bands = one_remaining_bands + new_bands
 
         if other_remaining_bands:
-            all_data.append(other.subimage(other_remaining_bands).data)
+            all_data.append(other.bands_data(other_remaining_bands).data)
             # Apply "or" to the mask in the same way rasterio does, see
             # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks
             new_mask |= other.image.mask[0]
@@ -365,7 +366,7 @@ class _Raster():
             band_names = [band_names]
         self._band_names = list(band_names)
 
-    def subimage(self, bands):
+    def bands_data(self, bands):
         if isinstance(bands, str):
             bands = bands.split(",")
 
@@ -374,8 +375,8 @@ class _Raster():
             raise GeoRaster2Error('requested bands %s that are not found in raster' % missing_bands)
 
         bands_indices = [self.band_names.index(band) for band in bands]
-        subimage = self.image[bands_indices, :, :]
-        return subimage
+        bands_data = self.image[bands_indices, :, :]
+        return bands_data
 
     @property
     def band_names(self):
@@ -386,7 +387,7 @@ class _Raster():
         return self._image
 
 
-class GeoRaster2(WindowMethodsMixin, _Raster):
+class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
     """
     Represents multiband georeferenced image, supporting nodata pixels.
     The name "GeoRaster2" is temporary.
@@ -1069,8 +1070,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, stretch=True)
 
     def limit_to_bands(self, bands):
-        subimage = self.subimage(bands)
-        return self.copy_with(image=subimage, band_names=bands)
+        bands_data = self.bands_data(bands)
+        return self.copy_with(image=bands_data, band_names=bands)
 
     def num_pixels(self):
         return self.width * self.height

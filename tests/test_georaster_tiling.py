@@ -4,7 +4,7 @@ import mercantile
 import numpy as np
 
 import pytest
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 from affine import Affine
 
@@ -439,11 +439,14 @@ class GeoRasterCropTest(TestCase):
 class GeoRasterMaskedTest(TestCase):
     @classmethod
     def setUpClass(cls):
-        path = os.path.join('./', 'test_masked_raster.tif')
-        if not os.path.isfile(path):
-            cls.masked_raster().save(path)
-
+        cls.dir = TemporaryDirectory()
+        path = os.path.join(cls.dir.name, 'test_masked_raster.tif')
+        cls.masked_raster().save(path)
         cls.read_only_vgr = GeoRaster2.open(path)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.dir.cleanup()
 
     @classmethod
     def masked_raster(cls):
