@@ -339,7 +339,73 @@ def test_merge_does_not_uncover_masked_pixels():
             ]
         ], dtype=np.uint8)
 
-    result = merge(rs_a, rs_b)
+    result = merge_all([rs_a, rs_b], rs_a.footprint()).limit_to_bands(['red', 'green'])
 
     assert_array_equal(np.ma.filled(result.image, 0), np.ma.filled(expected_image, 0))
+    assert_array_equal(result.image.mask, expected_image.mask)
+
+
+def test_merge_all_non_overlapping_covers_all():
+    # See https://github.com/satellogic/telluric/issues/65
+    affine = Affine.translation(0, 2) * Affine.scale(1, -1)
+
+    rs1 = GeoRaster2(
+        image=np.array([[
+            [100, 0],
+            [100, 0]
+        ]], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['red'],
+    )
+
+    rs2 = GeoRaster2(
+        image=np.array([[
+            [110, 0],
+            [110, 0]
+        ]], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['green'],
+    )
+
+    rs3 = GeoRaster2(
+        image=np.array([[
+            [0, 200],
+            [0, 200]
+        ]], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['red'],
+    )
+
+    rs4 = GeoRaster2(
+        image=np.array([[
+            [0, 210],
+            [0, 210]
+        ]], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['green'],
+    )
+
+    expected_image = np.ma.masked_array([
+        [
+            [100, 200],
+            [100, 200]
+        ],
+        [
+            [110, 210],
+            [110, 210]
+        ]
+    ], False)
+
+    result = merge_all([rs1, rs2, rs3, rs4], rs1.footprint()).limit_to_bands(['red', 'green'])
+
+    result_ok = merge_all([
+        merge_all([rs1, rs3], rs1.footprint()),
+        merge_all([rs2, rs4], rs2.footprint())
+    ], rs1.footprint())
+
+    assert_array_equal(result.image.data, expected_image.data)
     assert_array_equal(result.image.mask, expected_image.mask)

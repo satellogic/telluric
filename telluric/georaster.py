@@ -2,13 +2,14 @@ import json
 import os
 import io
 from functools import reduce, partial
-from typing import Callable, Union, Iterable, Dict
+from typing import Callable, Union, Iterable, Dict, List, Optional
 from enum import Enum
 
 import tempfile
 from copy import copy, deepcopy
 
 import math
+from itertools import groupby
 
 import mercantile
 
@@ -108,14 +109,74 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
         roi, resolution=dest_resolution, band_names=rasters[0].band_names,
         dtype=rasters[0].dtype, shape=shape, ul_corner=ul_corner, crs=crs)
 
-    projected_rasters = [_prepare_other_raster(empty, raster) for raster in rasters]
-    projected_rasters = [raster for raster in projected_rasters if raster is not None]
-    func = partial(_merge, merge_strategy=merge_strategy)  # type: Callable[[_Raster, _Raster], _Raster]
-    raster = reduce(func, projected_rasters, empty)
+    # Create a list of single band rasters
+    projected_rasters = _prepare_rasters(empty, rasters, merge_strategy)
+
+    # Merge common bands
+    projected_rasters = _merge_common(projected_rasters)
+
+    # Merge all bands
+    merge_union = partial(_merge, merge_strategy=MergeStrategy.UNION)  # type: Callable[[_Raster, _Raster], _Raster]
+    raster = reduce(merge_union, projected_rasters[1:], projected_rasters[0])
+
     return empty.copy_with(image=raster.image, band_names=raster.band_names)
 
 
+def _merge_common(rasters):
+    # type: (List[GeoRaster2]) -> List[GeoRaster2]
+    """Combine the common bands.
+
+    """
+    merge_intersect = partial(_merge,
+                              merge_strategy=MergeStrategy.INTERSECTION)  # type: Callable[[_Raster, _Raster], _Raster]
+    key = lambda rs: rs.band_names[0]
+
+    rasters_final = []  # type: List[GeoRaster2]
+    for band_name, rasters_group in groupby(sorted(rasters, key=key), key=key):
+        rg = list(rasters_group)
+        print(band_name)
+        rasters_final.append(reduce(merge_intersect, rg[1:], rg[0]))
+
+    return rasters_final
+
+
+def _prepare_rasters(empty, rasters, merge_strategy):
+    # type: (GeoRaster2, Iterable[GeoRaster2], MergeStrategy) -> List[GeoRaster2]
+    """Prepares the rasters according to the requested ROI and merge strategy.
+
+    """
+    all_band_names = set(empty.band_names)
+
+    projected_rasters = []  # type: List[GeoRaster2]
+    for raster in rasters:
+        projected_raster = _prepare_other_raster(empty, raster)
+        if projected_raster:
+            if merge_strategy is MergeStrategy.INTERSECTION:
+                all_band_names.intersection_update(projected_raster.band_names)
+            else:
+                all_band_names.update(projected_raster.band_names)
+
+            # Extend the rasters list with only those that have the requested bands
+            projected_rasters.extend(_explode_raster(projected_raster, all_band_names))
+
+    return projected_rasters
+
+
+def _explode_raster(raster, band_names=None):
+    # type: (GeoRaster2, Optional[Iterable[str]]) -> List[GeoRaster2]
+    """Splits a raster into multiband rasters.
+
+    """
+    if band_names is None:
+        band_names = raster.band_names
+    else:
+        band_names = set(raster.band_names).intersection(band_names)
+
+    return [raster.limit_to_bands([band_name]) for band_name in band_names]
+
+
 def _prepare_other_raster(one, other):
+    # type: (GeoRaster2, GeoRaster2) -> Union[GeoRaster2, None]
     # Crop and reproject the second raster, if necessary
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
@@ -141,11 +202,8 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
         return _merge(one, other, merge_strategy=MergeStrategy.INTERSECTION)
 
     elif merge_strategy is MergeStrategy.INTERSECTION:
-        # https://stackoverflow.com/a/23529016/554319
-        if requested_bands is None:
-            common_bands = [band for band in one.band_names if band in set(other.band_names)]
-        else:
-            common_bands = requested_bands
+        # TODO: Refactor into different functions
+        assert len(one.band_names) == len(other.band_names) == 1, "Rasters are not single band"
 
         # We raise an error in the intersection is empty.
         # Other options include returning an "empty" raster or just None.
@@ -155,22 +213,19 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
         # for future concatenation, so the expected shape should be used
         # instead. The problem with the latter is that it breaks concatenation
         # anyway and requires special attention. Suggestions welcome.
-        if not common_bands:
+        if one.band_names != other.band_names:
             raise ValueError("rasters have no bands in common, use another merge strategy")
 
-        # Change the binary mask to stay "under" the first raster
-        new_image = one.bands_data(common_bands).copy()
-        other_image = other.bands_data(common_bands)
+        new_image = one.image.copy()
+        other_image = other.image
 
         # The values that I want to mask are the ones that:
         # * Were already masked in the other array, _or_
         # * Were already unmasked in the one array, so I don't overwrite them
         other_values_mask = (other_image.mask[0] | (~one.image.mask[0]))
 
-        # Reshape the mask to fit the future arrays, considering
-        # that rasterio does not support one mask per band (see
-        # http://rasterio.readthedocs.io/en/latest/topics/masks.html#dataset-masks)
-        other_values_mask = other_values_mask[None, ...].repeat(len(common_bands), axis=0)
+        # Reshape the mask to fit the future array
+        other_values_mask = other_values_mask[None, ...]
 
         # Overwrite the values that I don't want to mask
         new_image[~other_values_mask] = other_image[~other_values_mask]
@@ -182,56 +237,40 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
         # of "masked=True" that apply for masked arrays. The same logic
         # could be written, using the De Morgan's laws, as
         # other_values_mask = (one.image.mask[0] & (~other_image.mask[0])
-        # other_values_mask = ...
+        # other_values_mask = other_values_mask[None, ...]
         # new_image[other_values_mask] = other_image[other_values_mask]
         # but here the word "mask" does not mean the same as in masked arrays.
 
-        return _Raster(image=new_image, band_names=common_bands)
+        return _Raster(image=new_image, band_names=one.band_names)
 
     elif merge_strategy is MergeStrategy.UNION:
-        # Join the common bands using the INTERSECTION strategy
-        common_bands = [band for band in one.band_names if band in set(other.band_names)]
+        # TODO: Assume non overlapping bands
+        # We raise an error in the bands are the same. See above.
+        if one.band_names == other.band_names:
+            raise ValueError("rasters have the same bands, use another merge strategy")
 
-        # We build the new image
-        # Just stacking the masks will not work, since TIFF exporing
-        # relies on all the dimensions of the mask to be equal
-        if common_bands:
-            # Merge the common bands by intersection
-            res_common = _merge(one, other,
-                                merge_strategy=MergeStrategy.INTERSECTION, requested_bands=common_bands)
-            new_bands = res_common.band_names
-            all_data = [res_common.image.data]
+        # Apply "or" to the mask in the same way rasterio does, see
+        # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks
+        # In other words, mask the values that are already masked in either
+        # of the two rasters, since one mask per band is not supported
+        new_mask = one.image.mask[0] | other.image.mask[0]
 
-        else:
-            res_common = one
-            new_bands = []
-            all_data = []
-
-        new_mask = res_common.image.mask[0]
-
-        # Add the rest of the bands
-        one_remaining_bands = [band for band in one.band_names if band not in set(common_bands)]
-        other_remaining_bands = [band for band in other.band_names if band not in set(common_bands)]
-
-        if one_remaining_bands:
-            all_data.insert(0, one.bands_data(one_remaining_bands).data)
-            new_mask |= one.image.mask[0]
-            new_bands = one_remaining_bands + new_bands
-
-        if other_remaining_bands:
-            all_data.append(other.bands_data(other_remaining_bands).data)
-            # Apply "or" to the mask in the same way rasterio does, see
-            # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks
-            new_mask |= other.image.mask[0]
-            new_bands = new_bands + other_remaining_bands
-        new_image = np.ma.MaskedArray(
-            np.concatenate(all_data),
-            mask=[new_mask] * len(new_bands)
+        # Concatenate the data along the band axis and apply the mask
+        new_image = np.ma.masked_array(
+            np.concatenate([
+                one.image.data,
+                other.image.data
+            ]),
+            mask=[new_mask] * (one.image.shape[0] + other.image.shape[0])
         )
+
+        new_bands = one.band_names + other.band_names
+
         # We don't copy image and mask here, due to performance issues,
         # this output should not use without eventually being copied
         # In this context we are copying the object in the end of merge_all merge_first and merge
         return _Raster(image=new_image, band_names=new_bands)
+
     else:
         raise ValueError("Use one the strategies available in MergeStrategy instead.")
 
