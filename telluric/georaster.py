@@ -1306,8 +1306,8 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
     def _is_ul_in_mercator_tile_corner(self, rtol=1e-05):
         # this requires geographical crs
         gv = self.footprint().reproject(DEFAULT_CRS)
-        x, y, _, _ = gv.shape.bounds
-        z = self._mercator_upper_zoom_level()
+        x, y, _, _ = gv.get_shape(gv.crs).bounds
+        z = self.mercator_upper_zoom_level()
         tile = mercantile.tile(x, y, z)
         tile_ul = mercantile.ul(*tile)
         return all(np.isclose(list(tile_ul), [x, y], rtol=rtol))
@@ -1315,16 +1315,21 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
     def mercator_upper_zoom_level(self):
         r = self.resolution()
         for zoom, resolution in mercator_zoom_to_resolution.items():
-            if r > resolution:
+            if r >= resolution:
                 return zoom
         raise GeoRaster2Error("resolution out of range (grater than zoom level 19)")
 
     def mercator_alligned_bouding_box(self, zoom = None):
+
+        if self._is_ul_in_mercator_tile_corner():
+            return self.footprint()
+
         if zoom is None:
             zoom = self.mercator_upper_zoom_level()
         bounds = []
         for corner in self.corners().values():
             p = corner.reproject(WGS84_CRS)
+            print(p)
             tile = mercantile.tile(p.x, p.y, zoom)
             bounds.append(mercantile.bounds(tile))
         xmin = min([p.west for p in bounds])
@@ -1341,13 +1346,22 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
         :return: GeoRaster2
         """
-        aligned_zoom_level = self.mercator_upper_zoom_level()
-        # this requires geographical crs
-        bouding_box = self.mercator_alligned_bouding_box()
+        aligned_zoom_level = mercator_zoom_to_resolution[self.mercator_upper_zoom_level()]
 
-        # affine = raster.window_transform(window)
-        # aligned_raster = self.reproject(width, height, affine)
-        # return aligned_raster
+        # this requires geographical crs
+        bouding_box = self.mercator_alligned_bouding_box().get_shape(WEB_MERCATOR_CRS)
+        minx, miny, maxx, maxy = bouding_box.bounds
+
+
+        # Compute size from scale
+        dx = maxx - minx
+        dy = maxy - miny
+        width = round(dx / aligned_zoom_level)
+        height = round(dy / aligned_zoom_level)
+
+        affine = Affine.translation(minx, maxy) * Affine.scale(aligned_zoom_level, -aligned_zoom_level)
+        aligned_raster = self.reproject(width, height, affine, dtype=self.dtype, dst_crs=WEB_MERCATOR_CRS)
+        return aligned_raster
 
     def _overviews_factors(self, blocksize=256):
         return _calc_overviews_factors(self, blocksize=blocksize)
