@@ -73,7 +73,6 @@ expected_red = ['HC_670', 'HC_610']
 expected_green = ['HC_570', 'HC_550', 'HC_530']
 expected_blue = ['HC_450', 'HC_500']
 
-# calculated micro values
 nir_value = 137    # nir values 138 136 avg 137
 red_value = 115    # red values 116 114 avg 115
 green_value = 106  # green values 104 106 108 avg 106

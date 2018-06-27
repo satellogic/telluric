@@ -99,7 +99,6 @@ class ProductGenerator:
         'pan': {'min': 400, 'mean': 575, 'max': 750},
         'red': {'min': 590, 'mean': 640, 'max': 690},
         'nir': {'min': 750, 'mean': 825, 'max': 900},
-        # new micro def
         'R450': {'min': 443, 'mean': 450, 'max': 457},
         'R530': {'min': 521, 'mean': 530, 'max': 539},
         'R550': {'min': 540, 'mean': 550, 'max': 560},
