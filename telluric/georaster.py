@@ -177,15 +177,15 @@ def _prepare_rasters(rasters, merge_strategy, first=None):
     return single_band_rasters
 
 
-def _explode_raster(raster, band_names=None):
-    # type: (GeoRaster2, Optional[Iterable[str]]) -> List[_Raster]
+def _explode_raster(raster, band_names=[]):
+    # type: (GeoRaster2, Iterable[str]) -> List[_Raster]
     """Splits a raster into multiband rasters.
 
     """
-    if band_names is None:
+    if not band_names:
         band_names = raster.band_names
     else:
-        band_names = IndexedSet(raster.band_names).intersection(band_names)
+        band_names = list(IndexedSet(raster.band_names).intersection(band_names))
 
     return [_Raster(image=raster.bands_data([band_name]), band_names=[band_name]) for band_name in band_names]
 
