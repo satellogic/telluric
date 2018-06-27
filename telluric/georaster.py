@@ -18,6 +18,8 @@ import warnings
 import numpy as np
 import scipy.misc
 
+from boltons.setutils import IndexedSet
+
 from rasterio.crs import CRS
 import rasterio
 import rasterio.warp
@@ -110,10 +112,10 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
         dtype=rasters[0].dtype, shape=shape, ul_corner=ul_corner, crs=crs)
 
     # Create a list of single band rasters
-    projected_rasters = _prepare_rasters(empty, rasters, merge_strategy)
+    projected_rasters = _prepare_rasters(rasters, merge_strategy, empty)
 
     # Merge common bands
-    projected_rasters = _merge_common(projected_rasters)
+    projected_rasters = _merge_common_bands(projected_rasters)
 
     # Merge all bands
     merge_union = partial(_merge, merge_strategy=MergeStrategy.UNION)  # type: Callable[[_Raster, _Raster], _Raster]
@@ -122,57 +124,70 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
     return empty.copy_with(image=raster.image, band_names=raster.band_names)
 
 
-def _merge_common(rasters):
-    # type: (List[GeoRaster2]) -> List[GeoRaster2]
+def _merge_common_bands(rasters):
+    # type: (List[_Raster]) -> List[_Raster]
     """Combine the common bands.
 
     """
     merge_intersect = partial(_merge,
                               merge_strategy=MergeStrategy.INTERSECTION)  # type: Callable[[_Raster, _Raster], _Raster]
-    key = lambda rs: rs.band_names[0]
 
-    rasters_final = []  # type: List[GeoRaster2]
+    # Compute band order
+    all_bands = IndexedSet([rs.band_names[0] for rs in rasters])
+
+    def key(rs):
+        return all_bands.index(rs.band_names[0])
+
+    rasters_final = []  # type: List[_Raster]
     for band_name, rasters_group in groupby(sorted(rasters, key=key), key=key):
         rg = list(rasters_group)
-        print(band_name)
         rasters_final.append(reduce(merge_intersect, rg[1:], rg[0]))
 
     return rasters_final
 
 
-def _prepare_rasters(empty, rasters, merge_strategy):
-    # type: (GeoRaster2, Iterable[GeoRaster2], MergeStrategy) -> List[GeoRaster2]
+def _prepare_rasters(rasters, merge_strategy, first=None):
+    # type: (List[GeoRaster2], MergeStrategy, Optional[GeoRaster2]) -> List[_Raster]
     """Prepares the rasters according to the requested ROI and merge strategy.
 
     """
-    all_band_names = set(empty.band_names)
+    if first is None:
+        first = rasters[0]
 
+    # Create list of prepared rasters
+    all_band_names = IndexedSet(first.band_names)
     projected_rasters = []  # type: List[GeoRaster2]
     for raster in rasters:
-        projected_raster = _prepare_other_raster(empty, raster)
+        projected_raster = _prepare_other_raster(first, raster)
+
+        # Modify the bands only if an intersecting raster was returned
         if projected_raster:
             if merge_strategy is MergeStrategy.INTERSECTION:
                 all_band_names.intersection_update(projected_raster.band_names)
-            else:
+            elif merge_strategy is MergeStrategy.UNION:
                 all_band_names.update(projected_raster.band_names)
 
-            # Extend the rasters list with only those that have the requested bands
-            projected_rasters.extend(_explode_raster(projected_raster, all_band_names))
+            projected_rasters.append(projected_raster)
 
-    return projected_rasters
+    # Extend the rasters list with only those that have the requested bands
+    single_band_rasters = []
+    for projected_raster in projected_rasters:
+        single_band_rasters.extend(_explode_raster(projected_raster, all_band_names))
+
+    return single_band_rasters
 
 
 def _explode_raster(raster, band_names=None):
-    # type: (GeoRaster2, Optional[Iterable[str]]) -> List[GeoRaster2]
+    # type: (GeoRaster2, Optional[Iterable[str]]) -> List[_Raster]
     """Splits a raster into multiband rasters.
 
     """
     if band_names is None:
         band_names = raster.band_names
     else:
-        band_names = set(raster.band_names).intersection(band_names)
+        band_names = IndexedSet(raster.band_names).intersection(band_names)
 
-    return [raster.limit_to_bands([band_name]) for band_name in band_names]
+    return [_Raster(image=raster.bands_data([band_name]), band_names=[band_name]) for band_name in band_names]
 
 
 def _prepare_other_raster(one, other):
@@ -192,6 +207,7 @@ def _prepare_other_raster(one, other):
 
 
 def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None):
+    # type: (_Raster, _Raster, MergeStrategy, Optional[List[str]]) -> _Raster
     if merge_strategy is MergeStrategy.LEFT_ALL:
         # If the bands are not the same, return one
         try:
@@ -202,7 +218,6 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
         return _merge(one, other, merge_strategy=MergeStrategy.INTERSECTION)
 
     elif merge_strategy is MergeStrategy.INTERSECTION:
-        # TODO: Refactor into different functions
         assert len(one.band_names) == len(other.band_names) == 1, "Rasters are not single band"
 
         # We raise an error in the intersection is empty.
@@ -244,7 +259,8 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
         return _Raster(image=new_image, band_names=one.band_names)
 
     elif merge_strategy is MergeStrategy.UNION:
-        # TODO: Assume non overlapping bands
+        assert set(one.band_names).intersection(set(other.band_names)) == set()
+
         # We raise an error in the bands are the same. See above.
         if one.band_names == other.band_names:
             raise ValueError("rasters have the same bands, use another merge strategy")
@@ -263,7 +279,6 @@ def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None)
             ]),
             mask=[new_mask] * (one.image.shape[0] + other.image.shape[0])
         )
-
         new_bands = one.band_names + other.band_names
 
         # We don't copy image and mask here, due to performance issues,
@@ -292,10 +307,22 @@ def merge(one, other, merge_strategy=MergeStrategy.UNION):
     GeoRaster2
 
     """
-    other = _prepare_other_raster(one, other)
-    if other is None:
+    if _prepare_other_raster(one, other) is None:
         raise ValueError("rasters do not intersect")
-    raster = _merge(one, other, merge_strategy)
+
+    # Create a list of single band rasters
+    projected_rasters = _prepare_rasters([one, other], merge_strategy)
+
+    if not projected_rasters:
+        raise ValueError("rasters have no bands in common, use another merge strategy")
+
+    # Merge common bands
+    projected_rasters = _merge_common_bands(projected_rasters)
+
+    # Merge all bands
+    merge_union = partial(_merge, merge_strategy=MergeStrategy.UNION)  # type: Callable[[_Raster, _Raster], _Raster]
+    raster = reduce(merge_union, projected_rasters[1:], projected_rasters[0])
+
     return one.copy_with(image=raster.image, band_names=raster.band_names)
 
 
@@ -318,10 +345,21 @@ def merge_to_first(one, other, merge_strategy=MergeStrategy.UNION):
     GeoRaster2
 
     """
-    other = _prepare_other_raster(one, other)
-    if other is None:
+    if _prepare_other_raster is None:
         return one
-    raster = _merge(one, other, merge_strategy)
+
+    # Create a list of single band rasters
+    projected_rasters = _prepare_rasters([one, other], merge_strategy)
+
+    if not projected_rasters:
+        return one
+
+    # Merge common bands
+    projected_rasters = _merge_common_bands(projected_rasters)
+
+    # Merge all bands
+    merge_union = partial(_merge, merge_strategy=MergeStrategy.UNION)  # type: Callable[[_Raster, _Raster], _Raster]
+    raster = reduce(merge_union, projected_rasters[1:], projected_rasters[0])
 
     return one.copy_with(image=raster.image, band_names=raster.band_names)
 
@@ -956,7 +994,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         if 'image' not in init_args:
             init_args['image'] = self.image
 
-        return GeoRaster2(**init_args)
+        return self.__class__(**init_args)
 
     deepcopy_with = copy_with
 
