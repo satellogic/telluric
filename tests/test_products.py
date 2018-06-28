@@ -32,7 +32,7 @@ class TestProductsFactory(unittest.TestCase):
 
     def test_products_order(self):
         keys = list(ProductsFactory.objects().keys())
-        self.assertEqual(keys, ['rgbenhanced', 'truecolor', 'custom','singleband', 'ndvi', 'cci', 'gndvi',
+        self.assertEqual(keys, ['rgbenhanced', 'truecolor', 'custom', 'singleband', 'ndvi', 'cci', 'gndvi',
                                 'landcoverindex', 'ndvi750', 'ndvi827', 'npci', 'nri', 'ppr', 'pri', 'endvi',
                                 'evi2', 'exb', 'exg', 'exr'])
 
@@ -203,7 +203,7 @@ class TestEVI2(unittest.TestCase):
         self.assertEqual(raster.width, multi_raster_8b().width)
         expected_value = 2.5 * (multi_values_8b['nir'] - multi_values_8b['red']) / (
             multi_values_8b['nir'] + 2.4 * multi_values_8b['red'] + 1
-            )
+        )
         # expected_value = round(expected_value, 8)
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
 
@@ -1031,8 +1031,6 @@ class TestCustomProduct(unittest.TestCase):
         output = custom_product.apply(sensor_bands_info(), raster)
         expected_mask = raster.bands_data('red').mask | raster.bands_data('green').mask
         self.assertTrue((output.image.mask == expected_mask).all())
-
-        # raster.apply(sensor_bands_info(), 'custom_product', function=foo, required_bands=['red'], output_bands=['band'])
 
     def test_custom_tow_bands_plus_1_and_2_with_bands_mapping(self):
 

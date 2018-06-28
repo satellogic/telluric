@@ -95,7 +95,7 @@ def test_custom_product_preserve_mask():
     expected_mask = raster.bands_data('red').mask | raster.bands_data('green').mask
     assert(output.shape[1:] == raster.shape[1:])
     assert(output.band_names == ['red', 'green'])
-    assert((output.bands_data('red') == multi_values_8b['red'] + 1 ).all())
+    assert((output.bands_data('red') == multi_values_8b['red'] + 1).all())
     assert((output.bands_data('green') == multi_values_8b['green'] + 2).all())
     assert((output.image.mask == expected_mask).all())
 
