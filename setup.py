@@ -33,7 +33,7 @@ setup(
         'matplotlib',
     ],
     extras_require={
-        ':python_version<="3.4"': ['typing'],
+        ':python_version<="3.4"': ['typing', 'pandas<0.21.0'],
         'dev': [
             'coverage',
             'mypy',
