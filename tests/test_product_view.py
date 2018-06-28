@@ -26,16 +26,16 @@ class TestProductViewsFactory(unittest.TestCase):
     def test_it_is_case_insensitive(self):
         self.assertIsInstance(ProductViewsFactory.get_object('TrUeColOr'), TrueColor)
 
-    def test_it_is_raises_key_error_whene_productview_not_exists(self):
+    def test_it_is_raises_key_error_when_productview_not_exists(self):
         self.assertRaises(KeyError, ProductViewsFactory.get_object, 'invalid_product')
 
-    def test_produc_view_is_not_instaciable(self):
+    def test_product_view_is_not_instantiable(self):
         self.assertRaises(TypeError, ProductView, None)
 
-    def test_colormap_view_is_not_instaciable(self):
+    def test_colormap_view_is_not_instantiable(self):
         self.assertRaises(TypeError, ColormapView, None)
 
-    def test_band_composer_is_not_instaciable(self):
+    def test_band_composer_is_not_instantiable(self):
         self.assertRaises(TypeError, BandsComposer, None)
 
 
@@ -57,7 +57,7 @@ class TestBandsMatching(unittest.TestCase):
         self.assertTrue(len(ProductViewsFactory.get_matchings(['red'])) > 0)
 
 
-class TestCloromapView(unittest.TestCase):
+class TestColormapView(unittest.TestCase):
     def test_heatmap(self):
         raster = tl.GeoRaster2(image=np.array(range(256), dtype=np.uint8).reshape((1, 16, 16)),
                                band_names=['red'],

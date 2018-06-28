@@ -10,7 +10,7 @@ from common_for_tests import (
 from telluric.products import ProductsFactory
 
 
-def test_multispectrla_raster_gets_available_products():
+def test_multispectral_raster_gets_available_products():
     products = multi_raster_8b().get_products(sensor_bands_info())
     expected_products = ProductsFactory.get_matchings(multi_raster_8b().band_names, sensor_bands_info())
     assert products == expected_products

@@ -1,10 +1,5 @@
 import unittest
 import numpy as np
-# import copy
-
-# from affine import Affine
-# import telluric as tl
-# from telluric.constants import WEB_MERCATOR_CRS
 from telluric.products import ProductError
 
 from common_for_tests import (
@@ -19,7 +14,7 @@ from telluric.products import (
 )
 
 
-class TestProductsFuctory(unittest.TestCase):
+class TestProductsFactory(unittest.TestCase):
 
     def test_it_retrieves_the_right_products(self):
         self.assertIsInstance(ProductsFactory.get_object('NDVI'), NDVI)
@@ -29,10 +24,10 @@ class TestProductsFuctory(unittest.TestCase):
     def test_it_is_case_insensitive(self):
         self.assertIsInstance(ProductsFactory.get_object('ndvi'), NDVI)
 
-    def test_it_is_raises_error_whene_product_not_exists(self):
+    def test_it_is_raises_error_when_product_not_exists(self):
         self.assertRaises(KeyError, ProductsFactory.get_object, 'invalid_product')
 
-    def test_produc_is_not_instaciable(self):
+    def test_product_is_not_instantiable(self):
         self.assertRaises(TypeError, ProductGenerator, None)
 
     def test_products_order(self):
@@ -108,7 +103,7 @@ class TestBandsMatching(unittest.TestCase):
         self.assertEqual(set(ProductsFactory.get_matchings(['red'], sensor_bands_info())), {'SingleBand'})
 
 
-class TestNDVIStraite(unittest.TestCase):
+class TestNDVIStraight(unittest.TestCase):
 
     def test_ndvi(self):
         raster = NDVI().apply(sensor_bands_info(), multi_raster_8b())
@@ -349,10 +344,10 @@ class TestExcessIndices(unittest.TestCase):
         self.assertEqual(raster.dtype, EXG.type)
         self.assertEqual(raster.height, multi_raster_8b().height)
         self.assertEqual(raster.width, multi_raster_8b().width)
-        comon_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
-        r = multi_values_8b['red'] / comon_denominator
-        g = multi_values_8b['green'] / comon_denominator
-        b = multi_values_8b['blue'] / comon_denominator
+        common_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
+        r = multi_values_8b['red'] / common_denominator
+        g = multi_values_8b['green'] / common_denominator
+        b = multi_values_8b['blue'] / common_denominator
         expected_value = 2 * g - r - b
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
         self.assertTrue((raster.image.data == expected_value).all())
@@ -392,10 +387,10 @@ class TestExcessIndices(unittest.TestCase):
         self.assertCountEqual(product.bands_mapping['red'], expected_red)
         self.assertCountEqual(product.bands_mapping['green'], expected_green)
         self.assertCountEqual(product.bands_mapping['blue'], expected_blue)
-        comon_denominator = red_value + green_value + blue_value
-        r = red_value / comon_denominator
-        g = green_value / comon_denominator
-        b = blue_value / comon_denominator
+        common_denominator = red_value + green_value + blue_value
+        r = red_value / common_denominator
+        g = green_value / common_denominator
+        b = blue_value / common_denominator
         expected_value = 2 * g - r - b
         self.assertAlmostEqual(product.raster.image.data[0, 0, 0], expected_value)
 
@@ -418,9 +413,9 @@ class TestExcessIndices(unittest.TestCase):
         self.assertEqual(raster.dtype, EXR.type)
         self.assertEqual(raster.height, multi_raster_8b().height)
         self.assertEqual(raster.width, multi_raster_8b().width)
-        comon_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
-        r = multi_values_8b['red'] / comon_denominator
-        g = multi_values_8b['green'] / comon_denominator
+        common_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
+        r = multi_values_8b['red'] / common_denominator
+        g = multi_values_8b['green'] / common_denominator
         expected_value = 1.4 * r - g
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
         self.assertTrue((raster.image.data == expected_value).all())
@@ -452,9 +447,9 @@ class TestExcessIndices(unittest.TestCase):
         self.assertCountEqual(product.bands_mapping['red'], expected_red)
         self.assertCountEqual(product.bands_mapping['green'], expected_green)
         self.assertCountEqual(product.bands_mapping['blue'], expected_blue)
-        comon_denominator = red_value + green_value + blue_value
-        r = red_value / comon_denominator
-        g = green_value / comon_denominator
+        common_denominator = red_value + green_value + blue_value
+        r = red_value / common_denominator
+        g = green_value / common_denominator
         expected_value = 1.4 * r - g
         self.assertAlmostEqual(product.raster.image.data[0, 0, 0], expected_value)
 
@@ -477,9 +472,9 @@ class TestExcessIndices(unittest.TestCase):
         self.assertEqual(raster.dtype, EXB.type)
         self.assertEqual(raster.height, multi_raster_8b().height)
         self.assertEqual(raster.width, multi_raster_8b().width)
-        comon_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
-        g = multi_values_8b['green'] / comon_denominator
-        b = multi_values_8b['blue'] / comon_denominator
+        common_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
+        g = multi_values_8b['green'] / common_denominator
+        b = multi_values_8b['blue'] / common_denominator
         expected_value = 1.4 * b - g
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
 
@@ -510,9 +505,9 @@ class TestExcessIndices(unittest.TestCase):
         self.assertCountEqual(product.bands_mapping['red'], expected_red)
         self.assertCountEqual(product.bands_mapping['green'], expected_green)
         self.assertCountEqual(product.bands_mapping['blue'], expected_blue)
-        comon_denominator = red_value + green_value + blue_value
-        g = green_value / comon_denominator
-        b = blue_value / comon_denominator
+        common_denominator = red_value + green_value + blue_value
+        g = green_value / common_denominator
+        b = blue_value / common_denominator
         expected_value = 1.4 * b - g
         self.assertAlmostEqual(product.raster.image.data[0, 0, 0], expected_value)
 
@@ -622,7 +617,7 @@ class TestTrueColor(unittest.TestCase):
         fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610'], sensor_bands_info())
         self.assertEqual(fits, True)
 
-    def test_fits_raster_bands_true_niglecting_out_of_range_bands(self):
+    def test_fits_raster_bands_true_neglecting_out_of_range_bands(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
         fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610', 'HC_300'], sensor_bands_info())
         self.assertEqual(fits, True)
@@ -631,7 +626,7 @@ class TestTrueColor(unittest.TestCase):
         fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610', 'HC_700'], sensor_bands_info())
         self.assertEqual(fits, True)
 
-    def test_fits_raster_bands_false_for_bands_in_range_hols_and_out_of_renge(self):
+    def test_fits_raster_bands_false_for_bands_in_range_hols_and_out_of_range(self):
         hs_true_color = ProductsFactory.get_object('truecolor')
         fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_580'], sensor_bands_info())
         self.assertEqual(fits, False)
