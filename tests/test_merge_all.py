@@ -5,6 +5,7 @@ import numpy as np
 from affine import Affine
 from telluric import constants, GeoVector
 from telluric.georaster import GeoRaster2, MergeStrategy, merge_all, merge, merge_to_first
+from common_for_tests import make_test_raster
 
 
 def black_and_white_raster(band_names=[], height=10, width=10, dtype=np.uint16,
@@ -23,18 +24,6 @@ def black_and_white_raster(band_names=[], height=10, width=10, dtype=np.uint16,
                 array[z, i, j] = val
                 val = 1 - val
 
-    image = np.ma.array(data=array, mask=mask)
-    raster = GeoRaster2(image=image, affine=affine, crs=crs, band_names=band_names)
-    return raster
-
-
-def make_test_raster(value=0, band_names=[], height=3, width=4, dtype=np.uint16,
-                     crs=constants.WEB_MERCATOR_CRS, affine=None):
-    if affine is None:
-        affine = Affine.translation(10, 12) * Affine.scale(1, -1)
-    shape = [len(band_names), height, width]
-    array = np.full(shape, value, dtype=dtype)
-    mask = np.full(shape, False, dtype=np.bool)
     image = np.ma.array(data=array, mask=mask)
     raster = GeoRaster2(image=image, affine=affine, crs=crs, band_names=band_names)
     return raster
