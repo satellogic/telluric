@@ -60,6 +60,22 @@ def test_eq():
     assert some_raster != some_raster.copy_with(affine=Affine.translation(42, 42))
     assert some_raster != some_raster.copy_with(crs={'init': 'epsg:32621'})
 
+    # np.ma.nomask
+    assert (
+        some_raster.copy_with(image=np.ma.masked_array(
+            some_raster.image.data,
+            mask=np.ma.nomask)) ==
+        some_raster.copy_with(image=np.ma.masked_array(
+            some_raster.image.data,
+            mask=np.zeros_like(some_raster.image.data, dtype=bool))))
+    assert (
+        some_raster.copy_with(image=np.ma.masked_array(
+            some_raster.image.data,
+            mask=np.zeros_like(some_raster.image.data, dtype=bool))) ==
+        some_raster.copy_with(image=np.ma.masked_array(
+            some_raster.image.data,
+            mask=np.ma.nomask)))
+
 
 def test_eq_ignores_masked_values():
     assert some_raster == some_raster_alt
