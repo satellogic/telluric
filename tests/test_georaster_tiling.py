@@ -422,10 +422,10 @@ class GeoRasterCropTest(TestCase):
     def test_geographic_crop_with_resize(self):
         coords = mercantile.xy_bounds(*tiles[17])
         raster = self.geographic_raster()
-        vector = GeoVector(Polygon.from_bounds(*coords), crs=self.metric_crs).reproject(self.geographic_crs)
-        cropped = raster.crop(vector, mercator_zoom_to_resolution[17])
+        vector = GeoVector(Polygon.from_bounds(*coords), crs=self.metric_crs)
         x_ex_res, y_ex_res = convert_resolution_from_meters_to_deg(
             self.metric_affine[6], mercator_zoom_to_resolution[17])
+        cropped = raster.crop(vector, (x_ex_res, y_ex_res))
         self.assertAlmostEqual(cropped.affine[0], x_ex_res)
         self.assertAlmostEqual(abs(cropped.affine[4]), y_ex_res, 6)
 

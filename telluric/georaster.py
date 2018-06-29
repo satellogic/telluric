@@ -36,7 +36,6 @@ from PIL import Image
 from telluric.constants import DEFAULT_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
-from telluric.util.general import convert_resolution_from_meters_to_deg
 
 from telluric.util.raster_utils import convert_to_cog, _calc_overviews_factors, _mask_from_masked_array
 from telluric.products_mixin import ProductsMixin
