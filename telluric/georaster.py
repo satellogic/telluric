@@ -934,7 +934,11 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
     def _resolution_to_output_shape(self, bounds, resolution):
         base_resolution = abs(self.affine[0])
-        xscale = yscale = resolution / base_resolution
+        if isinstance(resolution, (int, float)):
+            xscale = yscale = resolution / base_resolution
+        else:
+            xscale = resolution[0] / base_resolution
+            yscale = resolution[1] / base_resolution
 
         width = bounds[2] - bounds[0]
         height = bounds[3] - bounds[1]
