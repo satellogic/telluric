@@ -680,7 +680,10 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             and self.affine.almost_equals(other.affine) \
             and self.shape == other.shape \
             and self.image.dtype == other.image.dtype \
-            and np.array_equal(self.image.mask, other.image.mask) \
+            and (
+                (self.image.mask is np.ma.nomask or not np.any(self.image.mask)) and
+                (other.image.mask is np.ma.nomask or not np.any(other.image.mask)) or
+                np.array_equal(self.image.mask, other.image.mask)) \
             and np.array_equal(np.ma.filled(self.image, 0), np.ma.filled(other.image, 0))
 
     def __getitem__(self, key):
