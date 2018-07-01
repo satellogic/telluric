@@ -57,21 +57,22 @@ def _get_telluric_tags(source_file):
         return {"telluric_%s" % k: v for k, v in tags.items()}
 
 
-def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss):
+def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss, **kwargs):
     """Convert source file to a Cloud Optimized GeoTiff new file.
 
     :param source_file: path to the original raster
     :param destination_file: path to the new raster
     :param resampling: which Resampling to use on reading, default Resampling.gauss
     """
-    with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
+    # with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, GDAL_TIFF_OVR_BLOCKSIZE=256):
+    with rasterio.Env(GDAL_TIFF_OVR_BLOCKSIZE=256):
         with TemporaryDirectory() as temp_dir:
             temp_file = os.path.join(temp_dir, 'temp.tif')
             rasterio_sh.copy(source_file, temp_file, tiled=True, compress='DEFLATE', photometric='MINISBLACK')
             with rasterio.open(temp_file, 'r+') as dest:
-                if not _has_internal_perdataset_mask(dest):
-                    mask = dest.dataset_mask()
-                    dest.write_mask(mask)
+                # if not _has_internal_perdataset_mask(dest):
+                    # mask = dest.dataset_mask()
+                    # dest.write_mask(mask)
 
                 factors = _calc_overviews_factors(dest)
                 dest.build_overviews(factors, resampling=resampling)
@@ -80,7 +81,6 @@ def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss):
                 telluric_tags = _get_telluric_tags(source_file)
                 if telluric_tags:
                     dest.update_tags(**telluric_tags)
-
             rasterio_sh.copy(temp_file, destination_file,
                              COPY_SRC_OVERVIEWS=True, tiled=True,
-                             compress='DEFLATE', photometric='MINISBLACK')
+                             compress='DEFLATE', photometric='MINISBLACK', **kwargs)

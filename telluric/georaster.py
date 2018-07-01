@@ -628,8 +628,9 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
                         r.write_band(1 + band, img[band, :, :])
 
                     # write mask:
-                    mask = _mask_from_masked_array(self.image)
-                    r.write_mask(mask)
+                    if nodata_value is None:
+                        mask = _mask_from_masked_array(self.image)
+                        r.write_mask(mask)
 
                     # write tags:
                     tags_to_save = {'telluric_band_names': json.dumps(self.band_names)}
@@ -1329,7 +1330,6 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         bounds = []
         for corner in self.corners().values():
             p = corner.reproject(WGS84_CRS)
-            print(p)
             tile = mercantile.tile(p.x, p.y, zoom)
             bounds.append(mercantile.bounds(tile))
         xmin = min([p.west for p in bounds])
@@ -1341,7 +1341,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
 
 
-    def align_raster_to_mercator_tiles(self):
+    def align_raster_to_mercator_tiles(self, zoom=None):
         """Return new raster aligned to compasing tile.
 
         :return: GeoRaster2
@@ -1349,7 +1349,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         aligned_zoom_level = mercator_zoom_to_resolution[self.mercator_upper_zoom_level()]
 
         # this requires geographical crs
-        bouding_box = self.mercator_alligned_bouding_box().get_shape(WEB_MERCATOR_CRS)
+        bouding_box = self.mercator_alligned_bouding_box(zoom=zoom).get_shape(WEB_MERCATOR_CRS)
         minx, miny, maxx, maxy = bouding_box.bounds
 
 
@@ -1377,12 +1377,13 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         """
 
         if aligned_to_mercator:
-            src = self.align_raster_to_mercator_tiles()
+            zoom = self.mercator_upper_zoom_level() - len(self._overviews_factors())
+            src = self.align_raster_to_mercator_tiles(zoom=zoom)
         else:
             src = self  # GeoRaster2.open(self._filename)
 
         with tempfile.NamedTemporaryFile(suffix='.tif') as tf:
-            src.save(tf.name, overviews=False)
+            src.save(tf.name, overviews=False, nodata=0)
             convert_to_cog(tf.name, dest_url, resampling)
 
         geotiff = GeoRaster2.open(dest_url)
@@ -1460,17 +1461,19 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
         # requested_out_shape and out_shape are different for out of bounds window
         requested_out_shape = self._get_window_out_shape(bands, xratio, yratio, requested_window)
+        print(requested_window)
+        print(requested_out_shape)
         try:
             read_params = {
                 "window": requested_window,
                 "resampling": resampling,
                 "boundless": boundless,
-                "masked": masked,
+                "masked": False,
                 "out_shape": requested_out_shape
             }
 
             rasterio_env = {
-                'GDAL_DISABLE_READDIR_ON_OPEN': True,
+                'GDAL_DISABLE_READDIR_ON_OPEN': "YES",
                 'GDAL_TIFF_INTERNAL_MASK_TO_8BIT': False,
             }   # type: Dict
             if self._filename.split('.')[-1] == 'tif':
