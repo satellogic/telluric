@@ -588,6 +588,15 @@ def test_astype_uint8_to_float32_conversion_with_image_in_range():
 
 
 def test_astype_uint8_to_float32_conversion_with_custom_in_range():
+    raster_float32 = some_raster.astype(np.float32, in_range=('min', 'max'), out_range=(0, 1))
+    expected_raster_float32 = GeoRaster2(image=np.ma.array(
+        np.array([
+            [0.0, 0.25, 0.5],
+            [0.75, 1.0, 1.0]
+        ], dtype=np.float32), mask=some_raster.image.mask),
+        affine=some_float32_raster.affine, crs=some_float32_raster.crs, nodata=None)
+    assert raster_float32 == expected_raster_float32
+
     raster_float32 = some_raster.astype(np.float32, in_range=(2, 4), out_range=(0, 1))
     expected_raster_float32 = GeoRaster2(image=np.ma.array(
         np.array([
