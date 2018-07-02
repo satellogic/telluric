@@ -28,7 +28,7 @@ def test_merge_left_all():
 
     assert result_left_all.band_names == raster1.band_names == raster2.band_names
     assert result_left_all.footprint() == raster1.footprint()
-    assert result_left_all.resolution() == raster1.resolution()
+    assert result_left_all.res_xy() == raster1.res_xy()
 
     result_left_all_fewer_bands = merge(
         raster1.limit_to_bands(["red", "green"]), raster2,
@@ -37,7 +37,7 @@ def test_merge_left_all():
 
     assert result_left_all_fewer_bands.band_names == ["red", "green"]
     assert result_left_all_fewer_bands.footprint() == raster1.footprint()
-    assert result_left_all_fewer_bands.resolution() == raster1.resolution()
+    assert result_left_all_fewer_bands.res_xy() == raster1.res_xy()
 
     raster1_limited = raster1.limit_to_bands(["red", "green"])
     result_only_left = merge(
@@ -65,7 +65,7 @@ def test_merge_intersection():
 
     assert result_left_all.band_names == raster1.band_names == raster2.band_names
     assert result_left_all.footprint() == raster1.footprint()
-    assert result_left_all.resolution() == raster1.resolution()
+    assert result_left_all.res_xy() == raster1.res_xy()
 
     result_left_all_fewer_bands = merge(
         raster1.limit_to_bands(["red"]), raster2,
@@ -74,7 +74,7 @@ def test_merge_intersection():
 
     assert result_left_all_fewer_bands.band_names == ["red"]
     assert result_left_all_fewer_bands.footprint() == raster1.footprint()
-    assert result_left_all_fewer_bands.resolution() == raster1.resolution()
+    assert result_left_all_fewer_bands.res_xy() == raster1.res_xy()
 
     result_left_all_fewer_bands = merge(
         raster1, raster2.limit_to_bands(["red"]),
@@ -83,7 +83,7 @@ def test_merge_intersection():
 
     assert result_left_all_fewer_bands.band_names == ["red"]
     assert result_left_all_fewer_bands.footprint() == raster1.footprint()
-    assert result_left_all_fewer_bands.resolution() == raster1.resolution()
+    assert result_left_all_fewer_bands.res_xy() == raster1.res_xy()
 
     result_left_all_fewer_bands = merge(
         raster1.limit_to_bands(["red", "green"]), raster2,
@@ -92,7 +92,7 @@ def test_merge_intersection():
 
     assert result_left_all_fewer_bands.band_names == ["red", "green"]
     assert result_left_all_fewer_bands.footprint() == raster1.footprint()
-    assert result_left_all_fewer_bands.resolution() == raster1.resolution()
+    assert result_left_all_fewer_bands.res_xy() == raster1.res_xy()
 
     with pytest.raises(ValueError) as excinfo:
         merge(
@@ -113,7 +113,7 @@ def test_merge_union():
 
     assert result_union.band_names == raster1.band_names == raster2.band_names
     assert result_union.footprint() == raster1.footprint()
-    assert result_union.resolution() == raster1.resolution()
+    assert result_union.res_xy() == raster1.res_xy()
 
     result_union_fewer_bands = merge(
         raster1.limit_to_bands(["red", "green"]), raster2,
@@ -122,7 +122,7 @@ def test_merge_union():
 
     assert result_union_fewer_bands.band_names == ["red", "green", "blue"]
     assert result_union_fewer_bands.footprint() == raster1.footprint()
-    assert result_union_fewer_bands.resolution() == raster1.resolution()
+    assert result_union_fewer_bands.res_xy() == raster1.res_xy()
 
     result_no_common = merge(
         raster1.limit_to_bands(["red", "green"]), raster2.limit_to_bands(["blue"]),
