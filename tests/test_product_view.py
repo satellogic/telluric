@@ -9,7 +9,7 @@ from common_for_tests import make_test_raster, multi_raster_16b, multi_values_16
 
 
 from telluric.product_view import (
-    ProductViewsFactory, SingleBand, Grayscale, TrueColor, FalseColor, ProductView, BandsComposer,
+    ProductViewsFactory, ProductView,
     ColormapView, FirstBandGrayColormapView)
 
 
@@ -17,14 +17,10 @@ class TestProductViewsFactory(unittest.TestCase):
 
     def test_it_retrieves_the_right_product_views(self):
         self.assertTrue(ProductViewsFactory.get_object('cm-ylgn'))
-        self.assertIsInstance(ProductViewsFactory.get_object('singleband'), SingleBand)
-        self.assertIsInstance(ProductViewsFactory.get_object('grayscale'), Grayscale)
-        self.assertIsInstance(ProductViewsFactory.get_object('truecolor'), TrueColor)
-        self.assertIsInstance(ProductViewsFactory.get_object('falsecolor'), FalseColor)
         self.assertIsInstance(ProductViewsFactory.get_object('fb-cm-gray'), FirstBandGrayColormapView)
 
     def test_it_is_case_insensitive(self):
-        self.assertIsInstance(ProductViewsFactory.get_object('TrUeColOr'), TrueColor)
+        self.assertIsInstance(ProductViewsFactory.get_object('fb-cM-GraY'), FirstBandGrayColormapView)
 
     def test_it_is_raises_key_error_when_productview_not_exists(self):
         self.assertRaises(KeyError, ProductViewsFactory.get_object, 'invalid_product')
@@ -35,26 +31,13 @@ class TestProductViewsFactory(unittest.TestCase):
     def test_colormap_view_is_not_instantiable(self):
         self.assertRaises(TypeError, ColormapView, None)
 
-    def test_band_composer_is_not_instantiable(self):
-        self.assertRaises(TypeError, BandsComposer, None)
-
 
 class TestProductView(unittest.TestCase):
     def test_to_dict(self):
-        d = Grayscale.to_dict()
+        d = FirstBandGrayColormapView.to_dict()
         attributes = "name display_name description type output_bands required_bands".split()
         for att in attributes:
             self.assertIn(att, d)
-
-
-class TestBandsMatching(unittest.TestCase):
-    def test_it_matches_all_bands(self):
-        self.assertTrue(set(ProductViewsFactory.get_matchings(
-            ['blue', 'green', 'red'])).issuperset(['Grayscale', 'TrueColor']))
-        self.assertNotIn('FalseColor', ProductViewsFactory.get_matchings(
-            ['blue', 'green', 'red']))
-        self.assertTrue(set(ProductViewsFactory.get_matchings(['nir', 'red', 'green'])).issuperset(['FalseColor']))
-        self.assertTrue(len(ProductViewsFactory.get_matchings(['red'])) > 0)
 
 
 class TestColormapView(unittest.TestCase):
@@ -109,54 +92,6 @@ class TestFirstBandGrayColormapView(unittest.TestCase):
         self.assertTrue(np.array_equal(colormap.image.data[:, 0, 1], [0, 0, 0]))
         self.assertTrue(np.array_equal(colormap.image.data[:, colormap.height - 1, colormap.width - 1],
                                        [255, 255, 255]))
-
-
-def to_uint8(val):
-    return int(val / 257)
-
-
-class TestBandComposer(unittest.TestCase):
-    def test_true_color_raises_on_no_fiting_requirements(self):
-        raster = make_test_raster(4200, ['green', 'red'], dtype=np.uint16)
-        with self.assertRaises(KeyError):
-            raster = TrueColor().apply(raster)
-
-    def test_true_color(self):
-        raster = TrueColor().apply(multi_raster_16b())
-        self.assertEqual(raster.num_bands, 3)
-        self.assertEqual(raster.band_names, ['red', 'green', 'blue'])
-        self.assertEqual(raster.height, multi_raster_16b().height)
-        self.assertEqual(raster.width, multi_raster_16b().width)
-        self.assertTrue((raster.image.data[0, :, :] == to_uint8(multi_values_16b['red'])).all())
-        self.assertTrue((raster.image.data[1, :, :] == to_uint8(multi_values_16b['green'])).all())
-        self.assertTrue((raster.image.data[2, :, :] == to_uint8(multi_values_16b['blue'])).all())
-
-    def test_false_color(self):
-        raster = FalseColor().apply(multi_raster_16b())
-        self.assertTrue((raster.image.data[0, :, :] == to_uint8(multi_values_16b['nir'])).all())
-        self.assertTrue((raster.image.data[1, :, :] == to_uint8(multi_values_16b['red'])).all())
-        self.assertTrue((raster.image.data[2, :, :] == to_uint8(multi_values_16b['green'])).all())
-
-    def test_false_color_raises_on_no_fiting_requirements(self):
-        raster = make_test_raster(4200, ['green', 'blue'], dtype=np.uint16)
-        with self.assertRaises(KeyError):
-            raster = FalseColor().apply(raster)
-
-    def test_grayscale(self):
-        raster = ProductViewsFactory.get_object('Grayscale').apply(multi_raster_16b())
-        self.assertEqual(raster.band_names, ['grayscale'])
-        self.assertEqual(raster.num_bands, 1)
-        self.assertEqual(raster.height, multi_raster_16b().height)
-        self.assertEqual(raster.width, multi_raster_16b().width)
-        expected_value = 0.2989 * multi_values_16b['red'] + \
-            0.5870 * multi_values_16b['green'] + \
-            0.1140 * multi_values_16b['blue']
-        self.assertEqual(raster.image.data[0, 0, 0], to_uint8(expected_value))
-
-    def test_grayscale_raises_on_no_fiting_requirements(self):
-        raster = make_test_raster(4200, ['blue', 'red'], dtype=np.uint16)
-        with self.assertRaises(KeyError):
-            raster = Grayscale().apply(raster)
 
 
 class TestOneBanders(unittest.TestCase):

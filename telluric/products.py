@@ -401,99 +401,6 @@ class EXB(ProductGenerator):
         return array
 
 
-class SingleBand(ProductGenerator):
-    name = "SingleBand"
-    display_name = "SingleBand"
-    description = 'Single band'
-    default_view = 'SingleBand'
-    min = None
-    max = None
-    type = None
-    required_bands = {}  # type: dict
-    output_bands = []  # type: list
-    unit = 'DN'
-    _order = 3
-
-    def __init__(self, band):
-        self.required_bands = {band}
-        self.output_bands = [band]
-
-    @classmethod
-    def fits_raster_bands(cls, available_bands, sensor_bands_info, bands_restriction=None, silent=True):
-        if len(available_bands) >= 1:
-            return True
-        if silent:
-            return False
-        raise ProductError('expected 1 band, got: %s' % available_bands)
-
-    def apply(self, sensor_bands_info, raster, metadata=False, **kwargs):
-        bands_mapping = {self.output_bands[0]: self.output_bands}
-        product_raster = raster.limit_to_bands(self.output_bands)
-        if not metadata:
-            return product_raster
-        return _Product(raster=product_raster, bands_mapping=bands_mapping, product_generator=self.to_dict(),
-                        required_bands=self.required_bands, output_bands=self.output_bands).namedtuple()
-
-
-class TrueColor(ProductGenerator):
-    name = "TrueColor"
-    display_name = "TrueColor"
-    description = 'RGB'
-    default_view = 'TrueColor'
-    min = 0
-    max = 255
-    type = np.uint8
-    required_bands = {'red', 'green', 'blue'}
-    output_bands = ['red', 'green', 'blue']
-    unit = 'DN'
-    should_convert_to_float = False
-    _order = 1
-
-    def _apply(self, red, green, blue, **kwargs):
-        data = np.stack((red.data[0], green.data[0], blue.data[0]), )
-        mask = np.stack((red.mask[0], green.mask[0], blue.mask[0]), )
-        array = np.ma.array(data, mask=mask)
-        return array
-
-
-class RGBEnhanced(ProductGenerator):
-    name = "RGBEnhanced"
-    display_name = "RGB Enhanced"
-    description = 'Color enhanced version of RGB'
-    default_view = 'TrueColor'
-    min = 0
-    max = 255
-    type = np.uint8
-    required_bands = {'red_enhanced', 'green_enhanced', 'blue_enhanced'}
-    output_bands = ['red', 'green', 'blue']
-    unit = 'DN'
-    should_convert_to_float = False
-    _order = 1
-
-    @classmethod
-    def match_bands(cls, _, bands_list, dest_band):
-        return [dest_band] if dest_band in bands_list else []
-
-    def _apply(self, red_enhanced, green_enhanced, blue_enhanced, **kwargs):
-        data = np.stack((red_enhanced.data[0], green_enhanced.data[0], blue_enhanced.data[0]))
-        mask = np.stack((red_enhanced.mask[0], green_enhanced.mask[0], blue_enhanced.mask[0]))
-        array = np.ma.array(data, mask=mask)
-        return array
-
-    @classmethod
-    def override_bands_mapping(cls, bands_mapping):
-        new_bands_mapping = {
-            'blue': bands_mapping['blue_enhanced'],
-            'green': bands_mapping['green_enhanced'],
-            'red': bands_mapping['red_enhanced']
-        }
-        return new_bands_mapping
-
-    def override_product_settings(self, product):
-        product.bands_mapping = self.override_bands_mapping(product.bands_mapping)
-        return product
-
-
 ####
 # Land Cover Index
 # 550 - blue
@@ -535,36 +442,6 @@ class LandCoverIndex(ProductGenerator):
     def override_product_settings(self, product):
         product.bands_mapping = self.override_bands_mapping(product.bands_mapping)
         return product
-
-
-class FalseColor(ProductGenerator):
-    name = "FalseColor"
-    display_name = "FalseColor"
-    description = 'RGB interpretation of a composition of bands'
-    default_view = 'TrueColor'
-    min = 0
-    max = 255
-    type = np.uint8
-    required_bands = {}  # type: dict
-    output_bands = ['red', 'green', 'blue']
-    unit = 'DN'
-    should_convert_to_float = False
-    _order = 5
-    dont_add_to_factory = True
-
-    def __init__(self, band_mapping):
-        band_names = list(band_mapping.keys())
-        band_names.sort()
-        assert band_names == ['blue', 'green', 'red']
-        self.required_bands = set(band_mapping.values())
-        self.band_mapping = band_mapping
-
-    def _apply(self, **bands):
-        red = bands[self.band_mapping['red']]
-        green = bands[self.band_mapping['green']]
-        blue = bands[self.band_mapping['blue']]
-        array = np.stack((red[0], green[0], blue[0]))
-        return array
 
 
 # PRI - done
