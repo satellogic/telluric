@@ -437,6 +437,22 @@ def test_georaster_contains_geometry():
     assert roi.buffer(1) not in empty
 
 
+def test_empty_from_roi_respects_footprint():
+    # See https://github.com/satellogic/telluric/issues/39
+    raster = GeoRaster2.open("tests/data/raster/overlap1.tif")
+
+    empty = GeoRaster2.empty_from_roi(shape=raster.shape[1:][::-1], ul_corner=(v[0] for v in raster.corner('ul').xy),
+                                      resolution=raster.res_xy(), crs=raster.crs,
+                                      band_names=raster.band_names, dtype=raster.dtype)
+
+    empty_simple = GeoRaster2.empty_from_roi(roi=raster.footprint(),
+                                             resolution=raster.res_xy(),
+                                             band_names=raster.band_names, dtype=raster.dtype)
+
+    assert raster.footprint().almost_equals(empty.footprint())
+    assert raster.footprint().almost_equals(empty_simple.footprint())
+
+
 def test_astype_uint8_to_uint8_conversion():
     raster_uint8 = make_test_raster(value=42, band_names=[1, 2], dtype=np.uint8)
     raster_uint8_copy = raster_uint8.astype(np.uint8)

@@ -103,7 +103,7 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
        When roi is provided the ul_corner, shape and crs are ignored
     """
     if dest_resolution is None:
-        dest_resolution = rasters[0].resolution()
+        dest_resolution = rasters[0].res_xy()
 
     # Create empty raster
     empty = GeoRaster2.empty_from_roi(
@@ -1008,8 +1008,12 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         return self.deepcopy_with()
 
     def resolution(self):
-        """Return resolution. if different in different axis - return average."""
+        """Return resolution. if different in different axis - return geometric mean."""
         return float(np.sqrt(np.abs(self.affine.determinant)))
+
+    def res_xy(self):
+        """Returns X and Y resolution."""
+        return abs(self.affine[0]), abs(self.affine[4])
 
     def resize(self, ratio=None, ratio_x=None, ratio_y=None, dest_width=None, dest_height=None, dest_resolution=None,
                resampling=Resampling.cubic):
