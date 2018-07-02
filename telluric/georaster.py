@@ -34,7 +34,6 @@ from telluric.constants import DEFAULT_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 from telluric.util.general import convert_resolution_from_meters_to_deg
-from telluric.util.histogram import stretch_histogram
 
 from telluric.util.raster_utils import convert_to_cog, _calc_overviews_factors, _mask_from_masked_array
 from telluric.products_mixin import ProductsMixin
@@ -738,7 +737,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         """
         return self.footprint().contains(geometry)
 
-    def astype(self, dst_type, in_range='dtype', out_range='dtype', clip_negative=False, stretch=False):
+    def astype(self, dst_type, in_range='dtype', out_range='dtype', clip_negative=False):
         """ Returns copy of the raster, converted to desired type
         Supported types: uint8, uint16, uint32, int8, int16, int32, float16, float32, float64
 
@@ -751,7 +750,6 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             'dtype': use min/max of the image's dtype as the intensity range,
             2-tuple: use explicit min/max intensities
         :param clip_negative: boolean, if `True` - clip the negative range, default False
-        :param stretch: boolean, if `True` - sretch histogram, default False
         :return: numpy array of values
         """
 
@@ -813,8 +811,6 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             dst_array = self.image
 
         dst_array = dst_array.astype(dst_type)
-        if stretch:
-            dst_array = stretch_histogram(dst_array)
         return self.copy_with(image=dst_array)
 
     def crop(self, vector, resolution=None):
@@ -1040,7 +1036,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
         return new_raster
 
-    def to_png(self, transparent=True, thumbnail_size=None, resampling=None, stretch=False):
+    def to_png(self, transparent=True, thumbnail_size=None, resampling=None, in_range='dtype', out_range='dtype'):
         """
         Convert to png format (discarding geo).
 
@@ -1048,15 +1044,17 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         Note: for color images returns interlaced.
         :param transparent: if True - sets alpha channel for nodata pixels
         :param thumbnail_size: if not None - resize to thumbnail size, e.g. 512
-        :param stretch: if true the if convert to uint8 is required it would stretch
+        :param in_range: input intensity range
+        :param out_range: output intensity range
         :param resampling: one of Resampling enums
 
         :return bytes
         """
         return self.to_bytes(transparent=transparent, thumbnail_size=thumbnail_size,
-                             resampling=resampling, stretch=stretch)
+                             resampling=resampling, in_range=in_range, out_range=out_range)
 
-    def to_bytes(self, transparent=True, thumbnail_size=None, resampling=None, stretch=False, format="png"):
+    def to_bytes(self, transparent=True, thumbnail_size=None, resampling=None, in_range='dtype', out_range='dtype',
+                 format="png"):
         """
         Convert to selected format (discarding geo).
 
@@ -1064,7 +1062,8 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         Note: for color images returns interlaced.
         :param transparent: if True - sets alpha channel for nodata pixels
         :param thumbnail_size: if not None - resize to thumbnail size, e.g. 512
-        :param stretch: if true the if convert to uint8 is required it would stretch
+        :param in_range: input intensity range
+        :param out_range: output intensity range
         :param format : str, image format, default "png"
         :param resampling: one of Resampling enums
 
@@ -1088,7 +1087,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         if raster.image.dtype != np.uint8:
             warnings.warn("downscaling dtype to 'uint8' to convert to png",
                           GeoRaster2Warning)
-            thumbnail = raster.astype(np.uint8, stretch=stretch)
+            thumbnail = raster.astype(np.uint8, in_range=in_range, out_range=out_range)
         else:
             thumbnail = raster.copy_with()
 
@@ -1136,7 +1135,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
     def _repr_png_(self):
         """Required for jupyter notebook to show raster."""
-        return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, stretch=True)
+        return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, in_range='image')
 
     def limit_to_bands(self, bands):
         bands_data = self.bands_data(bands)
