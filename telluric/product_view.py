@@ -149,7 +149,7 @@ class ProductViewsFactory(BaseFactory):
                 'name': name,
                 'display_name': "colormap %s" % colormap,
                 'description': "",
-                }
+            }
             cm = type(name, (ColormapView,), attr)
             colormaps[name.lower()] = cm
         return colormaps

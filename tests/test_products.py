@@ -524,7 +524,6 @@ class TestExcessIndices(unittest.TestCase):
         self.assertFalse(raster.image.mask[0, 1, 3])
 
 
-
 class BaseTestMacroProduct(unittest.TestCase):
 
     def do_test_product_for_macro(self, product_generator, expected_bands_mapping,
