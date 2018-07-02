@@ -1,7 +1,7 @@
 import pytest
 from telluric import GeoRaster2
 
-from telluric.georaster import merge, merge_all, MergeStrategy
+from telluric.georaster import merge, MergeStrategy
 
 
 raster1 = GeoRaster2.open("tests/data/raster/overlap1.tif")

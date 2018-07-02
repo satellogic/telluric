@@ -385,7 +385,7 @@ class GeoRaster2NotImplementedError(GeoRaster2Error, NotImplementedError):
     pass
 
 
-class _Raster():
+class _Raster:
     """ A class that has image, band_names and shape
     """
 
