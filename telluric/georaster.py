@@ -118,8 +118,7 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
         projected_rasters = _merge_common_bands(projected_rasters)
 
         # Merge all bands
-        merge_union = partial(_merge, merge_strategy=MergeStrategy.UNION)  # type: Callable[[_Raster, _Raster], _Raster]
-        raster = reduce(merge_union, projected_rasters)
+        raster = reduce(_stack_bands, projected_rasters)
 
         return empty.copy_with(image=raster.image, band_names=raster.band_names)
 
@@ -132,9 +131,6 @@ def _merge_common_bands(rasters):
     """Combine the common bands.
 
     """
-    merge_intersect = partial(_merge,
-                              merge_strategy=MergeStrategy.INTERSECTION)  # type: Callable[[_Raster, _Raster], _Raster]
-
     # Compute band order
     all_bands = IndexedSet([rs.band_names[0] for rs in rasters])
 
@@ -143,14 +139,18 @@ def _merge_common_bands(rasters):
 
     rasters_final = []  # type: List[_Raster]
     for band_name, rasters_group in groupby(sorted(rasters, key=key), key=key):
-        rasters_final.append(reduce(merge_intersect, rasters_group))
+        rasters_final.append(reduce(_fill_pixels, rasters_group))
 
     return rasters_final
 
 
 def _prepare_rasters(rasters, merge_strategy, first):
     # type: (List[GeoRaster2], MergeStrategy, GeoRaster2) -> Tuple[IndexedSet[str], List[_Raster]]
-    """Prepares the rasters according to the requested ROI and merge strategy.
+    """Prepares the rasters according to the baseline (first) raster and the merge strategy.
+
+    The baseline (first) raster is used to crop and reproject the other rasters,
+    while the merge strategy is used to compute the bands of the result. These
+    are returned for diagnostics.
 
     """
     # Create list of prepared rasters
@@ -208,97 +208,99 @@ def _prepare_other_raster(one, other):
     return other
 
 
-def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None):
-    # type: (_Raster, _Raster, MergeStrategy, Optional[List[str]]) -> _Raster
-    if merge_strategy is MergeStrategy.LEFT_ALL:
-        # If the bands are not the same, return one
-        try:
-            other = _Raster(image=other.bands_data(one.band_names), band_names=one.band_names)
-        except GeoRaster2Error:
-            return one
+def _fill_pixels(one, other):
+    # type: (_Raster, _Raster) -> _Raster
+    """Merges two single band rasters with the same band by filling the pixels according to depth.
 
-        return _merge(one, other, merge_strategy=MergeStrategy.INTERSECTION)
+    """
+    assert len(one.band_names) == len(other.band_names) == 1, "Rasters are not single band"
 
-    elif merge_strategy is MergeStrategy.INTERSECTION:
-        assert len(one.band_names) == len(other.band_names) == 1, "Rasters are not single band"
+    # We raise an error in the intersection is empty.
+    # Other options include returning an "empty" raster or just None.
+    # The problem with the former is that GeoRaster2 expects a 2D or 3D
+    # numpy array, so there is no obvious way to signal that this raster
+    # has no bands. Also, returning a (1, 1, 0) numpy array is useless
+    # for future concatenation, so the expected shape should be used
+    # instead. The problem with the latter is that it breaks concatenation
+    # anyway and requires special attention. Suggestions welcome.
+    if one.band_names != other.band_names:
+        raise ValueError("rasters have no bands in common, use another merge strategy")
 
-        # We raise an error in the intersection is empty.
-        # Other options include returning an "empty" raster or just None.
-        # The problem with the former is that GeoRaster2 expects a 2D or 3D
-        # numpy array, so there is no obvious way to signal that this raster
-        # has no bands. Also, returning a (1, 1, 0) numpy array is useless
-        # for future concatenation, so the expected shape should be used
-        # instead. The problem with the latter is that it breaks concatenation
-        # anyway and requires special attention. Suggestions welcome.
-        if one.band_names != other.band_names:
-            raise ValueError("rasters have no bands in common, use another merge strategy")
+    new_image = one.image.copy()
+    other_image = other.image
 
-        new_image = one.image.copy()
-        other_image = other.image
+    # The values that I want to mask are the ones that:
+    # * Were already masked in the other array, _or_
+    # * Were already unmasked in the one array, so I don't overwrite them
+    other_values_mask = (other_image.mask[0] | (~one.image.mask[0]))
 
-        # The values that I want to mask are the ones that:
-        # * Were already masked in the other array, _or_
-        # * Were already unmasked in the one array, so I don't overwrite them
-        other_values_mask = (other_image.mask[0] | (~one.image.mask[0]))
+    # Reshape the mask to fit the future array
+    other_values_mask = other_values_mask[None, ...]
 
-        # Reshape the mask to fit the future array
-        other_values_mask = other_values_mask[None, ...]
+    # Overwrite the values that I don't want to mask
+    new_image[~other_values_mask] = other_image[~other_values_mask]
 
-        # Overwrite the values that I don't want to mask
-        new_image[~other_values_mask] = other_image[~other_values_mask]
+    # In other words, the values that I wanted to write are the ones that:
+    # * Were already masked in the one array, _and_
+    # * Were not masked in the other array
+    # The reason for using the inverted form is to retain the semantics
+    # of "masked=True" that apply for masked arrays. The same logic
+    # could be written, using the De Morgan's laws, as
+    # other_values_mask = (one.image.mask[0] & (~other_image.mask[0])
+    # other_values_mask = other_values_mask[None, ...]
+    # new_image[other_values_mask] = other_image[other_values_mask]
+    # but here the word "mask" does not mean the same as in masked arrays.
 
-        # In other words, the values that I wanted to write are the ones that:
-        # * Were already masked in the one array, _and_
-        # * Were not masked in the other array
-        # The reason for using the inverted form is to retain the semantics
-        # of "masked=True" that apply for masked arrays. The same logic
-        # could be written, using the De Morgan's laws, as
-        # other_values_mask = (one.image.mask[0] & (~other_image.mask[0])
-        # other_values_mask = other_values_mask[None, ...]
-        # new_image[other_values_mask] = other_image[other_values_mask]
-        # but here the word "mask" does not mean the same as in masked arrays.
+    return _Raster(image=new_image, band_names=one.band_names)
 
-        return _Raster(image=new_image, band_names=one.band_names)
 
-    elif merge_strategy is MergeStrategy.UNION:
-        assert set(one.band_names).intersection(set(other.band_names)) == set()
+def _stack_bands(one, other):
+    # type: (_Raster, _Raster) -> _Raster
+    """Merges two rasters with non overlapping bands by stacking the bands.
 
-        # We raise an error in the bands are the same. See above.
-        if one.band_names == other.band_names:
-            raise ValueError("rasters have the same bands, use another merge strategy")
+    """
+    assert set(one.band_names).intersection(set(other.band_names)) == set()
 
-        # Apply "or" to the mask in the same way rasterio does, see
-        # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks
-        # In other words, mask the values that are already masked in either
-        # of the two rasters, since one mask per band is not supported
-        new_mask = one.image.mask[0] | other.image.mask[0]
+    # We raise an error in the bands are the same. See above.
+    if one.band_names == other.band_names:
+        raise ValueError("rasters have the same bands, use another merge strategy")
 
-        # Concatenate the data along the band axis and apply the mask
-        new_image = np.ma.masked_array(
-            np.concatenate([
-                one.image.data,
-                other.image.data
-            ]),
-            mask=[new_mask] * (one.image.shape[0] + other.image.shape[0])
-        )
-        new_bands = one.band_names + other.band_names
+    # Apply "or" to the mask in the same way rasterio does, see
+    # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks
+    # In other words, mask the values that are already masked in either
+    # of the two rasters, since one mask per band is not supported
+    new_mask = one.image.mask[0] | other.image.mask[0]
 
-        # We don't copy image and mask here, due to performance issues,
-        # this output should not use without eventually being copied
-        # In this context we are copying the object in the end of merge_all merge_first and merge
-        return _Raster(image=new_image, band_names=new_bands)
+    # Concatenate the data along the band axis and apply the mask
+    new_image = np.ma.masked_array(
+        np.concatenate([
+            one.image.data,
+            other.image.data
+        ]),
+        mask=[new_mask] * (one.image.shape[0] + other.image.shape[0])
+    )
+    new_bands = one.band_names + other.band_names
 
-    else:
-        raise ValueError("Use one the strategies available in MergeStrategy instead.")
+    # We don't copy image and mask here, due to performance issues,
+    # this output should not use without eventually being copied
+    # In this context we are copying the object in the end of merge_all merge_first and merge
+    return _Raster(image=new_image, band_names=new_bands)
 
 
 def _merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
-    other = _prepare_other_raster(one, other)
-    if other is None:
+    # type: (GeoRaster2, GeoRaster2, MergeStrategy, bool) -> GeoRaster2
+    """Merges two rasters according to some merge strategy.
+
+    """
+    other_res = _prepare_other_raster(one, other)
+    if other_res is None:
         if silent:
             return one
         else:
             raise ValueError("rasters do not intersect")
+
+    else:
+        other = other_res  # To make MyPy happy
 
     # Create a list of single band rasters
     # Cropping won't happen twice, since other was already cropped
@@ -311,8 +313,7 @@ def _merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
     projected_rasters = _merge_common_bands(_explode_raster(one, all_band_names) + projected_rasters)
 
     # Merge all bands
-    merge_union = partial(_merge, merge_strategy=MergeStrategy.UNION)  # type: Callable[[_Raster, _Raster], _Raster]
-    raster = reduce(merge_union, projected_rasters[1:], projected_rasters[0])
+    raster = reduce(_stack_bands, projected_rasters)
 
     return one.copy_with(image=raster.image, band_names=raster.band_names)
 
