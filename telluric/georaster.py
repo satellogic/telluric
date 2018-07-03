@@ -34,7 +34,6 @@ from telluric.constants import DEFAULT_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 from telluric.util.general import convert_resolution_from_meters_to_deg
-from telluric.util.histogram import stretch_histogram
 
 from telluric.util.raster_utils import convert_to_cog, _calc_overviews_factors, _mask_from_masked_array
 from telluric.products_mixin import ProductsMixin
@@ -738,10 +737,22 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         """
         return self.footprint().contains(geometry)
 
-    def astype(self, dst_type, stretch=False):
+    def astype(self, dst_type, in_range='dtype', out_range='dtype', clip_negative=False):
         """ Returns copy of the raster, converted to desired type
-        Supported types: uint8, uint16, uint32, int8, int16, int32
-        For integer types, pixel values are within min/max range of the type.
+        Supported types: uint8, uint16, uint32, int8, int16, int32, float16, float32, float64
+
+        :param dst_type: desired type
+        :param in_range: str or 2-tuple, default 'dtype':
+            'image': use image min/max as the intensity range,
+            'dtype': use min/max of the image's dtype as the intensity range,
+            2-tuple: use explicit min/max intensities, it is possible to use
+                     'min' or 'max' as tuple values - in this case they will be
+                     replaced by min or max intensity of image respectively
+        :param out_range: str or 2-tuple, default 'dtype':
+            'dtype': use min/max of the image's dtype as the intensity range,
+            2-tuple: use explicit min/max intensities
+        :param clip_negative: boolean, if `True` - clip the negative range, default False
+        :return: numpy array of values
         """
 
         def type_max(dtype):
@@ -750,25 +761,62 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         def type_min(dtype):
             return np.iinfo(dtype).min
 
-        if not np.issubdtype(dst_type, np.integer):
-            raise GeoRaster2Error('astype to non integer type is not supported - requested dtype: %s' % dst_type)
+        if (
+            in_range is None and out_range is not None or
+            out_range is None and in_range is not None
+        ):
+            raise GeoRaster2Error("Both ranges should be specified or none of them.")
 
         src_type = self.image.dtype
-        if not np.issubdtype(src_type, np.integer):
-            raise GeoRaster2Error('astype from non integer type is not supported - raster dtype: %s' % src_type)
+        if not np.issubdtype(src_type, np.integer) and in_range == 'dtype':
+            in_range = 'image'
+            warnings.warn("Value 'dtype' of in_range parameter is supported only for integer type. "
+                          "Instead 'image' will be used.", GeoRaster2Warning)
 
-        if dst_type == src_type:
+        if not np.issubdtype(dst_type, np.integer) and out_range == 'dtype':
+            raise GeoRaster2Error("Value 'dtype' of out_range parameter is supported only for integer type.")
+
+        if (
+            dst_type == src_type and
+            in_range == out_range == 'dtype'
+        ):
             return self
 
-        conversion_gain = \
-            (type_max(dst_type) - type_min(dst_type)) / (type_max(src_type) - type_min(src_type))
+        # streching or shrinking intensity levels is required
+        if out_range is not None:
+            if out_range == 'dtype':
+                omax = type_max(dst_type)
+                omin = type_min(dst_type)
+                if clip_negative and omin < 0:
+                    omin = 0
+            else:
+                omin, omax = out_range
 
-        # temp conversion, to handle saturation
-        dst_array = conversion_gain * (self.image.astype(np.float) - type_min(src_type)) + type_min(dst_type)
-        dst_array = np.clip(dst_array, type_min(dst_type), type_max(dst_type))
+            if in_range == 'dtype':
+                imin = type_min(src_type)
+                imax = type_max(src_type)
+            elif in_range == 'image':
+                imin = min(self.min())
+                imax = max(self.max())
+            else:
+                imin, imax = in_range
+                if imin == 'min':
+                    imin = min(self.min())
+                if imax == 'max':
+                    imax = max(self.max())
+
+            if imin == imax:
+                conversion_gain = 0
+            else:
+                conversion_gain = (omax - omin) / (imax - imin)
+
+            # temp conversion, to handle saturation
+            dst_array = conversion_gain * (self.image.astype(np.float) - imin) + omin
+            dst_array = np.clip(dst_array, omin, omax)
+        else:
+            dst_array = self.image
+
         dst_array = dst_array.astype(dst_type)
-        if stretch:
-            dst_array = stretch_histogram(dst_array)
         return self.copy_with(image=dst_array)
 
     def crop(self, vector, resolution=None):
@@ -994,7 +1042,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
         return new_raster
 
-    def to_png(self, transparent=True, thumbnail_size=None, resampling=None, stretch=False):
+    def to_png(self, transparent=True, thumbnail_size=None, resampling=None, in_range='dtype', out_range='dtype'):
         """
         Convert to png format (discarding geo).
 
@@ -1002,15 +1050,17 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         Note: for color images returns interlaced.
         :param transparent: if True - sets alpha channel for nodata pixels
         :param thumbnail_size: if not None - resize to thumbnail size, e.g. 512
-        :param stretch: if true the if convert to uint8 is required it would stretch
+        :param in_range: input intensity range
+        :param out_range: output intensity range
         :param resampling: one of Resampling enums
 
         :return bytes
         """
         return self.to_bytes(transparent=transparent, thumbnail_size=thumbnail_size,
-                             resampling=resampling, stretch=stretch)
+                             resampling=resampling, in_range=in_range, out_range=out_range)
 
-    def to_bytes(self, transparent=True, thumbnail_size=None, resampling=None, stretch=False, format="png"):
+    def to_bytes(self, transparent=True, thumbnail_size=None, resampling=None, in_range='dtype', out_range='dtype',
+                 format="png"):
         """
         Convert to selected format (discarding geo).
 
@@ -1018,7 +1068,8 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         Note: for color images returns interlaced.
         :param transparent: if True - sets alpha channel for nodata pixels
         :param thumbnail_size: if not None - resize to thumbnail size, e.g. 512
-        :param stretch: if true the if convert to uint8 is required it would stretch
+        :param in_range: input intensity range
+        :param out_range: output intensity range
         :param format : str, image format, default "png"
         :param resampling: one of Resampling enums
 
@@ -1042,7 +1093,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         if raster.image.dtype != np.uint8:
             warnings.warn("downscaling dtype to 'uint8' to convert to png",
                           GeoRaster2Warning)
-            thumbnail = raster.astype(np.uint8, stretch=stretch)
+            thumbnail = raster.astype(np.uint8, in_range=in_range, out_range=out_range)
         else:
             thumbnail = raster.copy_with()
 
@@ -1090,7 +1141,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
     def _repr_png_(self):
         """Required for jupyter notebook to show raster."""
-        return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, stretch=True)
+        return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, in_range='image')
 
     def limit_to_bands(self, bands):
         bands_data = self.bands_data(bands)
