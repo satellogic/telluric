@@ -32,7 +32,7 @@ class TestProductsFactory(unittest.TestCase):
 
     def test_products_order(self):
         keys = list(ProductsFactory.objects().keys())
-        self.assertEqual(keys, ['rgbenhanced', 'truecolor', 'singleband', 'ndvi', 'cci', 'gndvi',
+        self.assertEqual(keys, ['rgbenhanced', 'truecolor', 'custom', 'singleband', 'ndvi', 'cci', 'gndvi',
                                 'landcoverindex', 'ndvi750', 'ndvi827', 'npci', 'nri', 'ppr', 'pri', 'endvi',
                                 'evi2', 'exb', 'exg', 'exr'])
 
@@ -100,7 +100,7 @@ class TestBandsMatching(unittest.TestCase):
         self.assertTrue(set(ProductsFactory.get_matchings(['nir', 'red'],
                                                           sensor_bands_info())).issuperset(['NDVI', 'EVI2']))
         self.assertNotIn('EXR', ProductsFactory.get_matchings(['nir', 'red'], sensor_bands_info()))
-        self.assertEqual(set(ProductsFactory.get_matchings(['red'], sensor_bands_info())), {'SingleBand'})
+        self.assertEqual(set(ProductsFactory.get_matchings(['red'], sensor_bands_info())), {'Custom', 'SingleBand'})
 
 
 class TestNDVIStraight(unittest.TestCase):
@@ -203,7 +203,7 @@ class TestEVI2(unittest.TestCase):
         self.assertEqual(raster.width, multi_raster_8b().width)
         expected_value = 2.5 * (multi_values_8b['nir'] - multi_values_8b['red']) / (
             multi_values_8b['nir'] + 2.4 * multi_values_8b['red'] + 1
-            )
+        )
         # expected_value = round(expected_value, 8)
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
 
@@ -982,3 +982,73 @@ class TestRGBEnhanced(unittest.TestCase):
         self.assertTrue('blue_enhanced' in str(ex.exception))
         self.assertTrue('red_enhanced' in str(ex.exception))
         self.assertTrue('green_enhanced' in str(ex.exception))
+
+
+class TestCustomProduct(unittest.TestCase):
+    def test_custom_red_plus_1(self):
+
+        def foo(red):
+            arr = red + 1
+            return arr
+
+        custom_product = ProductsFactory.get_object('custom', function=foo, required_bands=['red'],
+                                                    output_bands=['band'])
+        raster = make_test_raster(value=66, band_names=['red', 'green'])
+        output = custom_product.apply(sensor_bands_info(), raster)
+        self.assertCountEqual(output.shape[1:], raster.shape[1:])
+        self.assertCountEqual(output.band_names, ['band'])
+        self.assertTrue((output.image == 67).all())
+
+    def test_custom_tow_bands_plus_1_and_2(self):
+
+        def foo(red, green):
+            arr1 = red + 1
+            arr2 = green + 2
+            arr = np.stack([arr1[0], arr2[0]])
+
+            return arr
+
+        custom_product = ProductsFactory.get_object('custom', function=foo, required_bands=['red', 'green'],
+                                                    output_bands=['red', 'green'])
+        raster = make_test_raster(value=66, band_names=['red', 'green', 'blue'])
+        output = custom_product.apply(sensor_bands_info(), raster)
+        self.assertCountEqual(output.shape[1:], raster.shape[1:])
+        self.assertCountEqual(output.band_names, ['red', 'green'])
+        self.assertTrue((output.bands_data('red') == 67).all())
+        self.assertTrue((output.bands_data('green') == 68).all())
+
+    def test_custom_product_preserve_mask(self):
+
+        def foo(red, green):
+            arr1 = red + 1
+            arr2 = green + 2
+            arr = np.stack([arr1[0], arr2[0]])
+            return arr
+
+        custom_product = ProductsFactory.get_object('custom', function=foo, required_bands=['red', 'green'],
+                                                    output_bands=['red', 'green'])
+        raster = multi_raster_with_no_data()
+        output = custom_product.apply(sensor_bands_info(), raster)
+        expected_mask = raster.bands_data('red').mask | raster.bands_data('green').mask
+        self.assertTrue((output.image.mask == expected_mask).all())
+
+    def test_custom_tow_bands_plus_1_and_2_with_bands_mapping(self):
+
+        def foo(red, green):
+            arr1 = red + 1
+            arr2 = green + 2
+            arr = np.stack([arr1[0], arr2[0]])
+
+            return arr
+
+        bands_mapping = {'red': ['b1', 'b2'], 'green': ['b4', 'b5', 'b6']}
+        custom_product = ProductsFactory.get_object('custom', function=foo, required_bands=['red', 'green'],
+                                                    output_bands=['red', 'green'], bands_mapping=bands_mapping)
+        raster = make_test_raster(value=66, band_names=['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'])
+        product = custom_product.apply(sensor_bands_info(), raster, metadata=True)
+        output = product.raster
+        self.assertCountEqual(output.shape[1:], raster.shape[1:])
+        self.assertCountEqual(output.band_names, ['red', 'green'])
+        self.assertTrue((output.bands_data('red') == 67).all())
+        self.assertTrue((output.bands_data('green') == 68).all())
+        self.assertDictEqual(product.bands_mapping, bands_mapping)

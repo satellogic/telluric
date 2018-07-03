@@ -90,7 +90,7 @@ def multi_raster_16b():
 
 
 def multi_raster_8b():
-    source_raster = make_test_raster(4200, ['green', 'red', 'nir', 'blue'], dtype=np.uint16)
+    source_raster = make_test_raster(42, ['green', 'red', 'nir', 'blue'], dtype=np.uint16)
     array = source_raster.image.data
     array[0, :, :] = multi_values_8b['green']
     array[1, :, :] = multi_values_8b['red']

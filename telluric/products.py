@@ -217,6 +217,13 @@ class ProductGenerator:
         """this function is used in subclasses to modify bands_mapping"""
         return bands_mapping
 
+    def _get_bands_mapping(self, sensor_bands_info, band_names, required_bands):
+        bands_mapping = getattr(self, '_bands_mapping', None)
+        if bands_mapping is None:
+            bands_mapping = self.match_available_bands_to_required_bands(sensor_bands_info, band_names,
+                                                                         required_bands=required_bands)
+        return bands_mapping
+
     def apply(self, sensor_bands_info, raster, bands_restriction=None, metadata=False, **kwargs):
         """
         Apply product calculation on the raster
@@ -228,7 +235,8 @@ class ProductGenerator:
         :param kwargs: additional arguments
         """
         self.fits_raster_bands(raster.band_names, sensor_bands_info, bands_restriction, silent=False)
-        bands_mapping = self.match_available_bands_to_required_bands(sensor_bands_info, raster.band_names)
+        bands_mapping = self._get_bands_mapping(sensor_bands_info, raster.band_names,
+                                                required_bands=self.required_bands)
         bands = self.extract_bands(raster, bands_mapping)
         # to silence error on 0 division, which happens at nodata
         with np.errstate(divide='ignore', invalid='ignore'):
@@ -262,6 +270,8 @@ class ProductGenerator:
     def _force_nodata_where_it_was_in_original_raster(self, array, raster, band_names):
         no_data_mask = self._get_nodata_mask(raster, band_names)
         no_data_mask = np.logical_or(array.mask, no_data_mask)
+        if array.shape[0] > 1:
+            no_data_mask = np.stack([no_data_mask[0]] * array.shape[0])
         new_array = np.ma.array(array.data, mask=no_data_mask)
         filled_array = new_array.filled(0)  # type: np.ndarray
         ma_array = np.ma.array(filled_array, mask=no_data_mask)
@@ -287,7 +297,7 @@ class NDVI(ProductGenerator):
     unit = None
     _order = 4
 
-    def _apply(cls, nir, red):
+    def _apply(self, nir, red):
         # (NIR-RED)/(NIR+RED)
         array = np.divide(nir - red, nir + red)
         return array
@@ -306,7 +316,7 @@ class EVI2(ProductGenerator):
     unit = None
     _order = 7
 
-    def _apply(cls, nir, red):
+    def _apply(self, nir, red):
         # 2.5*((NIR-RED)/(NIR+2.4*RED+1))
         array = 2.5 * np.divide(nir - red, nir + 2.4 * red + 1)
         return array
@@ -325,7 +335,7 @@ class ENDVI(ProductGenerator):
     unit = None
     _order = 6
 
-    def _apply(cls, nir, green, blue):
+    def _apply(self, nir, green, blue):
         # (NIR+GREEN-2*BLUE)/(NIR+GREEN+2*BLUE)
         array = np.divide(nir + green - 2 * blue, nir + green + 2 * blue)
         return array
@@ -345,7 +355,7 @@ class EXG(ProductGenerator):
     unit = None
     _order = 7
 
-    def _apply(cls, red, green, blue):
+    def _apply(self, red, green, blue):
         # 2 * (Green / (Red + Green + Blue) – (Red / (Red + Green + Blue) – (Blue / (Red + Green + Blue)
         sum_all = red + green + blue
         r = np.divide(red, sum_all)
@@ -369,7 +379,7 @@ class EXR(ProductGenerator):
     unit = None
     _order = 7
 
-    def _apply(cls, red, green, blue):
+    def _apply(self, red, green, blue):
         # 1.4 * (Red / (Red + Green + Blue) – (Green / (Red + Green + Blue)
         sum_all = red + green + blue
         r = np.divide(red, sum_all)
@@ -392,7 +402,7 @@ class EXB(ProductGenerator):
     unit = None
     _order = 7
 
-    def _apply(cls, red, green, blue):
+    def _apply(self, red, green, blue):
         # 1.4 * (Blue / (Red + Green + Blue) – (Green / (Red + Green + Blue)
         sum_all = red + green + blue
         g = np.divide(green, sum_all)
@@ -433,6 +443,37 @@ class SingleBand(ProductGenerator):
             return product_raster
         return _Product(raster=product_raster, bands_mapping=bands_mapping, product_generator=self.to_dict(),
                         required_bands=self.required_bands, output_bands=self.output_bands).namedtuple()
+
+
+class CustomProduct(ProductGenerator):
+    name = "Custom"
+    display_name = "Custom"
+    description = 'Custom calculation product'
+    default_view = None
+    min = None
+    max = None
+    type = None
+    required_bands = {}  # type: dict
+    output_bands = []  # type: list
+    unit = 'DN'
+    _order = 3
+
+    def __init__(self, function, required_bands, output_bands, bands_mapping=None):
+        self._function = function
+        self.required_bands = set(required_bands)
+        self.output_bands = output_bands
+        self._bands_mapping = bands_mapping
+
+    @classmethod
+    def fits_raster_bands(cls, available_bands, sensor_bands_info, bands_restriction=None, silent=True):
+        if len(available_bands) >= 1:
+            return True
+        if silent:
+            return False
+        raise ProductError('expected 1 band, got: %s' % available_bands)
+
+    def _apply(self, **bands):
+        return self._function(**bands)
 
 
 class TrueColor(ProductGenerator):
@@ -597,7 +638,7 @@ class PRI(ProductGenerator):
     unit = None
     _order = 5
 
-    def _apply(cls, R570, R530):
+    def _apply(self, R570, R530):
         # (R570-R530)/ (R570+R530)
         array = np.divide(R570 - R530, R570 + R530)
         return array
@@ -631,7 +672,7 @@ class NDVI827(ProductGenerator):
     unit = None
     _order = 5
 
-    def _apply(cls, R827, R690):
+    def _apply(self, R827, R690):
         # (R827-R690)/ (R827+R690)
         array = np.divide(R827 - R690, R827 + R690)
         return array
@@ -663,7 +704,7 @@ class NRI(ProductGenerator):
     unit = None
     _order = 5
 
-    def _apply(cls, R570, R670):
+    def _apply(self, R570, R670):
         # (R570-R670)/ (R570+R670)
         array = np.divide(R570 - R670, R570 + R670)
         return array
@@ -692,7 +733,7 @@ class GNDVI(ProductGenerator):
     unit = None
     _order = 5
 
-    def _apply(cls, R750, R550):
+    def _apply(self, R750, R550):
         # (R750-R550)/ (R750+R550)
         array = np.divide(R750 - R550, R750 + R550)
         return array
@@ -727,7 +768,7 @@ class CCI(ProductGenerator):
     unit = None
     _order = 5
 
-    def _apply(cls, R530, R670):
+    def _apply(self, R530, R670):
         # (R530-R670)/(R530+R670)
         array = np.divide(R530 - R670, R530 + R670)
         return array
@@ -762,7 +803,7 @@ class NPCI(ProductGenerator):
     unit = None
     _order = 5
 
-    def _apply(cls, R582, R450):
+    def _apply(self, R582, R450):
         # (R582-R450)/(R582+R450)
         array = np.divide(R582 - R450, R582 + R450)
         return array
@@ -797,7 +838,7 @@ class PPR(ProductGenerator):
     unit = None
     _order = 5
 
-    def _apply(cls, R550, R450):
+    def _apply(self, R550, R450):
         # (R550-R450)/(R550+R450)
         array = np.divide(R550 - R450, R550 + R450)
         return array
@@ -831,7 +872,7 @@ class NDVI750(ProductGenerator):
     unit = None
     _order = 5
 
-    def _apply(cls, R750, R700):
+    def _apply(self, R750, R700):
         # (R750-R700)/(R750+R700)
         array = np.divide(R750 - R700, R750 + R700)
         return array
