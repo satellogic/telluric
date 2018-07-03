@@ -22,13 +22,15 @@ from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.georaster import merge_all, mercator_zoom_to_resolution, MergeStrategy
 
+from telluric.tileserver import TileServer
+
 DRIVERS = {
     '.json': 'GeoJSON',
     '.geojson': 'GeoJSON',
     '.shp': 'ESRI Shapefile'
 }
 
-MAX_WORKERS = int(os.environ.get('TELLURIC_LIB_MAX_WORKERS', 5))
+MAX_WORKERS = int(os.environ.get('TELLURIC_LIB_MAX_WORKERS', 100))
 CONCURRENCY_TIMEOUT = int(os.environ.get('TELLURIC_LIB_CONCURRENCY_TIMEOUT', 600))
 
 
@@ -134,6 +136,11 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             hits = []
 
         return FeatureCollection(hits)
+
+    def serve(self, port=4444):
+        ts = TileServer(self, port=port)
+        print(ts.get_url())
+        ts.run()
 
     def map(self, map_function):
         """Return a new FeatureCollection with the results of applying `map_function` to each element.
