@@ -5,7 +5,8 @@ import threading
 
 class ThreadContext(threading.local):
     def __init__(self):
-        self._options = None  # Initialises in each thread
+        # Initializes in each thread
+        self._options = None  # type: dict
 
     def get(self, key, default=None):
         return self._options.get(key, default)
@@ -75,17 +76,15 @@ class TelluricContext(object):
         TelluricContext
         """
         self.options = options.copy()
-        self.context_options = {}
+        self.context_options = {}  #type: dict
 
     @classmethod
-    def from_defaults(cls, *args, **kwargs):
+    def from_defaults(cls, **kwargs):
         """Create a context with default config options
         Parameters
         ----------
-        args : optional
-            Positional arguments for Env()
         kwargs : optional
-            Keyword arguments for Env()
+            Keyword arguments for TelluricContext()
         Returns
         -------
         TelluricContext
@@ -95,7 +94,7 @@ class TelluricContext(object):
         """
         options = TelluricContext.default_options()
         options.update(**kwargs)
-        return TelluricContext(*args, **options)
+        return TelluricContext(**options)
 
     def __enter__(self):
         log.debug("Entering env context: %r", self)
