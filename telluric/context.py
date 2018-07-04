@@ -96,7 +96,7 @@ class TelluricContext(object):
         """
         options = TelluricContext.default_options()
         options.update(**kwargs)
-        return TelluricContext(**options)
+        return cls(**options)
 
     def __enter__(self):
         log.debug("Entering env context: %r", self)
