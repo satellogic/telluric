@@ -1,12 +1,13 @@
 """Telluric thread local context manager."""
 import logging
 import threading
+from typing import Optional
 
 
 class ThreadContext(threading.local):
     def __init__(self):
         # Initializes in each thread
-        self._options = None  # type: dict
+        self._options = None  # type: Optional[dict]
 
     def get(self, key, default=None):
         return self._options.get(key, default)
