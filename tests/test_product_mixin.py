@@ -65,23 +65,3 @@ def test_it_visualized_to_default(raster):
     result = product.raster.visualize(product.default_view, vmax=product.max, vmin=product.min)
     assert isinstance(result, GeoRaster2)
     assert result.band_names == ['red', 'green', 'blue']
-
-
-@pytest.mark.parametrize("raster", [multi_raster_16b(),
-                                    multi_raster_8b(),
-                                    hyper_raster(),
-                                    hyper_raster_with_no_data(),
-                                    multi_raster_with_no_data()])
-def test_it_visualized_to_rgb(raster):
-    result = raster.apply(sensor_bands_info(), 'TrueColor').visualize('TrueColor')
-    assert isinstance(result, GeoRaster2)
-    assert result.band_names == ['red', 'green', 'blue']
-
-
-@pytest.mark.parametrize("raster", [multi_raster_16b(),
-                                    multi_raster_8b(),
-                                    multi_raster_with_no_data()])
-def test_it_visualized_multispectral_to_rgb_with_no_product(raster):
-    result = raster.visualize('TrueColor')
-    assert isinstance(result, GeoRaster2)
-    assert result.band_names == ['red', 'green', 'blue']
