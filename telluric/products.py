@@ -69,7 +69,7 @@ class ProductsFactory(BaseFactory):
     @classmethod
     def objects(cls):
         if not cls.__objects:
-            subclasses = sorted(ProductGenerator.__subclasses__(), key=lambda p: (p.get_order(), p.get_name().lower()))
+            subclasses = ProductGenerator.__subclasses__()
             cls.__objects = OrderedDict()
             for p in subclasses:
                 if p.dont_add_to_factory:
@@ -84,7 +84,7 @@ class ProductGenerator:
     To implement a product class you should inherit from it.
     You should implement _apply
     You should set the following attributes:
-        name min max required_bands output_bands description default_view type display_name unit _order
+        name min max required_bands output_bands description default_view type display_name unit
     """
 
     should_convert_to_float = True
@@ -114,10 +114,6 @@ class ProductGenerator:
     @classmethod
     def get_name(cls):
         return cls.name
-
-    @classmethod
-    def get_order(cls):
-        return cls._order
 
     @classmethod
     def to_dict(cls):
@@ -285,7 +281,6 @@ class NDVI(ProductGenerator):
     required_bands = {'red', 'nir'}
     output_bands = ['ndvi']
     unit = None
-    _order = 4
 
     def _apply(cls, nir, red):
         # (NIR-RED)/(NIR+RED)
@@ -304,7 +299,6 @@ class EVI2(ProductGenerator):
     required_bands = {'red', 'nir'}
     output_bands = ['evi2']
     unit = None
-    _order = 7
 
     def _apply(cls, nir, red):
         # 2.5*((NIR-RED)/(NIR+2.4*RED+1))
@@ -323,7 +317,6 @@ class ENDVI(ProductGenerator):
     required_bands = {'blue', 'green', 'nir'}
     output_bands = ['endvi']
     unit = None
-    _order = 6
 
     def _apply(cls, nir, green, blue):
         # (NIR+GREEN-2*BLUE)/(NIR+GREEN+2*BLUE)
@@ -343,7 +336,6 @@ class EXG(ProductGenerator):
     required_bands = {'blue', 'green', 'red'}
     output_bands = ['exg']
     unit = None
-    _order = 7
 
     def _apply(cls, red, green, blue):
         # 2 * (Green / (Red + Green + Blue) – (Red / (Red + Green + Blue) – (Blue / (Red + Green + Blue)
@@ -367,7 +359,6 @@ class EXR(ProductGenerator):
     required_bands = {'blue', 'green', 'red'}
     output_bands = ['exr']
     unit = None
-    _order = 7
 
     def _apply(cls, red, green, blue):
         # 1.4 * (Red / (Red + Green + Blue) – (Green / (Red + Green + Blue)
@@ -390,7 +381,6 @@ class EXB(ProductGenerator):
     required_bands = {'blue', 'green', 'red'}
     output_bands = ['exr']
     unit = None
-    _order = 7
 
     def _apply(cls, red, green, blue):
         # 1.4 * (Blue / (Red + Green + Blue) – (Green / (Red + Green + Blue)
@@ -399,99 +389,6 @@ class EXB(ProductGenerator):
         b = np.divide(blue, sum_all)
         array = 1.4 * b - g
         return array
-
-
-class SingleBand(ProductGenerator):
-    name = "SingleBand"
-    display_name = "SingleBand"
-    description = 'Single band'
-    default_view = 'SingleBand'
-    min = None
-    max = None
-    type = None
-    required_bands = {}  # type: dict
-    output_bands = []  # type: list
-    unit = 'DN'
-    _order = 3
-
-    def __init__(self, band):
-        self.required_bands = {band}
-        self.output_bands = [band]
-
-    @classmethod
-    def fits_raster_bands(cls, available_bands, sensor_bands_info, bands_restriction=None, silent=True):
-        if len(available_bands) >= 1:
-            return True
-        if silent:
-            return False
-        raise ProductError('expected 1 band, got: %s' % available_bands)
-
-    def apply(self, sensor_bands_info, raster, metadata=False, **kwargs):
-        bands_mapping = {self.output_bands[0]: self.output_bands}
-        product_raster = raster.limit_to_bands(self.output_bands)
-        if not metadata:
-            return product_raster
-        return _Product(raster=product_raster, bands_mapping=bands_mapping, product_generator=self.to_dict(),
-                        required_bands=self.required_bands, output_bands=self.output_bands).namedtuple()
-
-
-class TrueColor(ProductGenerator):
-    name = "TrueColor"
-    display_name = "TrueColor"
-    description = 'RGB'
-    default_view = 'TrueColor'
-    min = 0
-    max = 255
-    type = np.uint8
-    required_bands = {'red', 'green', 'blue'}
-    output_bands = ['red', 'green', 'blue']
-    unit = 'DN'
-    should_convert_to_float = False
-    _order = 1
-
-    def _apply(self, red, green, blue, **kwargs):
-        data = np.stack((red.data[0], green.data[0], blue.data[0]), )
-        mask = np.stack((red.mask[0], green.mask[0], blue.mask[0]), )
-        array = np.ma.array(data, mask=mask)
-        return array
-
-
-class RGBEnhanced(ProductGenerator):
-    name = "RGBEnhanced"
-    display_name = "RGB Enhanced"
-    description = 'Color enhanced version of RGB'
-    default_view = 'TrueColor'
-    min = 0
-    max = 255
-    type = np.uint8
-    required_bands = {'red_enhanced', 'green_enhanced', 'blue_enhanced'}
-    output_bands = ['red', 'green', 'blue']
-    unit = 'DN'
-    should_convert_to_float = False
-    _order = 1
-
-    @classmethod
-    def match_bands(cls, _, bands_list, dest_band):
-        return [dest_band] if dest_band in bands_list else []
-
-    def _apply(self, red_enhanced, green_enhanced, blue_enhanced, **kwargs):
-        data = np.stack((red_enhanced.data[0], green_enhanced.data[0], blue_enhanced.data[0]))
-        mask = np.stack((red_enhanced.mask[0], green_enhanced.mask[0], blue_enhanced.mask[0]))
-        array = np.ma.array(data, mask=mask)
-        return array
-
-    @classmethod
-    def override_bands_mapping(cls, bands_mapping):
-        new_bands_mapping = {
-            'blue': bands_mapping['blue_enhanced'],
-            'green': bands_mapping['green_enhanced'],
-            'red': bands_mapping['red_enhanced']
-        }
-        return new_bands_mapping
-
-    def override_product_settings(self, product):
-        product.bands_mapping = self.override_bands_mapping(product.bands_mapping)
-        return product
 
 
 ####
@@ -512,7 +409,6 @@ class LandCoverIndex(ProductGenerator):
     output_bands = ['red', 'green', 'blue']
     unit = 'DN'
     should_convert_to_float = False
-    _order = 5
 
     def _apply(self, R550, R690, R827, **kwargs):
         red = R827
@@ -535,36 +431,6 @@ class LandCoverIndex(ProductGenerator):
     def override_product_settings(self, product):
         product.bands_mapping = self.override_bands_mapping(product.bands_mapping)
         return product
-
-
-class FalseColor(ProductGenerator):
-    name = "FalseColor"
-    display_name = "FalseColor"
-    description = 'RGB interpretation of a composition of bands'
-    default_view = 'TrueColor'
-    min = 0
-    max = 255
-    type = np.uint8
-    required_bands = {}  # type: dict
-    output_bands = ['red', 'green', 'blue']
-    unit = 'DN'
-    should_convert_to_float = False
-    _order = 5
-    dont_add_to_factory = True
-
-    def __init__(self, band_mapping):
-        band_names = list(band_mapping.keys())
-        band_names.sort()
-        assert band_names == ['blue', 'green', 'red']
-        self.required_bands = set(band_mapping.values())
-        self.band_mapping = band_mapping
-
-    def _apply(self, **bands):
-        red = bands[self.band_mapping['red']]
-        green = bands[self.band_mapping['green']]
-        blue = bands[self.band_mapping['blue']]
-        array = np.stack((red[0], green[0], blue[0]))
-        return array
 
 
 # PRI - done
@@ -595,7 +461,6 @@ class PRI(ProductGenerator):
     required_bands = {'R530', 'R570'}
     output_bands = ['pri']
     unit = None
-    _order = 5
 
     def _apply(cls, R570, R530):
         # (R570-R530)/ (R570+R530)
@@ -629,7 +494,6 @@ class NDVI827(ProductGenerator):
     required_bands = {'R827', 'R690'}
     output_bands = ['ndvi827']
     unit = None
-    _order = 5
 
     def _apply(cls, R827, R690):
         # (R827-R690)/ (R827+R690)
@@ -661,7 +525,6 @@ class NRI(ProductGenerator):
     required_bands = {'R570', 'R670'}
     output_bands = ['nri']
     unit = None
-    _order = 5
 
     def _apply(cls, R570, R670):
         # (R570-R670)/ (R570+R670)
@@ -680,7 +543,8 @@ class GNDVI(ProductGenerator):
     name = "GNDVI"
     display_name = "Green NDVI"
     description = """
-    The Green Normalized Difference Vegetation Index (GNDVI) is an estimator of chlorophyll content at the canopy level.
+    The Green Normalized Difference Vegetation Index (GNDVI) is an estimator of chlorophyll content at the canopy
+    level.
     The Satellogic GNDVI is calculated as (R(735 - 765)-R(540 - 560))/(R(735 - 765)+R(540 - 560))
     """
     default_view = 'cm-RdYlGn'
@@ -690,7 +554,6 @@ class GNDVI(ProductGenerator):
     required_bands = {'R750', 'R550'}
     output_bands = ['gndvi']
     unit = None
-    _order = 5
 
     def _apply(cls, R750, R550):
         # (R750-R550)/ (R750+R550)
@@ -725,7 +588,6 @@ class CCI(ProductGenerator):
     required_bands = {'R530', 'R670'}
     output_bands = ['cci']
     unit = None
-    _order = 5
 
     def _apply(cls, R530, R670):
         # (R530-R670)/(R530+R670)
@@ -760,7 +622,6 @@ class NPCI(ProductGenerator):
     required_bands = {'R582', 'R450'}
     output_bands = ['npci']
     unit = None
-    _order = 5
 
     def _apply(cls, R582, R450):
         # (R582-R450)/(R582+R450)
@@ -795,7 +656,6 @@ class PPR(ProductGenerator):
     required_bands = {'R550', 'R450'}
     output_bands = ['ppr']
     unit = None
-    _order = 5
 
     def _apply(cls, R550, R450):
         # (R550-R450)/(R550+R450)
@@ -829,7 +689,6 @@ class NDVI750(ProductGenerator):
     required_bands = {'R750', 'R700'}
     output_bands = ['ndvi750']
     unit = None
-    _order = 5
 
     def _apply(cls, R750, R700):
         # (R750-R700)/(R750+R700)

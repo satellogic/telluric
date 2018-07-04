@@ -73,26 +73,6 @@ def test_it_visualized_to_default(raster):
                                     hyper_raster(),
                                     hyper_raster_with_no_data(),
                                     multi_raster_with_no_data()])
-def test_it_visualized_to_rgb(raster):
-    result = raster.apply('TrueColor', sensor_bands_info()).visualize('TrueColor')
-    assert isinstance(result, GeoRaster2)
-    assert result.band_names == ['red', 'green', 'blue']
-
-
-@pytest.mark.parametrize("raster", [multi_raster_16b(),
-                                    multi_raster_8b(),
-                                    multi_raster_with_no_data()])
-def test_it_visualized_multispectral_to_rgb_with_no_product(raster):
-    result = raster.visualize('TrueColor')
-    assert isinstance(result, GeoRaster2)
-    assert result.band_names == ['red', 'green', 'blue']
-
-
-@pytest.mark.parametrize("raster", [multi_raster_16b(),
-                                    multi_raster_8b(),
-                                    hyper_raster(),
-                                    hyper_raster_with_no_data(),
-                                    multi_raster_with_no_data()])
 def test_use_context_manager_for_bands_info(raster):
     with TelluricContext(sensor_bands_info=sensor_bands_info()):
         result = raster.apply('ndvi').visualize('cm-jet', vmax=1, vmin=-1)

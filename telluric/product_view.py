@@ -82,61 +82,6 @@ class FirstBandGrayColormapView(ColormapView):
                                                                                    len(available_bands)))
 
 
-class BandsComposer(ProductView):
-    """ This renderer composes subset of bands, w/o modifications. """
-
-    output_bands = ['red', 'green', 'blue']
-
-    def apply(self, rast, **kwargs):
-        self.fits_raster_bands(rast.band_names, silent=False)
-        raster = rast.limit_to_bands(self.required_bands)
-        raster = raster.astype(np.uint8)
-        return raster
-
-    @classmethod
-    def fits_raster_bands(cls, available_bands, silent=True, *args, **kwargs):
-        required_bands = set(cls.required_bands)
-        available_bands = set(available_bands)
-        if required_bands.issubset(available_bands):
-            return True
-        if silent:
-            return False
-        raise KeyError('Raster lacks required bands: %s' % ','.join(required_bands - available_bands))
-
-
-class TrueColor(BandsComposer):
-    required_bands = ['red', 'green', 'blue']
-    name = "TrueColor"
-    display_name = "True Color"
-    description = ""
-
-
-class FalseColor(BandsComposer):
-    required_bands = ['nir', 'red', 'green']
-    name = "FalseColor"
-    display_name = "False Color"
-    description = ""
-
-
-class Grayscale(BandsComposer):
-    required_bands = ['red', 'green', 'blue']
-    output_bands = ['grayscale']
-    name = "Grayscale"
-    display_name = "Grayscale"
-    description = ""
-
-    def apply(self, raster, **kwargs):
-        self.fits_raster_bands(raster.band_names, silent=False)
-        data_type = raster.dtype
-        array = np.multiply(raster.bands_data('red').astype(np.float32), 0.2989) +\
-            np.multiply(raster.bands_data('green').astype(np.float32), 0.5870) +\
-            np.multiply(raster.bands_data('blue').astype(np.float32), 0.1140)
-        array = array.astype(data_type)
-        raster = raster.copy_with(image=array, band_names=self.output_bands)
-        raster = raster.astype(np.uint8)
-        return raster
-
-
 class OneBanders(ProductView):
     """ This family of renderers play with a single band, can be parametrised or not. """
 
@@ -187,7 +132,6 @@ class ProductViewsFactory(BaseFactory):
         if not cls.__objects:
             cls.__objects = cls.load_colormaps_subs()
             cls.__objects.update(cls.load_colormaps())
-            cls.__objects.update(cls.load_bands_composer())
             cls.__objects.update(cls.load_one_banders())
         return cls.__objects
 
@@ -205,14 +149,10 @@ class ProductViewsFactory(BaseFactory):
                 'name': name,
                 'display_name': "colormap %s" % colormap,
                 'description': "",
-                }
+            }
             cm = type(name, (ColormapView,), attr)
             colormaps[name.lower()] = cm
         return colormaps
-
-    @classmethod
-    def load_bands_composer(cls):
-        return {p.get_name().lower(): p for p in BandsComposer.__subclasses__()}
 
     @classmethod
     def load_one_banders(cls):
