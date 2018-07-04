@@ -30,12 +30,6 @@ class TestProductsFactory(unittest.TestCase):
     def test_product_is_not_instantiable(self):
         self.assertRaises(TypeError, ProductGenerator, None)
 
-    def test_products_order(self):
-        keys = list(ProductsFactory.objects().keys())
-        self.assertEqual(keys, ['ndvi', 'cci', 'gndvi',
-                                'landcoverindex', 'ndvi750', 'ndvi827', 'npci', 'nri', 'ppr', 'pri', 'endvi',
-                                'evi2', 'exb', 'exg', 'exr'])
-
 
 class TestProductGenerator(unittest.TestCase):
 
