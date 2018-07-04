@@ -29,10 +29,11 @@ class TelluricContext(object):
         with TelluricContext(sensor_bands_info=bands_mapping):
             return raster.apply('NDVI')
 
-    The arguments are saved in the `context` module under `local_contex` and to read them just use `local_context.get("argument_name"), for example:
-        
+    The arguments are saved in the `context` module under `local_contex` and to read them just use
+    `local_context.get("argument_name"), for example:
+
         from telluric.context import local_context, TelluricContext
-        
+
         with TelluricContex('a'=11):
             local_context.get('a')  # => 11
             local_context.get('b')  # => None
@@ -40,7 +41,7 @@ class TelluricContext(object):
 
     TelluricContext can be nested and in that case the inner context overides the outer, for example:
         from telluric.context import local_context, TelluricContext
-        
+
         with TelluricContex('a'=11):
             with TelluricContex('a'=33, 'b'='some_str'):
                 local_context.get('a')  # => 33
@@ -76,7 +77,7 @@ class TelluricContext(object):
         TelluricContext
         """
         self.options = options.copy()
-        self.context_options = {}  #type: dict
+        self.context_options = {}  # type: dict
 
     @classmethod
     def from_defaults(cls, **kwargs):
@@ -153,4 +154,3 @@ def del_context():
     if not local_context._options:
         raise TelluricContextError("TelluricContext context not exists")
     local_context._options = None
-

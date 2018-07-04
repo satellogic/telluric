@@ -14,7 +14,7 @@ class ProductsMixin:
             Name of requested product
         sensor_bands_info: dict
             Bands wave length definition including max and min wave per bands name, if it is not set as an argument
-            it should be set in TelluricContext 
+            it should be set in TelluricContext
         metadata: bool
             Optional, when True it returns a namedtuple withe resulting raster and additional product information
         kwargs: dict
@@ -29,7 +29,7 @@ class ProductsMixin:
             sensor_bands_info = local_context.get('sensor_bands_info')
         if sensor_bands_info is None:
             raise ProductError("sensor_bands_info must be supplied")
-    
+
         generator = ProductsFactory.get_object(product_name, **kwargs)
         product = generator.apply(sensor_bands_info, self, metadata=metadata)
         return product
@@ -61,7 +61,7 @@ class ProductsMixin:
         ----------
         sensor_bands_info: dict
             Bands wave length definition including max and min wave per bands name, if it is not set as an argument
-            it should be set in TelluricContext 
+            it should be set in TelluricContext
 
         Rerturns
         --------
@@ -71,5 +71,5 @@ class ProductsMixin:
             sensor_bands_info = local_context.get('sensor_bands_info')
         if sensor_bands_info is None:
             raise ProductError("sensor_bands_info must be supplied")
-        
+
         return ProductsFactory.get_matchings(self.band_names, sensor_bands_info)
