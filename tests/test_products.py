@@ -1,25 +1,20 @@
 import unittest
 import numpy as np
-# import copy
-
-# from affine import Affine
-# import telluric as tl
-# from telluric.constants import WEB_MERCATOR_CRS
 from telluric.products import ProductError
 
 from common_for_tests import (
     make_test_raster, multi_raster_8b, multi_values_8b, expected_nir, expected_red, expected_green, sensor_bands_info,
     expected_blue, nir_value, red_value, green_value, blue_value, hyper_raster, hyper_raster_with_no_data,
-    multi_raster_with_no_data, hyper_bands,
+    multi_raster_with_no_data,
 )
 
 from telluric.products import (
-    ProductsFactory, ProductGenerator, NDVI, EVI2, ENDVI, EXG, EXB, EXR, TrueColor, PRI, NDVI827, NRI, GNDVI, CCI,
+    ProductsFactory, ProductGenerator, NDVI, EVI2, ENDVI, EXG, EXB, EXR, PRI, NDVI827, NRI, GNDVI, CCI,
     NPCI, PPR, NDVI750, LandCoverIndex
 )
 
 
-class TestProductsFuctory(unittest.TestCase):
+class TestProductsFactory(unittest.TestCase):
 
     def test_it_retrieves_the_right_products(self):
         self.assertIsInstance(ProductsFactory.get_object('NDVI'), NDVI)
@@ -29,17 +24,11 @@ class TestProductsFuctory(unittest.TestCase):
     def test_it_is_case_insensitive(self):
         self.assertIsInstance(ProductsFactory.get_object('ndvi'), NDVI)
 
-    def test_it_is_raises_error_whene_product_not_exists(self):
+    def test_it_is_raises_error_when_product_not_exists(self):
         self.assertRaises(KeyError, ProductsFactory.get_object, 'invalid_product')
 
-    def test_produc_is_not_instaciable(self):
+    def test_product_is_not_instantiable(self):
         self.assertRaises(TypeError, ProductGenerator, None)
-
-    def test_products_order(self):
-        keys = list(ProductsFactory.objects().keys())
-        self.assertEqual(keys, ['rgbenhanced', 'truecolor', 'singleband', 'ndvi', 'cci', 'gndvi',
-                                'landcoverindex', 'ndvi750', 'ndvi827', 'npci', 'nri', 'ppr', 'pri', 'endvi',
-                                'evi2', 'exb', 'exg', 'exr'])
 
 
 class TestProductGenerator(unittest.TestCase):
@@ -105,10 +94,10 @@ class TestBandsMatching(unittest.TestCase):
         self.assertTrue(set(ProductsFactory.get_matchings(['nir', 'red'],
                                                           sensor_bands_info())).issuperset(['NDVI', 'EVI2']))
         self.assertNotIn('EXR', ProductsFactory.get_matchings(['nir', 'red'], sensor_bands_info()))
-        self.assertEqual(set(ProductsFactory.get_matchings(['red'], sensor_bands_info())), {'SingleBand'})
+        self.assertEqual(ProductsFactory.get_matchings(['red'], sensor_bands_info()), [])
 
 
-class TestNDVIStraite(unittest.TestCase):
+class TestNDVIStraight(unittest.TestCase):
 
     def test_ndvi(self):
         raster = NDVI().apply(sensor_bands_info(), multi_raster_8b())
@@ -208,7 +197,7 @@ class TestEVI2(unittest.TestCase):
         self.assertEqual(raster.width, multi_raster_8b().width)
         expected_value = 2.5 * (multi_values_8b['nir'] - multi_values_8b['red']) / (
             multi_values_8b['nir'] + 2.4 * multi_values_8b['red'] + 1
-            )
+        )
         # expected_value = round(expected_value, 8)
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
 
@@ -349,10 +338,10 @@ class TestExcessIndices(unittest.TestCase):
         self.assertEqual(raster.dtype, EXG.type)
         self.assertEqual(raster.height, multi_raster_8b().height)
         self.assertEqual(raster.width, multi_raster_8b().width)
-        comon_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
-        r = multi_values_8b['red'] / comon_denominator
-        g = multi_values_8b['green'] / comon_denominator
-        b = multi_values_8b['blue'] / comon_denominator
+        common_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
+        r = multi_values_8b['red'] / common_denominator
+        g = multi_values_8b['green'] / common_denominator
+        b = multi_values_8b['blue'] / common_denominator
         expected_value = 2 * g - r - b
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
         self.assertTrue((raster.image.data == expected_value).all())
@@ -392,10 +381,10 @@ class TestExcessIndices(unittest.TestCase):
         self.assertCountEqual(product.bands_mapping['red'], expected_red)
         self.assertCountEqual(product.bands_mapping['green'], expected_green)
         self.assertCountEqual(product.bands_mapping['blue'], expected_blue)
-        comon_denominator = red_value + green_value + blue_value
-        r = red_value / comon_denominator
-        g = green_value / comon_denominator
-        b = blue_value / comon_denominator
+        common_denominator = red_value + green_value + blue_value
+        r = red_value / common_denominator
+        g = green_value / common_denominator
+        b = blue_value / common_denominator
         expected_value = 2 * g - r - b
         self.assertAlmostEqual(product.raster.image.data[0, 0, 0], expected_value)
 
@@ -418,9 +407,9 @@ class TestExcessIndices(unittest.TestCase):
         self.assertEqual(raster.dtype, EXR.type)
         self.assertEqual(raster.height, multi_raster_8b().height)
         self.assertEqual(raster.width, multi_raster_8b().width)
-        comon_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
-        r = multi_values_8b['red'] / comon_denominator
-        g = multi_values_8b['green'] / comon_denominator
+        common_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
+        r = multi_values_8b['red'] / common_denominator
+        g = multi_values_8b['green'] / common_denominator
         expected_value = 1.4 * r - g
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
         self.assertTrue((raster.image.data == expected_value).all())
@@ -452,9 +441,9 @@ class TestExcessIndices(unittest.TestCase):
         self.assertCountEqual(product.bands_mapping['red'], expected_red)
         self.assertCountEqual(product.bands_mapping['green'], expected_green)
         self.assertCountEqual(product.bands_mapping['blue'], expected_blue)
-        comon_denominator = red_value + green_value + blue_value
-        r = red_value / comon_denominator
-        g = green_value / comon_denominator
+        common_denominator = red_value + green_value + blue_value
+        r = red_value / common_denominator
+        g = green_value / common_denominator
         expected_value = 1.4 * r - g
         self.assertAlmostEqual(product.raster.image.data[0, 0, 0], expected_value)
 
@@ -477,9 +466,9 @@ class TestExcessIndices(unittest.TestCase):
         self.assertEqual(raster.dtype, EXB.type)
         self.assertEqual(raster.height, multi_raster_8b().height)
         self.assertEqual(raster.width, multi_raster_8b().width)
-        comon_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
-        g = multi_values_8b['green'] / comon_denominator
-        b = multi_values_8b['blue'] / comon_denominator
+        common_denominator = multi_values_8b['red'] + multi_values_8b['green'] + multi_values_8b['blue']
+        g = multi_values_8b['green'] / common_denominator
+        b = multi_values_8b['blue'] / common_denominator
         expected_value = 1.4 * b - g
         self.assertAlmostEqual(raster.image.data[0, 0, 0], expected_value)
 
@@ -510,9 +499,9 @@ class TestExcessIndices(unittest.TestCase):
         self.assertCountEqual(product.bands_mapping['red'], expected_red)
         self.assertCountEqual(product.bands_mapping['green'], expected_green)
         self.assertCountEqual(product.bands_mapping['blue'], expected_blue)
-        comon_denominator = red_value + green_value + blue_value
-        g = green_value / comon_denominator
-        b = blue_value / comon_denominator
+        common_denominator = red_value + green_value + blue_value
+        g = green_value / common_denominator
+        b = blue_value / common_denominator
         expected_value = 1.4 * b - g
         self.assertAlmostEqual(product.raster.image.data[0, 0, 0], expected_value)
 
@@ -527,200 +516,6 @@ class TestExcessIndices(unittest.TestCase):
         self.assertTrue(raster.image.mask[0, 2, 3])
         self.assertFalse(raster.image.mask[0, 0, 0])
         self.assertFalse(raster.image.mask[0, 1, 3])
-
-
-class TestTrueColor(unittest.TestCase):
-
-    def test_true_color(self):
-        raster = TrueColor().apply(sensor_bands_info(), multi_raster_8b())
-        self.assertEqual(raster.band_names, TrueColor.output_bands)
-        self.assertEqual(raster.num_bands, 3)
-        # TODO what should I do here
-        # self.assertEqual(raster.dtype, TrueColor.type)
-        self.assertEqual(raster.height, multi_raster_8b().height)
-        self.assertEqual(raster.width, multi_raster_8b().width)
-        for band in ['red', 'green', 'blue']:
-            self.assertTrue((raster.bands_data(band) == multi_raster_8b().bands_data(band)).all())
-
-    def test_TrueColor_product(self):
-        product_generator = TrueColor()
-        product = product_generator.apply(sensor_bands_info(), multi_raster_8b(), metadata=True)
-        self.assertEqual(product.name, product_generator.name)
-        self.assertEqual(product.display_name, product_generator.display_name)
-        self.assertEqual(product.description, product_generator.description)
-        self.assertEqual(product.min, product_generator.min)
-        self.assertEqual(product.min, product_generator.min)
-        self.assertEqual(product.required_bands, product_generator.required_bands)
-        self.assertEqual(product.output_bands, product_generator.output_bands)
-        self.assertEqual(product.unit, product_generator.unit)
-        self.assertEqual(product.bands_mapping, {'red': ['red'], 'green': ['green'], 'blue': ['blue']})
-
-    def test_for_no_data(self):
-        raster = TrueColor().apply(sensor_bands_info(), multi_raster_with_no_data())
-        self.assertEqual(raster.num_bands, 3)
-        self.assertEqual(raster.band_names, TrueColor.output_bands)
-        # TODO what to do here
-        # self.assertEqual(raster.dtype, TrueColor.type)
-        self.assertEqual(raster.height, multi_raster_8b().height)
-        self.assertEqual(raster.width, multi_raster_8b().width)
-        self.assertTrue(raster.image.mask[0, 1, 2])
-        self.assertTrue(raster.image.mask[0, 2, 3])
-        self.assertFalse(raster.image.mask[0, 0, 0])
-        self.assertTrue(raster.image.mask[0, 1, 3])
-
-    def test_TrueColor_product_for_macro(self):
-        product_generator = TrueColor()
-        product = product_generator.apply(sensor_bands_info(), hyper_raster(), metadata=True)
-        self.assertEqual(product.name, product_generator.name)
-        self.assertEqual(product.display_name, product_generator.display_name)
-        self.assertEqual(product.description, product_generator.description)
-        self.assertEqual(product.min, product_generator.min)
-        self.assertEqual(product.min, product_generator.min)
-        self.assertEqual(product.required_bands, product_generator.required_bands)
-        self.assertEqual(product.output_bands, product_generator.output_bands)
-        self.assertEqual(product.unit, product_generator.unit)
-        self.assertCountEqual(product.bands_mapping['red'], expected_red)
-        self.assertCountEqual(product.bands_mapping['green'], expected_green)
-        self.assertCountEqual(product.bands_mapping['blue'], expected_blue)
-        expected_values = {'red': red_value, 'green': green_value, 'blue': blue_value}
-        for band in ['red', 'green', 'blue']:
-            self.assertTrue((product.raster.bands_data(band) == expected_values[band]).all())
-
-    def test_truecolor_for_hyper_with_no_data(self):
-        raster = TrueColor().apply(sensor_bands_info(), hyper_raster_with_no_data())
-        self.assertEqual(raster.num_bands, 3)
-        self.assertEqual(raster.band_names, TrueColor.output_bands)
-        self.assertEqual(raster.dtype, hyper_raster().dtype)
-        self.assertEqual(raster.height, hyper_raster().height)
-        self.assertEqual(raster.width, hyper_raster().width)
-        self.assertTrue(raster.image.mask[0, 1, 2])
-        self.assertTrue(raster.image.mask[0, 2, 3])
-        self.assertFalse(raster.image.mask[0, 0, 0])
-        self.assertFalse(raster.image.mask[0, 1, 3])
-
-    def test_fits_raster_bands_for_entire_hyper_band(self):
-        true_color = ProductsFactory.get_object('truecolor')
-        fits = true_color.fits_raster_bands(hyper_bands, sensor_bands_info())
-        self.assertEqual(fits, True)
-
-    def test_fits_raster_bands_false_for_RGB(self):
-        hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(['red, green, blue'], sensor_bands_info())
-        self.assertEqual(fits, False)
-
-    def test_fits_raster_bands_false_for_part_of_the_hyper_bands(self):
-        hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(hyper_bands[15:], sensor_bands_info())
-        self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(hyper_bands[:6], sensor_bands_info())
-        self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(hyper_bands[7:15], sensor_bands_info())
-        self.assertEqual(fits, False)
-
-    def test_fits_raster_bands_true_for_one_band_per_range(self):
-        hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610'], sensor_bands_info())
-        self.assertEqual(fits, True)
-
-    def test_fits_raster_bands_true_niglecting_out_of_range_bands(self):
-        hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610', 'HC_300'], sensor_bands_info())
-        self.assertEqual(fits, True)
-        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610', 'HC_580'], sensor_bands_info())
-        self.assertEqual(fits, True)
-        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_610', 'HC_700'], sensor_bands_info())
-        self.assertEqual(fits, True)
-
-    def test_fits_raster_bands_false_for_bands_in_range_hols_and_out_of_renge(self):
-        hs_true_color = ProductsFactory.get_object('truecolor')
-        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_580'], sensor_bands_info())
-        self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_512', 'HC_590'], sensor_bands_info())
-        self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(['HC_450', 'HC_550', 'HC_700'], sensor_bands_info())
-        self.assertEqual(fits, False)
-        fits = hs_true_color.fits_raster_bands(['HC_340', 'HC_550', 'HC_610'], sensor_bands_info())
-        self.assertEqual(fits, False)
-
-    def test_hs_true_color(self):
-        hs_true_color = ProductsFactory.get_object('truecolor')
-        raster = hs_true_color.apply(sensor_bands_info(), hyper_raster())
-        self.assertEqual(raster.band_names, hs_true_color.output_bands)
-        self.assertEqual(raster.num_bands, 3)
-        self.assertEqual(raster.dtype, hs_true_color.type)
-        self.assertEqual(raster.height, hyper_raster().height)
-        self.assertEqual(raster.width, hyper_raster().width)
-        self.assertTrue((raster.bands_data('red') == red_value).all())
-        self.assertTrue((raster.bands_data('green') == green_value).all())
-        self.assertTrue((raster.bands_data('blue') == blue_value).all())
-
-    def test_for_no_data_extended(self):
-        hs_true_color = ProductsFactory.get_object('truecolor')
-        raster = hs_true_color.apply(sensor_bands_info(), hyper_raster_with_no_data())
-        self.assertEqual(raster.band_names, hs_true_color.output_bands)
-        self.assertEqual(raster.num_bands, 3)
-        self.assertEqual(raster.dtype, hs_true_color.type)
-        self.assertEqual(raster.height, hyper_raster_with_no_data().height)
-        self.assertEqual(raster.width, hyper_raster_with_no_data().width)
-        self.assertTrue(raster.image.mask[0, 1, 2])
-        self.assertTrue(raster.image.mask[1, 1, 2])
-        self.assertTrue(raster.image.mask[2, 1, 2])
-        self.assertFalse(raster.image.mask[0, 1, 3])
-        self.assertFalse(raster.image.mask[1, 1, 3])
-        self.assertFalse(raster.image.mask[2, 1, 3])
-        self.assertFalse(raster.image.mask[1, 0, 0])
-        self.assertFalse(raster.image.mask[2, 0, 0])
-        self.assertTrue(raster.image.mask[2, 2, 3])
-        self.assertTrue(raster.image.mask[0, 2, 3])
-
-    def test_HSTrueColor_product(self):
-        product_generator = ProductsFactory.get_object('truecolor')
-        product = product_generator.apply(sensor_bands_info(), hyper_raster(), metadata=True)
-        self.assertEqual(product.name, product_generator.name)
-        self.assertEqual(product.display_name, product_generator.display_name)
-        self.assertEqual(product.description, product_generator.description)
-        self.assertEqual(product.min, product_generator.min)
-        self.assertEqual(product.min, product_generator.min)
-        self.assertEqual(product.required_bands, product_generator.required_bands)
-        self.assertEqual(product.output_bands, product_generator.output_bands)
-        self.assertEqual(product.unit, product_generator.unit)
-        expected_bands_mapping = {'blue': expected_blue,
-                                  'green': expected_green,
-                                  'red': expected_red}
-
-        for band in ['red', 'green', 'blue']:
-            self.assertCountEqual(product.bands_mapping[band], expected_bands_mapping[band])
-
-
-class TestSingleBand(unittest.TestCase):
-
-    def test_single_band(self):
-        raster = multi_raster_8b()
-        product_raster = ProductsFactory.get_object('SingleBand', 'blue').apply(sensor_bands_info(), raster)
-        self.assertEqual(product_raster, raster.limit_to_bands(['blue']))
-
-    def test_object_vs_class(self):
-        obj = ProductsFactory.get_object('SingleBand', 'blue')
-        cls = ProductsFactory.get_class('SingleBand')
-        self.assertEqual(type(obj), cls)
-
-    def test_SingleBand_product(self):
-        product_generator = ProductsFactory.get_object('SingleBand', 'blue')
-        product = product_generator.apply(sensor_bands_info(), multi_raster_8b(), metadata=True)
-        self.assertEqual(product.name, product_generator.name)
-        self.assertEqual(product.display_name, product_generator.display_name)
-        self.assertEqual(product.description, product_generator.description)
-        self.assertEqual(product.min, product_generator.min)
-        self.assertEqual(product.min, product_generator.min)
-        self.assertEqual(product.required_bands, product_generator.required_bands)
-        self.assertEqual(product.output_bands, product_generator.output_bands)
-        self.assertEqual(product.unit, product_generator.unit)
-        self.assertEqual(product.bands_mapping, {'blue': ['blue']})
-
-    def test_elements_in_bands(self):
-        product_generator = ProductsFactory.get_object('SingleBand', 'HC_450')
-        product = product_generator.apply(sensor_bands_info(), hyper_raster(), metadata=True)
-        self.assertEqual(product.output_bands, ['HC_450'])
 
 
 class BaseTestMacroProduct(unittest.TestCase):
@@ -932,58 +727,3 @@ class TestLandCoverIndex(unittest.TestCase):
         }
         bands_mapping = product_generator.match_bands_for_legend(sensor_bands_info(), hyper_raster().band_names)
         self.assertCountEqual(bands_mapping, expected_bands_mapping)
-
-
-class TestRGBEnhanced(unittest.TestCase):
-    enhanced_bands = ['red_enhanced', 'green_enhanced', 'blue_enhanced']
-
-    @classmethod
-    def enhanced_raster(cls):
-        source_raster = make_test_raster(142, cls.enhanced_bands, dtype=np.uint8)
-        for i, band in enumerate(cls.enhanced_bands):
-            source_raster.image.data[i, :, :] = 2 * i + 100
-        return source_raster
-
-    def test_product(self):
-        product_generator = ProductsFactory.get_object('rgbenhanced')
-        expected_bands_mapping = {
-            'red': ['red_enhanced'],
-            'green': ['green_enhanced'],
-            'blue': ['blue_enhanced']
-        }
-        expected_bands_names = [v[0] for v in expected_bands_mapping.values()]
-        product = product_generator.apply(sensor_bands_info(), self.enhanced_raster(), metadata=True)
-        self.assertEqual(product.name, product_generator.name)
-        self.assertEqual(product.display_name, product_generator.display_name)
-        self.assertEqual(product.description, product_generator.description)
-        self.assertEqual(product.min, product_generator.min)
-        self.assertEqual(product.min, product_generator.min)
-        self.assertEqual(product.required_bands, product_generator.required_bands)
-        self.assertEqual(product.output_bands, product_generator.output_bands)
-        self.assertEqual(product.unit, product_generator.unit)
-        self.assertCountEqual(product.bands_mapping, expected_bands_mapping)
-        self.assertCountEqual(product.used_bands, expected_bands_names)
-        raster = product.raster
-        self.assertTrue((raster.bands_data('red') == 100.0).all())
-        self.assertTrue((raster.bands_data('green') == 102.0).all())
-        self.assertTrue((raster.bands_data('blue') == 104.0).all())
-
-    def test_match_bands_for_legend(self):
-        product_generator = ProductsFactory.get_object('rgbenhanced')
-        expected_bands_mapping = {
-            'red': ['red_enhanced'],
-            'green': ['green_enhanced'],
-            'blue': ['blue_enhanced']
-        }
-        bands_mapping = product_generator.match_bands_for_legend(sensor_bands_info(), hyper_raster().band_names)
-        self.assertCountEqual(bands_mapping, expected_bands_mapping)
-
-    def test_product_fail_for_hyper_raster(self):
-        product_generator = ProductsFactory.get_object('rgbenhanced')
-        mr = hyper_raster()
-        with self.assertRaises(ProductError) as ex:
-            product_generator.apply(sensor_bands_info(), mr)
-        print(str(ex.exception))
-        self.assertTrue('blue_enhanced' in str(ex.exception))
-        self.assertTrue('red_enhanced' in str(ex.exception))
-        self.assertTrue('green_enhanced' in str(ex.exception))

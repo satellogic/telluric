@@ -1,5 +1,4 @@
 import os
-import json
 import rasterio
 import numpy as np
 from rasterio import shutil as rasterio_sh

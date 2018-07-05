@@ -124,17 +124,14 @@ def test_empty_raster_from_roi_affine_small():
     assert(raster.crs == empty.crs)
 
 
-def test_crop_for_merging():
-    rasters = get_rasters()
-    for i in range(len(rasters)):
-        for j in range(len(rasters)):
-            main_r = rasters[i]
-            cropping_r = rasters[j]
-            rr = main_r.crop(cropping_r.footprint(), resolution=cropping_r.resolution())
-            assert(rr.height == min(main_r.height, cropping_r.height))
-            assert(rr.width == min(main_r.width, cropping_r.width))
-            assert(rr.num_bands == cropping_r.num_bands)
-            assert(rr.affine.almost_equals(cropping_r.affine))
+@pytest.mark.parametrize("main_r", get_rasters())
+@pytest.mark.parametrize("cropping_r", get_rasters())
+def test_crop_for_merging(main_r, cropping_r):
+    rr = main_r.crop(cropping_r.footprint(), resolution=cropping_r.resolution())
+    assert(rr.height == min(main_r.height, cropping_r.height))
+    assert(rr.width == min(main_r.width, cropping_r.width))
+    assert(rr.num_bands == cropping_r.num_bands)
+    assert(rr.affine.almost_equals(cropping_r.affine))
 
 
 def test_pixel_crop():
