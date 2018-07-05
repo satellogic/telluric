@@ -1,4 +1,7 @@
-"""Telluric thread local context manager."""
+"""Telluric thread local context manager.
+
+Inspired by rasterio, (c) MapBox, MIT License
+"""
 import logging
 import threading
 from typing import Optional
