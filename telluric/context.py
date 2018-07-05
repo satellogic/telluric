@@ -100,7 +100,7 @@ class TelluricContext(object):
 
     def __enter__(self):
         log.debug("Entering env context: %r", self)
-        # No parent Rasterio environment exists.
+        # No parent TelluricContext exists.
         if local_context._options is None:
             log.debug("Starting outermost env")
             self._has_parent_env = False
