@@ -1515,19 +1515,17 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
         # requested_out_shape and out_shape are different for out of bounds window
         requested_out_shape = self._get_window_out_shape(bands, xratio, yratio, requested_window)
-        print(requested_window)
-        print(requested_out_shape)
         try:
             read_params = {
                 "window": requested_window,
                 "resampling": resampling,
                 "boundless": boundless,
-                "masked": False,
+                "masked": masked,
                 "out_shape": requested_out_shape
             }
 
             rasterio_env = {
-                'GDAL_DISABLE_READDIR_ON_OPEN': "YES",
+                'GDAL_DISABLE_READDIR_ON_OPEN': True,
                 'GDAL_TIFF_INTERNAL_MASK_TO_8BIT': False,
             }   # type: Dict
             if self._filename.split('.')[-1] == 'tif':
@@ -1565,7 +1563,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         return self.bounds().intersects(window_polygon)
 
     def get_tile(self, x_tile, y_tile, zoom,
-                 bands=None, blocksize=256):
+                 bands=None, blocksize=256, masked=True):
         """Convert mercator tile to raster window.
 
         :param x_tile: x coordinate of tile
@@ -1578,7 +1576,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         coordinates = mercantile.xy_bounds(x_tile, y_tile, zoom)
         window = self.window(*coordinates).round_offsets().round_shape(op='ceil')
         return self.get_window(window, bands=bands,
-                               xsize=blocksize, ysize=blocksize)
+                               xsize=blocksize, ysize=blocksize, masked=masked)
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
         new_affine = self.window_transform(window)

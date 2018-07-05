@@ -252,7 +252,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
     executer = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-    def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None):
+    def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None, masked=True):
         """Generate mercator tile from rasters in FeatureCollection.
 
         Parameters
@@ -283,7 +283,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         filtered_fc = self.filter(roi)
 
         def _get_tiled_feature(feature):
-            return feature.get_tiled_feature(x, y, z, bands)
+            return feature.get_tiled_feature(x, y, z, bands, masked=masked)
 
         tiled_features = list(self.executer.map(_get_tiled_feature,
                                                 filtered_fc,

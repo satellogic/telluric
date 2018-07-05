@@ -240,7 +240,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def __repr__(self):
         return str(self)
 
-    def get_tiled_feature(self, x, y, z, bands):
+    def get_tiled_feature(self, x, y, z, bands, masked):
         """Generate a new GeoFeature with new attribute a mercator tile from the raster.
 
         Parameters
@@ -260,7 +260,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
         """
         attributes = copy.deepcopy(self.attributes)
-        attributes['tile'] = self.get_raster().get_tile(x, y, z, bands)
+        attributes['tile'] = self.get_raster().get_tile(x, y, z, bands,masked=masked)
         attributes['tile_x'] = x
         attributes['tile_y'] = y
         attributes['tile_z'] = z
