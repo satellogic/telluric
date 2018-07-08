@@ -1574,7 +1574,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         :return: GeoRaster2 of tile
         """
         coordinates = mercantile.xy_bounds(x_tile, y_tile, zoom)
-        window = self.window(*coordinates).round_offsets().round_shape(op='ceil')
+        window = self.window(*coordinates).round_offsets().round_shape()
         return self.get_window(window, bands=bands,
                                xsize=blocksize, ysize=blocksize, masked=masked)
 
