@@ -2,9 +2,9 @@ import json
 import os
 import io
 import contextlib
+import shutil
 from functools import reduce, partial
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
-from types import SimpleNamespace
 from enum import Enum
 
 import tempfile
@@ -26,7 +26,6 @@ from rasterio.crs import CRS
 import rasterio
 import rasterio.warp
 import rasterio.shutil
-from rasterio.coords import BoundingBox
 from rasterio.enums import Resampling, Compression
 from rasterio.features import geometry_mask
 from rasterio.io import WindowMethodsMixin
@@ -36,14 +35,13 @@ from shapely.geometry import Point, Polygon
 
 from PIL import Image
 
-from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
+from telluric.constants import DEFAULT_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 
-from telluric.util.raster_utils import (
-    convert_to_cog, _calc_overviews_factors,
-    _mask_from_masked_array, _join_masks_from_masked_array,
-    calc_transform, warp)
+from telluric.util.raster_utils import (convert_to_cog, _calc_overviews_factors,
+                                        _mask_from_masked_array, _join_masks_from_masked_array,
+                                        reproject as reproject_util)
 
 import matplotlib  # for mypy
 
@@ -69,6 +67,30 @@ gdal_drivers = {
     'png': 'PNG',
     'jpg': 'JPEG',
     'jpeg': 'JPEG',
+}
+
+# source: http://wiki.openstreetmap.org/wiki/Zoom_levels
+mercator_zoom_to_resolution = {
+    0: 156412.,
+    1: 78206.,
+    2: 39103.,
+    3: 19551.,
+    4: 9776.,
+    5: 4888.,
+    6: 2444.,
+    7: 1222.,
+    8: 610.984,
+    9: 305.492,
+    10: 152.746,
+    11: 76.373,
+    12: 38.187,
+    13: 19.093,
+    14: 9.547,
+    15: 4.773,
+    16: 2.387,
+    17: 1.193,
+    18: 0.596,
+    19: 0.298,
 }
 
 
@@ -181,9 +203,9 @@ def _prepare_other_raster(one, other):
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
             other = other.crop(one.footprint(), resolution=one.resolution())
-            other = other._reproject(new_width=one.width, new_height=one.height,
-                                     dest_affine=one.affine, dst_crs=one.crs,
-                                     resampling=Resampling.nearest)
+            other = other.reproject(new_width=one.width, new_height=one.height,
+                                    dest_affine=one.affine, dst_crs=one.crs,
+                                    resampling=Resampling.nearest)
 
         else:
             return None
@@ -646,7 +668,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             (self._image is None and self._filename is not None) and
             (tags is None and not kwargs)
         ):
-            rasterio.shutil.copy(self._filename, filename)
+            # can be replaced with rasterio.shutil.copy in case
+            # we should pass creation_options while saving
+            shutil.copyfile(self._filename, filename)
             self._cleanup()
             self._filename = filename
             return
@@ -879,7 +903,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param resolution: output resolution, None for full resolution
         :return: GeoRaster
         """
-        bounds, window = self._vector_to_raster_bounds(vector, boundless=self._image is None)
+        bounds, window = self._vector_to_raster_bounds(vector)
         if resolution:
             xsize, ysize = self._resolution_to_output_shape(bounds, resolution)
         else:
@@ -887,24 +911,24 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         return self.pixel_crop(bounds, xsize, ysize, window=window)
 
-    def _window(self, bounds, to_round=True):
+    def _window(self, bounds):
         # self.window expects to receive the arguments west, south, east, north,
         # so for positive e in affine we should swap top and bottom
         if self.affine[4] > 0:
             window = self.window(bounds[0], bounds[3], bounds[2], bounds[1], precision=6)
         else:
             window = self.window(*bounds, precision=6)
-        if to_round:
-            window = window.round_offsets().round_shape(op='ceil', pixel_precision=3)
+
+        window = window.round_offsets().round_shape(op='ceil', pixel_precision=3)
         return window
 
     def _vector_to_raster_bounds(self, vector, boundless=False):
         # bounds = tuple(round(bb) for bb in self.to_raster(vector).bounds)
-        vector_bounds = vector.get_bounds(self.crs)
-        if any(map(math.isinf, vector_bounds)):
+        bounds = vector.get_shape(self.crs).bounds
+        if any(map(math.isinf, bounds)):
             raise GeoRaster2Error('bounds %s cannot be transformed from %s to %s' % (
                 vector.get_shape(vector.crs).bounds, vector.crs, self.crs))
-        window = self._window(vector_bounds)
+        window = self._window(bounds)
         (ymin, ymax), (xmin, xmax) = window.toranges()
         bounds = (xmin, ymin, xmax, ymax)
         if not boundless:
@@ -1039,7 +1063,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
         dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
-        return self._reproject(new_width, new_height, dest_affine, resampling=resampling)
+        return self.reproject(new_width, new_height, dest_affine, resampling=resampling)
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
@@ -1058,111 +1082,67 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             affine = affine * Affine.translation(eps, eps)
         return affine
 
-    def _reproject(self, new_width, new_height, dest_affine, dtype=None,
-                   dst_crs=None, resampling=Resampling.cubic):
+    def reproject(self, new_width, new_height, dest_affine, dst_crs=None, resampling=Resampling.cubic,
+                  creation_options=None, **kwargs):
         """Return re-projected raster to new raster.
 
         :param new_width: new raster width in pixels
         :param new_height: new raster height in pixels
         :param dest_affine: new raster affine
-        :param dtype: new raster dtype, default current dtype
         :param dst_crs: new raster crs, default current crs
         :param resampling: reprojection resampling method, default `cubic`
+        :param creation_options: custom creation options
+        :param kwargs: additional arguments passed to transformation function
 
         :return GeoRaster2
         """
         if new_width == 0 or new_height == 0:
             return None
-        dst_crs = dst_crs or self.crs
-        dtype = dtype or self.image.data.dtype
-        dest_image = np.ma.masked_array(
-            data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
-            mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
-        )
 
+        dst_crs = dst_crs or self.crs
         src_transform = self._patch_affine(self.affine)
         dst_transform = self._patch_affine(dest_affine)
-        # first, reproject only data:
-        rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
-                                dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
-                                resampling=resampling)
 
-        # rasterio.reproject has a bug for dtype=bool.
-        # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
-        temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
-
-        # extract the mask, and un-shrink if necessary
-        mask = self.image.mask
-        if mask is np.ma.nomask:
-            mask = np.zeros_like(self.image.data, dtype=bool)
-
-        # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
-        # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
-        # undo the inversion
-        rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
-                                src_transform=src_transform, dst_transform=dst_transform,
-                                src_crs=self.crs, dst_crs=dst_crs, resampling=Resampling.nearest)
-        dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
-
-        new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
-
-        return new_raster
-
-    def reproject(self, dst_crs=None, resolution=None, dimensions=None,
-                  src_bounds=None, dst_bounds=None, target_aligned_pixels=False,
-                  resampling=Resampling.cubic, creation_options=None, **kwargs):
-        """Return re-projected raster to new raster.
-
-        Parameters
-        ------------
-        dst_crs: rasterio.crs.CRS, optional
-            Target coordinate reference system.
-        resolution: tuple (x resolution, y resolution) or float, optional
-            Target resolution, in units of target coordinate reference
-            system.
-        dimensions: tuple (width, height), optional
-            Output size in pixels and lines.
-        src_bounds: tuple (xmin, ymin, xmax, ymax), optional
-            Georeferenced extent of output (in source georeferenced units).
-        dst_bounds: tuple (xmin, ymin, xmax, ymax), optional
-            Georeferenced extent of output (in destination georeferenced units).
-        target_aligned_pixels: bool, optional
-            Align the output bounds based on the resolution.
-            Default is `False`.
-        resampling: rasterio.enums.Resampling
-            Reprojection resampling method. Default is `cubic`.
-        creation_options: dict, optional
-            Custom creation options.
-        kwargs: optional
-            Additional arguments passed to transformation function.
-
-        Returns
-        ---------
-        out: GeoRaster2
-        """
+        # image is not loaded yet
         if self._image is None and self._filename is not None:
-            # image is not loaded yet
+            resolution = dst_transform.a, -dst_transform.e
             with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tf:
-                warp(self._filename, tf.name, dst_crs=dst_crs, resolution=resolution,
-                     dimensions=dimensions, creation_options=creation_options,
-                     src_bounds=src_bounds, dst_bounds=dst_bounds,
-                     target_aligned_pixels=target_aligned_pixels,
-                     resampling=resampling, **kwargs)
+                reproject_util(self._filename, tf.name, dst_crs, resolution=resolution,
+                               creation_options=creation_options, resampling=resampling, **kwargs)
 
             new_raster = GeoRaster2(filename=tf.name, temporary=True)
         else:
-            # image is loaded already
-            # SimpleNamespace is handy to hold the properties that calc_transform expects, see
-            # https://docs.python.org/3/library/types.html#types.SimpleNamespace
-            src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
-                                  bounds=BoundingBox(*self.footprint().get_bounds(self.crs)),
-                                  gcps=None)
-            dst_crs, dst_transform, dst_width, dst_height = calc_transform(
-                src, dst_crs=dst_crs, resolution=resolution, dimensions=dimensions,
-                target_aligned_pixels=target_aligned_pixels,
-                src_bounds=src_bounds, dst_bounds=dst_bounds)
-            new_raster = self._reproject(dst_width, dst_height, dst_transform,
-                                         dst_crs=dst_crs, resampling=resampling)
+            dtype = self.image.data.dtype
+
+            dest_image = np.ma.masked_array(
+                data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
+                mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
+            )
+
+            # first, reproject only data:
+            rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
+                                    dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
+                                    resampling=resampling, **kwargs)
+
+            # rasterio.reproject has a bug for dtype=bool.
+            # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
+            temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
+
+            # extract the mask, and un-shrink if necessary
+            mask = self.image.mask
+            if mask is np.ma.nomask:
+                mask = np.zeros_like(self.image.data, dtype=bool)
+
+            # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
+            # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
+            # undo the inversion
+            rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
+                                    src_transform=src_transform, dst_transform=dst_transform,
+                                    src_crs=self.crs, dst_crs=dst_crs, resampling=resampling,
+                                    **kwargs)
+            dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
+
+            new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
 
         return new_raster
 
@@ -1495,7 +1475,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return abs(a) < self.affine.precision and abs(b) < self.affine.precision
 
     def _is_resolution_in_mercator_zoom_level(self, rtol=1e-02):
-        zoom_res = list(MERCATOR_RESOLUTION_MAPPING.values())
+        zoom_res = list(mercator_zoom_to_resolution.values())
         resolution = self.resolution()
         res_array = [resolution] * len(zoom_res)
         resolution_ok = any(np.isclose(res_array, zoom_res, rtol=rtol))
@@ -1516,7 +1496,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def _mercator_upper_zoom_level(self):
         r = self.resolution()
-        for zoom, resolution in MERCATOR_RESOLUTION_MAPPING.items():
+        for zoom, resolution in mercator_zoom_to_resolution.items():
             if r > resolution:
                 return zoom
         raise GeoRaster2Error("resolution out of range (grater than zoom level 19)")
@@ -1528,7 +1508,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         """
         if not self._is_resolution_in_mercator_zoom_level():
             upper_zoom_level = self._mercator_upper_zoom_level()
-            raster = self.resize(self.resolution() / MERCATOR_RESOLUTION_MAPPING[upper_zoom_level])
+            raster = self.resize(self.resolution() / mercator_zoom_to_resolution[upper_zoom_level])
         else:
             raster = self
         # this requires geographical crs
@@ -1566,26 +1546,54 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         geotiff = GeoRaster2.open(dest_url)
         return geotiff
 
-    def _get_window_out_shape(self, bands, window, xsize, ysize):
+    def _get_widow_calculate_resize_ratio(self, xsize, ysize, window):
+        """Calculate the resize ratio of get_window.
+
+        this method is only used inside get_window to calculate the resizing ratio
+        """
+        if xsize and ysize:
+            xratio, yratio = window.width / xsize, window.height / ysize
+        elif xsize and ysize is None:
+            xratio = yratio = window.width / xsize
+        elif ysize and xsize is None:
+            xratio = yratio = window.height / ysize
+        else:
+            return 1, 1
+
+        return xratio, yratio
+
+    def _get_window_out_shape(self, bands, xratio, yratio, window):
         """Get the outshape of a window.
 
         this method is only used inside get_window to calculate the out_shape
         """
+        out_shape = (len(bands), math.ceil(abs(window.height / yratio)), math.ceil(abs(window.width / xratio)))
+        return out_shape
 
-        if xsize and ysize is None:
-            ratio = window.width / xsize
-            ysize = math.ceil(window.height / ratio)
-        elif ysize and xsize is None:
-            ratio = window.height / ysize
-            xsize = math.ceil(window.width / ratio)
-        elif xsize is None and ysize is None:
-            ysize = math.ceil(window.height)
-            xsize = math.ceil(window.width)
-        return (len(bands), ysize, xsize)
+    def _get_window_requested_window(self, window, boundless):
+        """Return the window for the get window.
+
+        This method is used only on get_window to calculate the `rasterio.read windnow`
+        """
+        if not boundless:
+            requested_window = window.crop(self.height, self.width)
+        else:
+            requested_window = window
+        return requested_window
+
+    def _get_window_origin(self, xratio, yratio, window):
+        """Return the output window origin for the get window.
+
+        This method is used only on get_window
+        """
+        xmin = math.floor(abs(min(window.col_off, 0)) / xratio)
+        ymin = math.floor(abs(min(window.row_off, 0)) / yratio)
+        return xmin, ymin
 
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
-                   resampling=Resampling.cubic, masked=True, affine=None
+                   resampling=Resampling.cubic, masked=True,
+                   boundless=False
                    ):
         """Get window from raster.
 
@@ -1597,22 +1605,49 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param masked: boolean, if `True` the return value will be a masked array. Default is True
         :return: GeoRaster2 of tile
         """
+        xratio, yratio = self._get_widow_calculate_resize_ratio(xsize, ysize, window)
         bands = bands or list(range(1, self.num_bands + 1))
+        out_shape = self._get_window_out_shape(bands, xratio, yratio, window)
+        # if window and raster dont intersect return an empty raster in the requested size
+        if not self._window_intersects_with_raster(window):
+            array = np.zeros(out_shape, dtype=self._dtype)
+            affine = self._calculate_new_affine(window, out_shape[2], out_shape[1])
+            return self.copy_with(image=array, affine=affine)
+
+        requested_window = self._get_window_requested_window(window, boundless)
 
         # requested_out_shape and out_shape are different for out of bounds window
-        out_shape = self._get_window_out_shape(bands, window, xsize, ysize)
+        requested_out_shape = self._get_window_out_shape(bands, xratio, yratio, requested_window)
         try:
             read_params = {
-                "window": window,
+                "window": requested_window,
                 "resampling": resampling,
-                "boundless": True,
+                "boundless": boundless,
                 "masked": masked,
-                "out_shape": out_shape
+                "out_shape": requested_out_shape
             }
 
-            with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
-                array = raster.read(bands, **read_params)
-            affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
+            rasterio_env = {
+                'GDAL_DISABLE_READDIR_ON_OPEN': True,
+                'GDAL_TIFF_INTERNAL_MASK_TO_8BIT': False,
+            }   # type: Dict
+            if self._filename.split('.')[-1] == 'tif':
+                rasterio_env['CPL_VSIL_CURL_ALLOWED_EXTENSIONS'] = '.tif'
+
+            with rasterio.Env(**rasterio_env):
+                with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
+                    array = raster.read(bands, **read_params)
+
+            if not boundless and not self._window_contained_in_raster(window):
+                out_array = np.ma.array(
+                    np.zeros(out_shape, dtype=self._dtype),
+                    mask=np.ones(out_shape, dtype=np.bool)
+                )
+                xmin, ymin = self._get_window_origin(xratio, yratio, window)
+                out_array[:, ymin: ymin + array.shape[-2], xmin: xmin + array.shape[-1]] = array[:, :, :]
+                array = out_array.copy()
+
+            affine = self._calculate_new_affine(window, out_shape[2], out_shape[1])
 
             raster = self.copy_with(image=array, affine=affine)
             return raster
@@ -1620,8 +1655,18 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_HttpResponseError) as e:
             raise GeoRaster2IOError(e)
 
+    def _window_contained_in_raster(self, window):
+        (ymin, ymax), (xmin, xmax) = window.toranges()
+        window_polygon = Polygon.from_bounds(xmin, ymin, xmax, ymax)
+        return self.bounds().contains(window_polygon)
+
+    def _window_intersects_with_raster(self, window):
+        (ymin, ymax), (xmin, xmax) = window.toranges()
+        window_polygon = Polygon.from_bounds(xmin, ymin, xmax, ymax)
+        return self.bounds().intersects(window_polygon)
+
     def get_tile(self, x_tile, y_tile, zoom,
-                 bands=None, masked=False, resampling=Resampling.cubic):
+                 bands=None, blocksize=256):
         """Convert mercator tile to raster window.
 
         :param x_tile: x coordinate of tile
@@ -1631,20 +1676,10 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param blocksize: tile size  (x & y) default 256, for full resolution pass None
         :return: GeoRaster2 of tile
         """
-        roi = GeoVector.from_xyz(x_tile, y_tile, zoom)
-        coordinates = roi.get_bounds(WEB_MERCATOR_CRS)
-        window = self._window(coordinates, to_round=False)
-        window.col_off = round(window.col_off)
-        window.row_off = round(window.row_off)
-        window.width = round(window.width)
-        window.height = round(window.height)
-        bands = bands or list(range(1, self.num_bands + 1))
-        # we know the affine the result should produce becuase we know where
-        # it is located by the xyz, therefore we calculate it here
-        ratio = MERCATOR_RESOLUTION_MAPPING[zoom]/self.resolution()
-        affine = self.window_transform(window)
-        affine = affine * Affine.scale(ratio, ratio)
-        return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
+        coordinates = mercantile.xy_bounds(x_tile, y_tile, zoom)
+        window = self._window(coordinates)
+        return self.get_window(window, bands=bands,
+                               xsize=blocksize, ysize=blocksize)
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
         new_affine = self.window_transform(window)
