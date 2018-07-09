@@ -1395,12 +1395,13 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
 
 
-    def align_raster_to_mercator_tiles(self, zoom=None):
+    def align_raster_to_mercator_tiles(self, zoom=None, resolution_level=None):
         """Return new raster aligned to compasing tile.
 
         :return: GeoRaster2
         """
-        aligned_zoom_level = mercator_zoom_to_resolution[self.mercator_upper_zoom_level()]
+        resolution_level = resolution_level or self.mercator_upper_zoom_level()
+        aligned_zoom_level = mercator_zoom_to_resolution[resolution_level]
 
         # this requires geographical crs
         bouding_box = self.mercator_alligned_bouding_box(zoom=zoom).get_shape(WEB_MERCATOR_CRS)
