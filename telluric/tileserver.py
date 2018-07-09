@@ -18,7 +18,7 @@ class TilesHandler(RequestHandler):
 
     @gen.coroutine
     def _get_tile(self, z, x, y):
-        return self.fc.get_tile(x,y,z)
+        return self.fc.get_tile(x,y,z, masked=False)
 
     @gen.coroutine
     def get(self, z, x, y):
