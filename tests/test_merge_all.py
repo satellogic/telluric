@@ -8,7 +8,7 @@ from affine import Affine
 
 from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.vectors import GeoVector
-from telluric.georaster import GeoRaster2, MergeStrategy, merge_all, merge, merge_to_first
+from telluric.georaster import GeoRaster2, MergeStrategy, merge_all, merge_two
 
 from common_for_tests import make_test_raster
 
@@ -258,7 +258,7 @@ def test_merge_raise_on_non_overlapping_rasters():
     raster1 = make_test_raster(affine=affine1)
     raster2 = make_test_raster(affine=affine2)
     with pytest.raises(ValueError) as ex:
-        merge(raster1, raster2)
+        merge_two(raster1, raster2)
 
     assert "rasters do not intersect" in ex.exconly()
 
@@ -268,7 +268,7 @@ def test_merge_to_firs_on_non_overlapping_rasters_returns_first_raster():
     affine2 = Affine.translation(100, 120) * Affine.scale(1, -1)
     raster1 = make_test_raster(affine=affine1)
     raster2 = make_test_raster(affine=affine2)
-    merged = merge_to_first(raster1, raster2)
+    merged = merge_two(raster1, raster2, silent=True)
     assert merged == raster1
 
 

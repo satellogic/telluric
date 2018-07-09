@@ -287,9 +287,24 @@ def _stack_bands(one, other):
     return _Raster(image=new_image, band_names=new_bands)
 
 
-def _merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
+def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
     # type: (GeoRaster2, GeoRaster2, MergeStrategy, bool) -> GeoRaster2
-    """Merges two rasters according to some merge strategy.
+    """Merge two rasters into one.
+
+    Parameters
+    ----------
+    one : GeoRaster2
+        Left raster to merge.
+    other : GeoRaster2
+        Right raster to merge.
+    merge_strategy : MergeStrategy
+        Merge strategy, from :py:data:`telluric.georaster.MergeStrategy` (default to "union").
+    silent : bool, optional
+        Whether to raise errors or return some result, default to False (raise errors).
+
+    Returns
+    -------
+    GeoRaster2
 
     """
     other_res = _prepare_other_raster(one, other)
@@ -316,48 +331,6 @@ def _merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
     raster = reduce(_stack_bands, projected_rasters)
 
     return one.copy_with(image=raster.image, band_names=raster.band_names)
-
-
-def merge(one, other, merge_strategy=MergeStrategy.UNION):
-    """Merge two rasters into one.
-
-    Parameters
-    ----------
-    one : GeoRaster2
-        Left raster to merge.
-    other : GeoRaster2
-        Right raster to merge.
-    merge_strategy : MergeStrategy
-        Merge strategy, from :py:data:`telluric.georaster.MergeStrategy` (default to "union").
-
-    Returns
-    -------
-    GeoRaster2
-
-    """
-    return _merge_two(one, other, merge_strategy, silent=False)
-
-
-def merge_to_first(one, other, merge_strategy=MergeStrategy.UNION):
-    """Merge the second raster to the first.
-
-    if rasters dont overlap it returns the first one.
-
-    Parameters
-    ----------
-    one : GeoRaster2
-        Left raster to merge.
-    other : GeoRaster2
-        Right raster to merge.
-    merge_strategy : MergeStrategy
-        Merge strategy, from :py:data:`telluric.georaster.MergeStrategy` (default to "union").
-
-    Returns
-    -------
-    GeoRaster2
-
-    """
-    return _merge_two(one, other, merge_strategy, silent=True)
 
 
 class GeoRaster2Warning(UserWarning):
@@ -1405,7 +1378,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
     def merge(self, other, merge_strategy=MergeStrategy.UNION):
         # TODO: Evaluate whether this should be add_raster
-        return merge(self, other, merge_strategy)
+        return merge_two(self, other, merge_strategy)
 
     def intersect(self, other):
         """Pixels outside either raster are set nodata"""
