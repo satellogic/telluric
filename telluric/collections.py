@@ -2,9 +2,11 @@ import os
 import os.path
 import warnings
 import contextlib
-from collections import Sequence
+import tempfile
+from collections import Sequence, OrderedDict
+from functools import partial
 from itertools import islice
-from typing import Set, Iterator
+from typing import Set, Iterator, Dict, Callable, Optional, Any
 
 import fiona
 from shapely.geometry import CAP_STYLE
@@ -30,6 +32,40 @@ DRIVERS = {
 
 MAX_WORKERS = int(os.environ.get('TELLURIC_LIB_MAX_WORKERS', 5))
 CONCURRENCY_TIMEOUT = int(os.environ.get('TELLURIC_LIB_CONCURRENCY_TIMEOUT', 600))
+
+
+def dissolve(collection, aggfunc=None):
+    # type: (BaseCollection, Optional[Callable[[list], Any]]) -> GeoFeature
+    """Dissolves features contained in a FeatureCollection and applies an aggregation
+    function to its properties.
+
+    """
+    if aggfunc:
+        new_properties = dict.fromkeys(collection.attribute_names)
+        for name in new_properties:
+            # noinspection PyBroadException
+            try:
+                new_properties[name] = aggfunc(collection.get_values(name))
+
+            except:
+                # We just do not use these results
+                pass
+
+    else:
+        new_properties = {}
+
+    if 'raster_url' in collection.attribute_names:
+        final_raster = merge_all([feature.get_raster() for feature in collection])
+        dest_file = tempfile.NamedTemporaryFile(suffix=".tiff")
+        final_raster.save(dest_file)
+
+        new_geometry = final_raster.footprint()
+        new_properties['raster_url'] = dest_file.name
+
+    else:
+        new_geometry = collection.envelope
+
+    return GeoFeature(new_geometry, new_properties)
 
 
 class BaseCollection(Sequence, NotebookPlottingMixin):
@@ -112,6 +148,12 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             'features': [feature.to_record(crs) for feature in self],
         }
 
+    def get_values(self, key):
+        """Get all values of a certain property.
+
+        """
+        return [feature[key] for feature in self]
+
     def reproject(self, new_crs):
         return FeatureCollection([feature.reproject(new_crs) for feature in self])
 
@@ -134,6 +176,42 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             hits = []
 
         return FeatureCollection(hits)
+
+    def groupby(self, by):
+        # type: (str) -> _CollectionGroupBy
+        """Groups collection using a value of a property.
+
+        Parameters
+        ----------
+        by : str
+            Name of the property by which to group.
+
+        Returns
+        -------
+        _CollectionGroupBy
+
+        """
+        results = OrderedDict()  # type: OrderedDict[str, list]
+        for feature in self:
+            value = feature[by]
+            if value not in results:
+                results[value] = []
+
+            results[value].append(feature)
+
+        return _CollectionGroupBy(results)
+
+    def dissolve(self, by=None, aggfunc=None):
+        # type: (Optional[str], Optional[Callable]) -> FeatureCollection
+        """Dissolve geometries and rasters within `groupby`.
+
+        """
+        if by:
+            agg = partial(dissolve, aggfunc=aggfunc)  # type: Callable[[BaseCollection], GeoFeature]
+            return self.groupby(by).agg(agg)
+
+        else:
+            return FeatureCollection([dissolve(self, aggfunc)])
 
     def map(self, map_function):
         """Return a new FeatureCollection with the results of applying `map_function` to each element.
@@ -308,8 +386,8 @@ class FeatureCollection(BaseCollection):
 
         Parameters
         ----------
-        results : list
-            List of :py:class:`~telluric.features.GeoFeature` objects.
+        results : iterable
+            Iterable of :py:class:`~telluric.features.GeoFeature` objects.
 
         """
         super().__init__()
@@ -478,3 +556,35 @@ class FileCollection(BaseCollection):
                 results = list(self)[index]
 
             return FeatureCollection(results)
+
+
+class _CollectionGroupBy:
+    def __init__(self, groups):
+        # type: (Dict) -> None
+        self._groups = groups
+
+    def __getitem__(self, key):
+        results = OrderedDict.fromkeys(self._groups)
+        for name, group in self:
+            results[name] = []
+            for feature in group:
+                new_feature = GeoFeature(
+                    feature.geometry,
+                    {key: feature[key]}
+                )
+                results[name].append(new_feature)
+
+        return self.__class__(results)
+
+    def __iter__(self):
+        for name, group in self._groups.items():
+            yield name, FeatureCollection(group)
+
+    def agg(self, func):
+        # type: (Callable[[BaseCollection], GeoFeature]) -> FeatureCollection
+        """Apply some aggregation function to each of the groups.
+
+        The function must take a FeatureCollection and produce a Feature.
+
+        """
+        return FeatureCollection(func(fc) for _, fc in self)
