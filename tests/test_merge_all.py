@@ -403,10 +403,5 @@ def test_merge_all_non_overlapping_covers_all():
 
     result = merge_all([rs1, rs2, rs3, rs4], rs1.footprint()).limit_to_bands(['red', 'green'])
 
-    result_ok = merge_all([
-        merge_all([rs1, rs3], rs1.footprint()),
-        merge_all([rs2, rs4], rs2.footprint())
-    ], rs1.footprint())
-
     assert_array_equal(result.image.data, expected_image.data)
     assert_array_equal(result.image.mask, expected_image.mask)
