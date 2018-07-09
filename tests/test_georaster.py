@@ -6,6 +6,7 @@ from copy import deepcopy
 import numpy as np
 from affine import Affine
 from rasterio.enums import Resampling
+from rasterio.warp import calculate_default_transform
 from PIL import Image
 from shapely.geometry import Point, Polygon
 
@@ -454,6 +455,23 @@ def test_empty_from_roi_respects_footprint():
 
     assert raster.footprint().almost_equals(empty.footprint())
     assert raster.footprint().almost_equals(empty_simple.footprint())
+
+
+def test_georaster_reproject_without_load_into_memory():
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif")
+    new_width = int(0.5 * raster.width)
+    new_height = int(0.5 * raster.height)
+    with raster._raster_opener(raster._filename) as src:
+        dst_affine, dst_width, dst_height = calculate_default_transform(
+            src.crs, WGS84_CRS, src.width, src.height, *src.bounds)
+    dst_affine = dst_affine * Affine.scale(2, 2)
+
+    try:
+        raster_reprojected = raster.reproject(new_width, new_height, dst_affine, dst_crs=WGS84_CRS)
+        assert raster_reprojected._image is None
+        assert raster_reprojected._filename is not None
+    finally:
+        os.remove(raster_reprojected._filename)
 
 
 def test_astype_uint8_to_uint8_conversion():

@@ -1064,37 +1064,59 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         if new_width == 0 or new_height == 0:
             return None
         dst_crs = dst_crs or self.crs
-        dtype = dtype or self.image.data.dtype
-        dest_image = np.ma.masked_array(
-            data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
-            mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
-        )
 
         src_transform = self._patch_affine(self.affine)
         dst_transform = self._patch_affine(dest_affine)
-        # first, reproject only data:
-        rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
-                                dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
-                                resampling=resampling)
 
-        # rasterio.reproject has a bug for dtype=bool.
-        # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
-        temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
+        # image is not loaded yet
+        if self._image is None and self._filename is not None:
+            with self._raster_opener(self._filename) as src:
+                profile = src.profile.copy()
+                profile.update({
+                    'crs': dst_crs,
+                    'transform': dest_affine,
+                    'width': new_width,
+                    'height': new_height
+                })
 
-        # extract the mask, and un-shrink if necessary
-        mask = self.image.mask
-        if mask is np.ma.nomask:
-            mask = np.zeros_like(self.image.data, dtype=bool)
+                tf = tempfile.NamedTemporaryFile(suffix='.tif', delete=False)
+                with self._raster_opener(tf.name, 'w', **profile) as dst:
+                    rasterio.warp.reproject(
+                        rasterio.band(src, src.indexes),
+                        rasterio.band(dst, dst.indexes),
+                        src_transform=src_transform, dst_transform=dst_transform,
+                        src_crs=self.crs, dst_crs=dst_crs, resampling=resampling)
+                new_raster = self.copy_with(filename=tf.name, image=None, affine=dst_transform, crs=dst_crs)
+        else:
+            dtype = dtype or self.image.data.dtype
+            dest_image = np.ma.masked_array(
+                data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
+                mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
+            )
 
-        # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
-        # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
-        # undo the inversion
-        rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
-                                src_transform=src_transform, dst_transform=dst_transform,
-                                src_crs=self.crs, dst_crs=dst_crs, resampling=Resampling.nearest)
-        dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
+            # first, reproject only data:
+            rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
+                                    dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
+                                    resampling=resampling)
 
-        new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
+            # rasterio.reproject has a bug for dtype=bool.
+            # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
+            temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
+
+            # extract the mask, and un-shrink if necessary
+            mask = self.image.mask
+            if mask is np.ma.nomask:
+                mask = np.zeros_like(self.image.data, dtype=bool)
+
+            # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
+            # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
+            # undo the inversion
+            rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
+                                    src_transform=src_transform, dst_transform=dst_transform,
+                                    src_crs=self.crs, dst_crs=dst_crs, resampling=resampling)
+            dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
+
+            new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
 
         return new_raster
 
