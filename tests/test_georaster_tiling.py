@@ -422,10 +422,10 @@ class GeoRasterCropTest(TestCase):
     def test_geographic_crop_with_resize(self):
         coords = mercantile.xy_bounds(*tiles[17])
         raster = self.geographic_raster()
-        vector = GeoVector(Polygon.from_bounds(*coords), crs=self.metric_crs).reproject(self.geographic_crs)
-        cropped = raster.crop(vector, mercator_zoom_to_resolution[17])
+        vector = GeoVector(Polygon.from_bounds(*coords), crs=self.metric_crs)
         x_ex_res, y_ex_res = convert_resolution_from_meters_to_deg(
             self.metric_affine[6], mercator_zoom_to_resolution[17])
+        cropped = raster.crop(vector, (x_ex_res, y_ex_res))
         self.assertAlmostEqual(cropped.affine[0], x_ex_res)
         self.assertAlmostEqual(abs(cropped.affine[4]), y_ex_res, 6)
 
@@ -495,6 +495,16 @@ class GeoRasterMaskedTest(TestCase):
 
         assert cropped.image[:, :, -1].mask.all()  # This line of pixels is masked
         assert (~cropped.image[:, :, :-1].mask).all()  # The rest is not masked
+
+
+def test_small_geographic_raster_crop():
+    # See https://github.com/satellogic/telluric/issues/61
+    roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=2, crs=WGS84_CRS)
+    resolution = 1.0  # deg / px
+
+    raster = GeoRaster2.empty_from_roi(roi, resolution)
+
+    assert raster.crop(roi) == raster.crop(roi, raster.resolution())
 
 
 @manualtest

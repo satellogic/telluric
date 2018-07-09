@@ -34,8 +34,13 @@ def rasterize(shapes, crs, bounds=None, dest_resolution=None, *, fill_value=None
     if nodata_value is not None:
         warnings.warn(NODATA_DEPRECATION_WARNING, DeprecationWarning)
 
-    if not(dest_resolution):
+    if not dest_resolution:
         raise ValueError("dest_resolution must be specified")
+
+    elif isinstance(dest_resolution, (int, float)):
+        rx = ry = dest_resolution
+    else:
+        rx, ry = dest_resolution
 
     # We do not want to use a nodata value that the user is explicitly filling,
     # so in this case we use an alternative value
@@ -55,15 +60,15 @@ def rasterize(shapes, crs, bounds=None, dest_resolution=None, *, fill_value=None
         # Compute size from scale
         dx = maxx - minx
         dy = maxy - miny
-        sx = round(dx / dest_resolution)
-        sy = round(dy / dest_resolution)
+        sx = round(dx / rx)
+        sy = round(dy / ry)
     elif shape and ul_corner:
         minx, maxy = ul_corner
         sx, sy = shape
     else:
         raise ValueError("Either bounds or shape + ul_corner must be specified")
 
-    affine = Affine.translation(minx, maxy) * Affine.scale(dest_resolution, -dest_resolution)
+    affine = Affine.translation(minx, maxy) * Affine.scale(rx, -ry)
     sz = len(band_names)
 
     if sx == 0 or sy == 0:
