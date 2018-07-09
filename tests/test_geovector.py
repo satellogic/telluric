@@ -8,6 +8,8 @@ from pytest import approx
 
 from shapely.geometry import Point, Polygon, mapping, LineString, CAP_STYLE
 
+from rasterio.crs import CRS
+
 from telluric.vectors import (
     GeoVector,
     GEOM_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_UNARY_OPERATIONS, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS,
@@ -25,7 +27,7 @@ def test_geovector_has_shape_and_default_crs():
 
 
 def test_geovector_has_given_crs():
-    crs = {'crs'}
+    crs = CRS({'init': 'epsg:4326'})
     gv = GeoVector(None, crs)
 
     assert gv.crs == crs
@@ -72,7 +74,7 @@ def test_geovector_to_from_geojson():
 
 def test_reproject_changes_crs():
     shape = Point(0.0, 40.0)
-    new_crs = {'init': 'epsg:32630'}
+    new_crs = CRS({'init': 'epsg:32630'})
 
     gv = GeoVector(shape)
 
@@ -164,8 +166,8 @@ def test_geo_interface():
 
 
 def test_almost_equals():
-    some_crs = {'init': 'epsg:32630'}
-    another_crs = {'init': 'epsg:32631'}
+    some_crs = CRS({'init': 'epsg:32630'})
+    another_crs = CRS({'init': 'epsg:32631'})
 
     pt = GeoVector(Point(0, 0), some_crs)
 

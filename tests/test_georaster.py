@@ -1,18 +1,21 @@
 import pytest
 import os
 from tempfile import TemporaryDirectory
-from copy import copy, deepcopy
+from copy import deepcopy
 
 import numpy as np
 from affine import Affine
 from rasterio.enums import Resampling
 from PIL import Image
 from shapely.geometry import Point, Polygon
-from common_for_tests import make_test_raster
+
+from rasterio.crs import CRS
 
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning
 from telluric.vectors import GeoVector
+
+from common_for_tests import make_test_raster
 
 
 some_array = np.array([[0, 1, 2], [3, 4, 5]], dtype=np.uint8)
@@ -24,7 +27,7 @@ some_image_3d_multiband = np.ma.array(
     np.array([some_array, some_array, some_array]), mask=np.array([some_mask, some_mask, some_mask]))
 raster_origin = Point(2, 3)
 some_affine = Affine.translation(raster_origin.x, raster_origin.y)
-some_crs = {'init': 'epsg:32620'}
+some_crs = CRS({'init': 'epsg:32620'})
 some_raster = GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs, band_names=['r'])
 some_raster_alt = GeoRaster2(some_image_2d_alt, affine=some_affine, crs=some_crs, band_names=['r'])
 some_raster_multiband = GeoRaster2(

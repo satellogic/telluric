@@ -526,6 +526,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
             self._affine = copy(raster.transform)
             self._crs = copy(raster.crs)
+            assert self._crs.is_valid
             self._dtype = np.dtype(raster.dtypes[0])
 
             # if band_names not provided, try read them from raster tags.

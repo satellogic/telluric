@@ -1,10 +1,11 @@
 import pytest
 
+import numpy as np
 from affine import Affine
 from numpy.testing import assert_array_equal
 from shapely.geometry import Polygon, LineString, Point
 
-import numpy as np
+from rasterio.crs import CRS
 
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
@@ -35,7 +36,7 @@ def test_rasterization_raise_error_for_too_big_image():
 
 def test_rasterization_has_expected_affine_and_crs():
     shape = Polygon([(0, 0), (1, 0), (1, -1), (0, -1)])
-    crs = {'init': 'epsg:32631'}
+    crs = CRS({'init': 'epsg:32631'})
     fcol = FeatureCollection([GeoFeature(GeoVector(shape, crs), {})])
 
     expected_affine = ~Affine(1.0, 0.0, 0.0, 0.0, -1.0, 0.0)
