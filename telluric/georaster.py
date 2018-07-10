@@ -1563,8 +1563,13 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         window_polygon = Polygon.from_bounds(xmin, ymin, xmax, ymax)
         return self.bounds().intersects(window_polygon)
 
+    def get_closest_to_block(self, val, blocksize):
+        return round(val/blocksize) * blocksize
+
+
+
     def get_tile(self, x_tile, y_tile, zoom,
-                 bands=None, blocksize=256, masked=True):
+                 bands=None, blocksize=256, masked=True, align_to_block=False):
         """Convert mercator tile to raster window.
 
         :param x_tile: x coordinate of tile
@@ -1576,6 +1581,11 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         """
         coordinates = mercantile.xy_bounds(x_tile, y_tile, zoom)
         window = self.window(*coordinates).round_offsets().round_shape()
+        if align_to_block:
+            window.col_off = self.get_closest_to_block(window.col_off, blocksize)
+            window.row_off = self.get_closest_to_block(window.row_off, blocksize)
+            window.width = self.get_closest_to_block(window.width, blocksize)
+            window.height = self.get_closest_to_block(window.height, blocksize)
         return self.get_window(window, bands=bands,
                                xsize=blocksize, ysize=blocksize, masked=masked)
 
