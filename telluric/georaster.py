@@ -1624,7 +1624,6 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         :param blocksize: tile size  (x & y) default 256, for full resolution pass None
         :return: GeoRaster2 of tile
         """
-        # import pdb; pdb.set_trace()
         coordinates = mercantile.xy_bounds(x_tile, y_tile, zoom)
         window = self._window(coordinates)
         return self.get_window(window, bands=bands,
