@@ -435,6 +435,30 @@ class GeoRasterCropTest(TestCase):
         with self.assertRaises(GeoRaster2Error):
             raster.crop(vector)
 
+    def test_crop_of_rasters_with_opposite_affine_and_data_return_the_same(self):
+        array = np.arange(0, 20).reshape(1, 4, 5)
+        array2 = np.arange(19, -1, -1).reshape(1, 4, 5)
+        array2.sort()
+
+        image1 = np.ma.array(array, mask=False)
+        image2 = np.ma.array(array2, mask=False)
+
+        aff2 = Affine.translation(0, -8) * Affine.scale(2, 2)
+        aff = Affine.scale(2, -2)
+
+        r1 = GeoRaster2(image=image1, affine=aff, crs=WEB_MERCATOR_CRS)
+        r2 = GeoRaster2(image=image2, affine=aff2, crs=WEB_MERCATOR_CRS)
+
+        # r1 == r2  # doesn't work, see https://github.com/satellogic/telluric/issues/79
+        roi = GeoVector(Polygon.from_bounds(0, 0, 3, -3), crs=WEB_MERCATOR_CRS)
+
+        r1c = r1.crop(roi)
+        r2c = r2.crop(roi)
+
+        # r1c == r2c  # doesn't work, see https://github.com/satellogic/telluric/issues/79
+        # currently this is the only way to test the result is the same
+        assert r2c.to_png() == r1c.to_png()
+
 
 class GeoRasterMaskedTest(TestCase):
     @classmethod

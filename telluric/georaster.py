@@ -878,13 +878,24 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
         return self.pixel_crop(bounds, xsize, ysize, window=window)
 
+    def _window(self, bounds):
+        # self.window expects to receive the arguments west, south, east, north,
+        # so for positive e in affine we should swap top and bottom
+        if self.affine[4] > 0:
+            window = self.window(bounds[0], bounds[3], bounds[2], bounds[1], precision=6)
+        else:
+            window = self.window(*bounds, precision=6)
+
+        window = window.round_offsets().round_shape(op='ceil', pixel_precision=3)
+        return window
+
     def _vector_to_raster_bounds(self, vector, boundless=False):
         # bounds = tuple(round(bb) for bb in self.to_raster(vector).bounds)
         bounds = vector.get_shape(self.crs).bounds
         if any(map(math.isinf, bounds)):
             raise GeoRaster2Error('bounds %s cannot be transformed from %s to %s' % (
                 vector.get_shape(vector.crs).bounds, vector.crs, self.crs))
-        window = self.window(*bounds, precision=6).round_offsets().round_shape(op='ceil', pixel_precision=3)
+        window = self._window(bounds)
         (ymin, ymax), (xmin, xmax) = window.toranges()
         bounds = (xmin, ymin, xmax, ymax)
         if not boundless:
@@ -1614,7 +1625,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         :return: GeoRaster2 of tile
         """
         coordinates = mercantile.xy_bounds(x_tile, y_tile, zoom)
-        window = self.window(*coordinates).round_offsets().round_shape(op='ceil')
+        window = self._window(coordinates)
         return self.get_window(window, bands=bands,
                                xsize=blocksize, ysize=blocksize)
 
