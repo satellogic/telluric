@@ -449,13 +449,13 @@ class GeoRasterCropTest(TestCase):
         r1 = GeoRaster2(image=image1, affine=aff, crs=WEB_MERCATOR_CRS)
         r2 = GeoRaster2(image=image2, affine=aff2, crs=WEB_MERCATOR_CRS)
 
-        # r1 == r2  # should be true in my opinion
+        # r1 == r2  # doesn't work, see https://github.com/satellogic/telluric/issues/79
         roi = GeoVector(Polygon.from_bounds(0, 0, 3, -3), crs=WEB_MERCATOR_CRS)
 
         r1c = r1.crop(roi)
         r2c = r2.crop(roi)
 
-        # r1c == r2c  #should be true
+        # r1c == r2c  # doesn't work, see https://github.com/satellogic/telluric/issues/79
         # currently this is the only way to test the result is the same
         assert r2c.to_png() == r1c.to_png()
 
