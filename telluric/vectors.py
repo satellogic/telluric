@@ -10,6 +10,8 @@ from shapely.geometry import (
     CAP_STYLE,
     mapping)
 
+from rasterio.crs import CRS
+
 from telluric.constants import DEFAULT_CRS, EQUAL_AREA_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
 from telluric.util.projections import transform
@@ -250,12 +252,13 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         ----------
         shape : shapely.geometry.BaseGeometry
             Geometry.
-        crs : ~rasterio.crs.CRS, dict (optional)
+        crs : ~rasterio.crs.CRS (optional)
             Coordinate Reference System, default to :py:data:`telluric.constants.DEFAULT_CRS`.
 
         """
         self._shape = shape  # type: shapely.geometry.base.BaseGeometry
-        self._crs = crs
+        self._crs = CRS(crs)
+        assert self._crs.is_valid
 
     @classmethod
     def from_geojson(cls, filename):
