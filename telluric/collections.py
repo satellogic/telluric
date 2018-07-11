@@ -46,7 +46,7 @@ def dissolve(collection, aggfunc=None):
             try:
                 new_properties[name] = aggfunc(collection.get_values(name))
 
-            except:
+            except Exception:
                 # We just do not use these results
                 pass
 

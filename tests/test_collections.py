@@ -343,4 +343,3 @@ def test_feature_collection_with_dates_serializes_correctly():
         assert fc.schema == schema
         assert fc[0].geometry == feature.geometry
         assert fc[0].attributes == expected_attributes
-
