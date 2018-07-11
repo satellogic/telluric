@@ -53,18 +53,10 @@ def dissolve(collection, aggfunc=None):
     else:
         new_properties = {}
 
-    if 'raster_url' in collection.attribute_names:
-        final_raster = merge_all([feature.get_raster() for feature in collection])
-        dest_file = tempfile.NamedTemporaryFile(suffix=".tiff")
-        final_raster.save(dest_file)
-
-        new_geometry = final_raster.footprint()
-        new_properties['raster_url'] = dest_file.name
-
-    else:
-        new_geometry = cascaded_union([feature.geometry for feature in collection])
-
-    return GeoFeature(new_geometry, new_properties)
+    return GeoFeature(
+        cascaded_union([feature.geometry for feature in collection]),
+        new_properties
+    )
 
 
 class BaseCollection(Sequence, NotebookPlottingMixin):
