@@ -15,7 +15,6 @@ from shapely.ops import cascaded_union
 from shapely.prepared import prep
 
 import mercantile
-from concurrent.futures import ThreadPoolExecutor
 
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
@@ -320,60 +319,6 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             for feature in self:
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
-
-    executer = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-
-    def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None):
-        """Generate mercator tile from rasters in FeatureCollection.
-
-        Parameters
-        ----------
-        x: int
-            x coordinate of tile
-        y: int
-            y coordinate of tile
-        z: int
-            zoom level
-        sort_by: str
-            attribute in feature to sort by
-        desc: bool
-            True for descending order, False for ascending
-        bands: list
-            list of indices of requested bads, default None which returns all bands
-
-        Returns
-        -------
-        GeoRaster2
-
-        """
-        bb = mercantile.xy_bounds(x, y, z)
-        roi = GeoVector.from_bounds(xmin=bb.left, ymin=bb.bottom,
-                                    xmax=bb.right, ymax=bb.top,
-                                    crs=WEB_MERCATOR_CRS)
-
-        filtered_fc = self.filter(roi)
-
-        def _get_tiled_feature(feature):
-            return feature.get_tiled_feature(x, y, z, bands)
-
-        tiled_features = list(self.executer.map(_get_tiled_feature,
-                                                filtered_fc,
-                                                timeout=CONCURRENCY_TIMEOUT))
-
-        # tiled_features can be sort for different merge strategies
-        if sort_by is not None:
-            tiled_features = sorted(tiled_features,
-                                    reverse=desc,
-                                    key=lambda f: f[sort_by])
-
-        tiles = [f['tile'] for f in tiled_features]
-        if tiles:
-            resolution = mercator_zoom_to_resolution[z]
-            tile = merge_all(tiles, dest_resolution=resolution, ul_corner=(bb.left, bb.top),
-                             shape=(256, 256), crs=WEB_MERCATOR_CRS)
-            return tile
-        else:
-            return None
 
 
 class FeatureCollectionIOError(BaseException):
