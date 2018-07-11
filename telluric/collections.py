@@ -53,10 +53,7 @@ def dissolve(collection, aggfunc=None):
     else:
         new_properties = {}
 
-    return GeoFeature(
-        cascaded_union([feature.geometry for feature in collection]),
-        new_properties
-    )
+    return GeoFeature(collection.cascaded_union, new_properties)
 
 
 class BaseCollection(Sequence, NotebookPlottingMixin):
@@ -90,7 +87,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         return all(feature.is_empty for feature in self)
 
     @property
-    def convex_hull(self):  # type: () -> GeoVector
+    def cascaded_union(self):  # type: () -> GeoVector
         try:
             crs = self.crs
             shapes = [feature.geometry.get_shape(crs) for feature in self]
@@ -105,12 +102,19 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             shapes = []
 
         return GeoVector(
-            cascaded_union([sh for sh in shapes if sh.is_valid]).convex_hull,
+            cascaded_union([sh for sh in shapes if sh.is_valid]),
             crs=crs
         )
 
     @property
+    def convex_hull(self):  # type: () -> GeoVector
+        return self.cascaded_union.convex_hull
+
+    @property
     def envelope(self):  # type: () -> GeoVector
+        # This is not exactly equal as cascaded_union,
+        # as we are computing the envelope of the envelopes,
+        # hence saving time
         try:
             crs = self.crs
             envelopes = [feature.geometry.envelope.get_shape(crs) for feature in self]
