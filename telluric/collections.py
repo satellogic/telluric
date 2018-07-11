@@ -62,7 +62,7 @@ def dissolve(collection, aggfunc=None):
         new_properties['raster_url'] = dest_file.name
 
     else:
-        new_geometry = collection.envelope
+        new_geometry = cascaded_union([feature.geometry for feature in collection])
 
     return GeoFeature(new_geometry, new_properties)
 
