@@ -6,7 +6,7 @@ import tempfile
 from collections import Sequence, OrderedDict
 from functools import partial
 from itertools import islice
-from typing import Set, Iterator, Dict, Callable, Optional, Any
+from typing import Set, Iterator, Dict, Callable, Optional, Any, Union
 
 import fiona
 from shapely.geometry import CAP_STYLE
@@ -177,13 +177,14 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         return FeatureCollection(hits)
 
     def groupby(self, by):
-        # type: (str) -> _CollectionGroupBy
+        # type: (Union[str, Callable[[GeoFeature], str]]) -> _CollectionGroupBy
         """Groups collection using a value of a property.
 
         Parameters
         ----------
-        by : str
-            Name of the property by which to group.
+        by : str or callable
+            If string, name of the property by which to group.
+            If callable, should receive a GeoFeature and return the category.
 
         Returns
         -------
@@ -192,11 +193,12 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         """
         results = OrderedDict()  # type: OrderedDict[str, list]
         for feature in self:
-            value = feature[by]
-            if value not in results:
-                results[value] = []
+            if callable(by):
+                value = by(feature)
+            else:
+                value = feature[by]
 
-            results[value].append(feature)
+            results.setdefault(value, []).append(feature)
 
         return _CollectionGroupBy(results)
 
