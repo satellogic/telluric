@@ -76,7 +76,6 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         """
         self.geometry = geovector  # type: GeoVector
         self._attributes = attributes
-        self._raster = None
 
     @property
     def crs(self):
@@ -215,12 +214,6 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def get_shape(self, crs):
         """Gets the underlying Shapely shape in a specified CRS."""
         return self.geometry.get_shape(crs)
-
-    def get_raster(self, field_name='raster_url'):
-        if self._raster is None:
-            self._raster = GeoRaster2.open(self[field_name])
-
-        return self._raster
 
     def polygonize(self, width, **kwargs):
         return self.__class__(
