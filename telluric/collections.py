@@ -168,6 +168,27 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
         return FeatureCollection(hits)
 
+    def sort(self, by, desc=False):
+        """Sorts by given property or function, ascending or descending order.
+
+        Parameters
+        ----------
+        by : str or callable
+            If string, property by which to sort.
+            If callable, it should receive a GeoFeature a return a value by which to sort.
+        desc : bool, optional
+            Descending sort, default to False (ascending).
+
+        """
+        if callable(by):
+            key = by
+        else:
+            def key(feature):
+                return feature[by]
+
+        sorted_features = sorted(list(self), reverse=desc, key=key)
+        return self.__class__(sorted_features)
+
     def groupby(self, by):
         # type: (Union[str, Callable[[GeoFeature], str]]) -> _CollectionGroupBy
         """Groups collection using a value of a property.
