@@ -1,4 +1,3 @@
-import copy
 from collections import Mapping
 
 from dateutil.parser import parse as parse_date
@@ -10,7 +9,6 @@ from telluric.vectors import (
     GeoVector,
     GEOM_PROPERTIES, GEOM_NONVECTOR_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
-from telluric.georaster import GeoRaster2
 from telluric.plotting import NotebookPlottingMixin
 
 

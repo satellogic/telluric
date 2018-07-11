@@ -2,7 +2,6 @@ import os
 import os.path
 import warnings
 import contextlib
-import tempfile
 from collections import Sequence, OrderedDict
 from functools import partial
 from itertools import islice
@@ -14,14 +13,12 @@ from rasterio.crs import CRS
 from shapely.ops import cascaded_union
 from shapely.prepared import prep
 
-import mercantile
-
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
 from telluric.rasterization import rasterize, NODATA_DEPRECATION_WARNING
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.georaster import merge_all, mercator_zoom_to_resolution, MergeStrategy
+from telluric.georaster import merge_all, MergeStrategy
 
 DRIVERS = {
     '.json': 'GeoJSON',
