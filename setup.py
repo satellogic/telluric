@@ -27,11 +27,11 @@ setup(
         'pyproj',
         'shapely>=1.6.3,<2.*',
         'rasterio>=1.0,<2.*',
-        'scipy',
         'pillow',
         'mercantile>=0.10.0',
         'matplotlib',
         'boltons',
+        'imageio',
     ],
     extras_require={
         ':python_version<="3.4"': ['typing', 'pandas<0.21.0'],

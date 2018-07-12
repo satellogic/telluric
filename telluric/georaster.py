@@ -16,7 +16,7 @@ import mercantile
 import warnings
 
 import numpy as np
-import scipy.misc
+import imageio
 
 from boltons.setutils import IndexedSet
 
@@ -1177,10 +1177,10 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 img = np.stack([img, img, img], axis=2)  # make grayscale into rgb. bypass, as mode=LA isn't supported
 
             img = np.stack(tuple(np.split(np.asarray(img), 3, axis=2) + [mask]), axis=2)  # re-arrange into RGBA
-            img = Image.fromarray(img[:, :, :, 0])
+            img = img[:, :, :, 0]
 
         f = io.BytesIO()
-        scipy.misc.imsave(f, img, format)
+        imageio.imwrite(f, img, format)
         image_data = f.getvalue()
         return image_data
 
@@ -1194,7 +1194,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param band_names: e.g. ['red', 'blue'] or 'red'
         """
         b = io.BytesIO(image_bytes)
-        image = scipy.misc.imread(b)
+        image = imageio.imread(b)
         roll = np.rollaxis(image, 2)
         if band_names is None:
             band_names = [0, 1, 2]
