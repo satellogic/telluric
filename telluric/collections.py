@@ -37,8 +37,8 @@ def dissolve(collection, aggfunc=None):
 
     """
     if aggfunc:
-        new_properties = dict.fromkeys(collection.attribute_names)
-        for name in new_properties:
+        new_properties = {}
+        for name in collection.attribute_names:
             # noinspection PyBroadException
             try:
                 new_properties[name] = aggfunc(collection.get_values(name))
