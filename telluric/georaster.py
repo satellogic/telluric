@@ -1,6 +1,8 @@
 import json
 import os
 import io
+import contextlib
+import shutil
 from functools import reduce, partial
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 from enum import Enum
@@ -464,7 +466,8 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
     """
     def __init__(self, image=None, affine=None, crs=None,
-                 filename=None, band_names=None, nodata=0, shape=None, footprint=None):
+                 filename=None, band_names=None, nodata=0, shape=None, footprint=None,
+                 temporary=False):
         """Create a GeoRaster object
 
         :param filename: optional path/url to raster file for lazy loading
@@ -475,12 +478,18 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         :param band_names: e.g. ['red', 'blue'] or 'red'
         :param shape: raster image shape, optional
         :param nodata: if provided image is array (not masked array), treat pixels with value=nodata as nodata
+        :param temporary: True means that file referenced by filename is temporary
+            and will be removed by destructor, default False
         """
         super().__init__(image=image, band_names=band_names, shape=shape, nodata=nodata)
         self._affine = deepcopy(affine)
         self._crs = CRS(copy(crs)) if crs else None  # type: Union[None, CRS]
         self._filename = filename
+        self._temporary = temporary
         self._footprint = copy(footprint)
+
+    def __del__(self):
+        self._cleanup()
 
     #  IO:
     @classmethod
@@ -521,6 +530,13 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
         return rasterization.rasterize([], crs, roi, resolution, band_names=band_names,
                                        dtype=dtype, shape=shape, ul_corner=ul_corner)
+
+    def _cleanup(self):
+        if self._filename is not None and self._temporary:
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(self._filename)
+            self._filename = None
+            self._temporary = False
 
     def _populate_from_rasterio_object(self, read_image):
         with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
@@ -640,6 +656,20 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
         """
 
+        folder = os.path.abspath(os.path.join(filename, os.pardir))
+        os.makedirs(folder, exist_ok=True)
+
+        if (
+            (self._image is None and self._filename is not None) and
+            (tags is None and not kwargs)
+        ):
+            # can be replaced with rasterio.shutil.copy in case
+            # we should pass creation_options while saving
+            shutil.copyfile(self._filename, filename)
+            self._cleanup()
+            self._filename = filename
+            return
+
         internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
         nodata_value = kwargs.get('nodata', None)
         compression = kwargs.get('compression', Compression.lzw)
@@ -648,8 +678,6 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             rasterio_envs['CPL_DEBUG'] = True
         with rasterio.Env(**rasterio_envs):
             try:
-                folder = os.path.abspath(os.path.join(filename, os.pardir))
-                os.makedirs(folder, exist_ok=True)
                 size = self.image.shape
                 extension = os.path.splitext(filename)[1].lower()[1:]
                 driver = gdal_drivers[extension]
@@ -1086,7 +1114,8 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
                         rasterio.band(dst, dst.indexes),
                         src_transform=src_transform, dst_transform=dst_transform,
                         src_crs=self.crs, dst_crs=dst_crs, resampling=resampling)
-                new_raster = self.copy_with(filename=tf.name, image=None, affine=dst_transform, crs=dst_crs)
+                new_raster = self.copy_with(filename=tf.name, temporary=True,
+                                            image=None, affine=dst_transform, crs=dst_crs)
         else:
             dtype = dtype or self.image.data.dtype
             dest_image = np.ma.masked_array(
