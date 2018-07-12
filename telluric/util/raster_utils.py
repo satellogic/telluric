@@ -63,8 +63,8 @@ def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss, *
     :param destination_file: path to the new raster
     :param resampling: which Resampling to use on reading, default Resampling.gauss
     """
-    # with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, GDAL_TIFF_OVR_BLOCKSIZE=256):
-    with rasterio.Env(GDAL_TIFF_OVR_BLOCKSIZE=256):
+    with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, GDAL_TIFF_OVR_BLOCKSIZE=256):
+    #with rasterio.Env(GDAL_TIFF_OVR_BLOCKSIZE=256):
         with TemporaryDirectory() as temp_dir:
             temp_file = os.path.join(temp_dir, 'temp.tif')
             rasterio_sh.copy(source_file, temp_file, tiled=True, compress='DEFLATE', photometric='MINISBLACK')
