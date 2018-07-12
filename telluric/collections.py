@@ -2,10 +2,10 @@ import os
 import os.path
 import warnings
 import contextlib
-from collections import Sequence, OrderedDict
+from collections import Sequence, OrderedDict, defaultdict
 from functools import partial
 from itertools import islice
-from typing import Set, Iterator, Dict, Callable, Optional, Any, Union
+from typing import Set, Iterator, Dict, Callable, Optional, Any, Union, DefaultDict
 
 import fiona
 from shapely.geometry import CAP_STYLE
@@ -36,19 +36,20 @@ def dissolve(collection, aggfunc=None):
     function to its properties.
 
     """
+    new_properties = {}
     if aggfunc:
-        new_properties = {}
-        for name in collection.attribute_names:
-            # noinspection PyBroadException
+        temp_properties = defaultdict(list)  # type: DefaultDict[Any, Any]
+        for feature in collection:
+            for key, value in feature.attributes.items():
+                temp_properties[key].append(value)
+
+        for key, values in temp_properties.items():
             try:
-                new_properties[name] = aggfunc(collection.get_values(name))
+                new_properties[key] = aggfunc(values)
 
             except Exception:
                 # We just do not use these results
                 pass
-
-    else:
-        new_properties = {}
 
     return GeoFeature(collection.cascaded_union, new_properties)
 
