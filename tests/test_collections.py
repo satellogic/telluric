@@ -96,15 +96,15 @@ def test_convex_hull_raises_warning_with_invalid_shape():
     assert record[0].message.args[0] == "Some invalid shapes found, discarding them."
 
 
-def test_featurecollection_attribute_names_includes_all():
+def test_featurecollection_property_names_includes_all():
     fc = FeatureCollection([
         GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1}),
         GeoFeature(GeoVector(Point(0, 0)), {'attr2': 1})
     ])
 
-    expected_attribute_names = ['attr1', 'attr2']
+    expected_property_names = ['attr1', 'attr2']
 
-    assert sorted(fc.attribute_names) == expected_attribute_names
+    assert sorted(fc.property_names) == expected_property_names
 
 
 def test_featurecollection_schema_raises_error_for_heterogeneous_geometry_types():
@@ -208,8 +208,8 @@ def test_featurecollection_save_has_no_side_effects():
     with tempfile.NamedTemporaryFile(suffix=".json") as fp:
         fc.save(fp.name)
 
-        assert fc[0].attributes == {'attr1': 1}
-        assert fc[1].attributes == {'attr2': 1}
+        assert fc[0].properties == {'attr1': 1}
+        assert fc[1].properties == {'attr2': 1}
 
 
 @pytest.mark.parametrize("fc", [
@@ -268,12 +268,12 @@ def test_rasterize_with_geovector_bounds(mock_rasterize):
 
 def test_file_collection_open():
     expected_len = 53
-    expected_attribute_names = ['BARRIO', 'COMUNA', 'PERIMETRO', 'AREA']
+    expected_property_names = ['BARRIO', 'COMUNA', 'PERIMETRO', 'AREA']
 
     fcol = FileCollection.open("tests/data/vector/bsas_barrios_lla.geojson")
 
     assert len(fcol) == expected_len
-    assert fcol.attribute_names == expected_attribute_names
+    assert fcol.property_names == expected_property_names
     assert fcol.crs == WGS84_CRS
 
 
@@ -331,10 +331,10 @@ def test_feature_collection_with_dates_serializes_correctly():
             ('prop_date', 'date'),
         ]),
     }
-    expected_attributes = {
+    expected_properties = {
         'prop_date': date(2018, 4, 23),
     }
-    feature = GeoFeature(GeoVector(Point(0, 0)), expected_attributes)
+    feature = GeoFeature(GeoVector(Point(0, 0)), expected_properties)
     with tempfile.TemporaryDirectory() as path:
         file_path = os.path.join(path, "test_dates.shp")
         with fiona.open(file_path, mode='w', driver="ESRI Shapefile", schema=schema, crs=feature.crs) as sink:
@@ -344,7 +344,7 @@ def test_feature_collection_with_dates_serializes_correctly():
 
         assert fc.schema == schema
         assert fc[0].geometry == feature.geometry
-        assert fc[0].attributes == expected_attributes
+        assert fc[0].properties == expected_properties
 
 
 def test_get_values():

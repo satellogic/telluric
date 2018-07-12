@@ -1,3 +1,4 @@
+import warnings
 from collections import Mapping
 
 from dateutil.parser import parse as parse_date
@@ -12,76 +13,84 @@ from telluric.vectors import (
 from telluric.plotting import NotebookPlottingMixin
 
 
-def transform_attributes(attributes, schema):
-    """Transform attributes types according to a schema.
+def transform_properties(properties, schema):
+    """Transform properties types according to a schema.
 
     Parameters
     ----------
-    attributes : dict
-        Attributes to transform.
+    properties : dict
+        Properties to transform.
     schema : dict
         Fiona schema containing the types.
 
     """
-    new_attributes = attributes.copy()
-    for attr_value, (attr_name, attr_type) in zip(new_attributes.values(), schema["properties"].items()):
-        if attr_value is None:
+    new_properties = properties.copy()
+    for prop_value, (prop_name, prop_type) in zip(new_properties.values(), schema["properties"].items()):
+        if prop_value is None:
             continue
-        elif attr_type == "time":
-            new_attributes[attr_name] = parse_date(attr_value).time()
-        elif attr_type == "date":
-            new_attributes[attr_name] = parse_date(attr_value).date()
-        elif attr_type == "datetime":
-            new_attributes[attr_name] = parse_date(attr_value)
+        elif prop_type == "time":
+            new_properties[prop_name] = parse_date(prop_value).time()
+        elif prop_type == "date":
+            new_properties[prop_name] = parse_date(prop_value).date()
+        elif prop_type == "datetime":
+            new_properties[prop_name] = parse_date(prop_value)
 
-    return new_attributes
+    return new_properties
 
 
-def serialize_attributes(attributes):
-    """Serialize attributes.
+def serialize_properties(properties):
+    """Serialize properties.
 
     Parameters
     ----------
-    attributes : dict
-        Attributes to serialize.
+    properties : dict
+        Properties to serialize.
 
     """
-    new_attributes = attributes.copy()
-    for attr_name, attr_value in new_attributes.items():
+    new_properties = properties.copy()
+    for attr_name, attr_value in new_properties.items():
         if not isinstance(attr_value, (dict, list, tuple, str, int, float, bool, type(None))):
-            # Attribute is not JSON-serializable according to this table
+            # Property is not JSON-serializable according to this table
             # https://docs.python.org/3.4/library/json.html#json.JSONEncoder
             # so we convert to string
-            new_attributes[attr_name] = str(attr_value)
+            new_properties[attr_name] = str(attr_value)
 
-    return new_attributes
+    return new_properties
 
 
 class GeoFeature(Mapping, NotebookPlottingMixin):
     """GeoFeature object.
 
     """
-    def __init__(self, geovector, attributes):
+    def __init__(self, geovector, properties):
         """Initialize a GeoFeature object.
 
         Parameters
         ----------
         geovector : GeoVector
             Geometry.
-        attributes : dict
+        properties : dict
             Properties.
 
         """
         self.geometry = geovector  # type: GeoVector
-        self._attributes = attributes
+        self._properties = properties
 
     @property
     def crs(self):
         return self.geometry.crs
 
     @property
+    def properties(self):
+        return self._properties
+
+    @property
     def attributes(self):
-        return self._attributes
+        warnings.warn(
+            "GeoFeature.attributes is deprecated and will be removed, please use GeoFeature.properties instead",
+            DeprecationWarning
+        )
+        return self.properties
 
     @property
     def __geo_interface__(self):
@@ -90,38 +99,38 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def to_record(self, crs):
         return {
             'type': 'Feature',
-            'properties': serialize_attributes(self._attributes),
+            'properties': serialize_properties(self.properties),
             'geometry': self.geometry.to_record(crs),
         }
 
     @classmethod
     def from_record(cls, record, crs, schema=None):
         if schema is not None:
-            attributes = transform_attributes(record["properties"], schema)
+            properties = transform_properties(record["properties"], schema)
         else:
-            attributes = record["properties"]
+            properties = record["properties"]
 
         return cls(
             GeoVector(
                 shape(record['geometry']),
                 crs
             ),
-            attributes
+            properties
         )
 
     def __len__(self):
-        return len(self.attributes)
+        return len(self.properties)
 
     def __getitem__(self, item):
-        return self.attributes[item]
+        return self.properties[item]
 
     def __iter__(self):
-        return iter(self.attributes)
+        return iter(self.properties)
 
     def __eq__(self, other):
         return (
             self.geometry == other.geometry
-            and self.attributes == other.attributes
+            and self.properties == other.properties
         )
 
     @classmethod
@@ -131,7 +140,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def __getattr__(self, item):
         if item in GEOM_PROPERTIES:
             def delegated_(self_):
-                return self_.__class__(getattr(self_.geometry, item), self_.attributes)
+                return self_.__class__(getattr(self_.geometry, item), self_.properties)
 
             # Use class docstring to properly translate properties, see
             # https://stackoverflow.com/a/38118315/554319
@@ -173,7 +182,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
         elif item in GEOM_BINARY_PREDICATES:
             def delegated_predicate(self_, other):
-                # Transform to a GeoFeature without attributes if necessary
+                # Transform to a GeoFeature without properties if necessary
                 if isinstance(other, GeoVector):
                     other = self_.__class__(other, {})
 
@@ -187,15 +196,15 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
         elif item in GEOM_BINARY_OPERATIONS:
             def delegated_operation(self_, other):
-                # Transform to a GeoFeature without attributes if necessary
+                # Transform to a GeoFeature without properties if necessary
                 if isinstance(other, GeoVector):
                     other = self_.__class__(other, {})
 
-                attributes = self_.attributes.copy()
-                attributes.update(other.attributes)
+                properties = self_.properties.copy()
+                properties.update(other.properties)
                 return self_.__class__(
                     getattr(self_.geometry, item)(other.reproject(self_.geometry.crs).geometry),
-                    attributes
+                    properties
                 )
 
             delegated_operation.__doc__ = getattr(self.geometry._shape, item).__doc__
@@ -216,11 +225,11 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def polygonize(self, width, **kwargs):
         return self.__class__(
             self.geometry.polygonize(width, **kwargs),
-            self.attributes
+            self.properties
         )
 
     def reproject(self, new_crs):
-        return self.__class__(self.geometry.reproject(new_crs), self.attributes)
+        return self.__class__(self.geometry.reproject(new_crs), self.properties)
 
     def __str__(self):
         return "{}({}, {})".format(

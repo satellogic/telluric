@@ -72,7 +72,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         raise NotImplementedError
 
     @property
-    def attribute_names(self):
+    def property_names(self):
         return list(self.schema['properties'].keys())
 
     @property
@@ -373,22 +373,22 @@ class FeatureCollection(BaseCollection):
         # Get the CRS from the first feature
         return self._results[0].crs
 
-    def _compute_attributes(self):
-        attribute_names_set = set()  # type: Set[str]
+    def _compute_properties(self):
+        property_names_set = set()  # type: Set[str]
         for feat in self:
-            attribute_names_set = attribute_names_set.union(feat.attributes)
+            property_names_set = property_names_set.union(feat.properties)
 
         # make type mapping based on the first feature
-        attr_types_map = dict([
-            (attr_name, type(self[0].get(attr_name)))
-            for attr_name in attribute_names_set])
+        prop_types_map = dict([
+            (prop_name, type(self[0].get(prop_name)))
+            for prop_name in property_names_set])
 
         for feat in self:
-            for attr_name, attr_value in feat.items():
-                if attr_value is not None:
-                    if isinstance(None, attr_types_map[attr_name]):
-                        attr_types_map[attr_name] = type(attr_value)
-                    if not isinstance(attr_value, attr_types_map[attr_name]):
+            for prop_name, prop_value in feat.items():
+                if prop_value is not None:
+                    if isinstance(None, prop_types_map[prop_name]):
+                        prop_types_map[prop_name] = type(prop_value)
+                    if not isinstance(prop_value, prop_types_map[prop_name]):
                         raise FeatureCollectionIOError(
                             "Cannot generate a schema for a heterogeneous FeatureCollection. "
                             "Please convert all the appropriate properties to the same type."
@@ -398,7 +398,7 @@ class FeatureCollection(BaseCollection):
             (v, k) for k, v in fiona.FIELD_TYPES_MAP.items()])
         properties = {
             k: fiona_field_types_map.get(v) or 'str'
-            for k, v in attr_types_map.items()
+            for k, v in prop_types_map.items()
         }
 
         return properties
@@ -417,7 +417,7 @@ class FeatureCollection(BaseCollection):
 
             self._schema = {
                 'geometry': geometry,
-                'properties': self._compute_attributes()
+                'properties': self._compute_properties()
             }
 
         return self._schema
@@ -428,13 +428,13 @@ class FeatureCollection(BaseCollection):
         return cls([GeoFeature(vector, {}) for vector in geovectors])
 
     def _adapt_feature_before_write(self, feature):
-        new_attributes = feature.attributes.copy()
-        for key in self.attribute_names:
-            new_attributes.setdefault(key, None)
+        new_properties = feature.properties.copy()
+        for key in self.property_names:
+            new_properties.setdefault(key, None)
 
         new_geometry = feature.geometry.reproject(self.crs)
 
-        return GeoFeature(new_geometry, new_attributes)
+        return GeoFeature(new_geometry, new_properties)
 
 
 class FileCollection(BaseCollection):
@@ -458,7 +458,7 @@ class FileCollection(BaseCollection):
             all(feat == feat_other for feat, feat_other in zip(self, other))
             and len(self) == len(other)
             and self.crs == other.crs
-            and self.attribute_names == self.attribute_names
+            and self.property_names == self.property_names
         )
 
     @classmethod
