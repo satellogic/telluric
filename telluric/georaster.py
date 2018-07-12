@@ -200,7 +200,7 @@ def _prepare_other_raster(one, other):
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
             other = other.crop(one.footprint(), resolution=one.resolution())
-            other = other.reproject(new_width=one.width, new_height=one.height,
+            other = other._reproject(new_width=one.width, new_height=one.height,
                                     dest_affine=one.affine, dst_crs=one.crs,
                                     resampling=Resampling.nearest)
 
@@ -1058,7 +1058,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
         dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
-        return self.reproject(new_width, new_height, dest_affine, resampling=resampling)
+        return self._reproject(new_width, new_height, dest_affine, resampling=resampling)
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
@@ -1077,7 +1077,22 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             affine = affine * Affine.translation(eps, eps)
         return affine
 
-    def reproject(self, new_width, new_height, dest_affine, dtype=None, dst_crs=None, resampling=Resampling.cubic):
+    def reproject(self, dest_crs=None, resolution=None, dtype=None, resampling=Resampling.cubic):
+        dest_crs = dest_crs or self.crs
+        if self._image is None and self._filename is not None:
+            with self._raster_opener(self._filename) as src:
+                src_bounds = src.bounds
+        else:
+            src_bounds = self.footprint().get_shape(self.crs).bounds
+            src = self
+
+        dest_affine, new_width, new_height = rasterio.warp.calculate_default_transform(
+            src.crs, dest_crs, src.width, src.height, *src_bounds,
+            resolution=resolution)
+
+        return self._reproject(new_width, new_height, dest_affine, dtype, dest_crs, resampling)
+
+    def _reproject(self, new_width, new_height, dest_affine, dtype=None, dst_crs=None, resampling=Resampling.cubic):
         """Return re-projected raster to new raster.
 
         :param new_width: new raster width in pixels
@@ -1517,7 +1532,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         width = math.ceil(abs(window.width))
         height = math.ceil(abs(window.height))
         affine = raster.window_transform(window)
-        aligned_raster = self.reproject(width, height, affine)
+        aligned_raster = self._reproject(width, height, affine)
         return aligned_raster
 
     def _overviews_factors(self, blocksize=256):

@@ -467,7 +467,7 @@ def test_georaster_reproject_without_load_into_memory():
     dst_affine = dst_affine * Affine.scale(2, 2)
 
     try:
-        raster_reprojected = raster.reproject(new_width, new_height, dst_affine, dst_crs=WGS84_CRS)
+        raster_reprojected = raster._reproject(new_width, new_height, dst_affine, dst_crs=WGS84_CRS)
         assert raster_reprojected._image is None
         assert raster_reprojected._filename is not None
     finally:
