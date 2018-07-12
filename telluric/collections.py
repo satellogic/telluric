@@ -99,7 +99,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             shapes = []
 
         return GeoVector(
-            cascaded_union([sh for sh in shapes if sh.is_valid]),
+            cascaded_union([sh for sh in shapes if sh.is_valid]).simplify(0),
             crs=crs
         )
 
