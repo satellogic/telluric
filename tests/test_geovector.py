@@ -15,7 +15,7 @@ from telluric.vectors import (
     GEOM_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_UNARY_OPERATIONS, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS,
     generate_tile_coordinates, get_dimension,
     generate_tile_coordinates_from_pixels)
-from telluric.constants import DEFAULT_CRS, WGS84_CRS
+from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 
 
 def test_geovector_has_shape_and_default_crs():
@@ -51,6 +51,22 @@ def test_geovector_from_bounds_has_proper_shape():
     assert gv1.get_shape(gv1.crs) == shape
 
 
+def test_geovector_has_proper_bounds():
+    shape = Point(0.0, 0.0).buffer(1.0)
+    gv = GeoVector(shape)
+
+    bounds = gv.get_bounds(gv.crs)
+
+    assert bounds.left == gv.left == -1
+    assert bounds.bottom == gv.bottom == -1
+    assert bounds.right == gv.right == 1
+    assert bounds.top == gv.top == 1
+
+    xmin, ymin, xmax, ymax = bounds
+
+    assert (xmin, ymin, xmax, ymax) == (-1, -1, 1, 1)
+
+
 def test_geovector_from_bounds_no_keyword_arguments_raises_typeerror():
     with pytest.raises(TypeError):
         GeoVector.from_bounds(0, 0, 1, 1)
@@ -70,6 +86,19 @@ def test_geovector_to_from_geojson():
         gv.to_geojson(fp.name)
 
         assert GeoVector.from_geojson(fp.name) == gv
+
+
+def test_geovector_from_xyz():
+    gv = GeoVector.from_xyz(0, 0, 0)
+
+    assert gv.crs == WEB_MERCATOR_CRS
+
+    xmin, ymin, xmax, ymax = gv.get_bounds(WGS84_CRS)
+
+    assert xmin == -180
+    assert xmax == 180
+    assert ymin == approx(-85.051129)
+    assert ymax == approx(85.051129)
 
 
 def test_reproject_changes_crs():

@@ -1,10 +1,10 @@
 import os
 from collections import OrderedDict
-from datetime import date, datetime
+from datetime import date
+from functools import partial
 
 import fiona
 import tempfile
-import mercantile
 
 import pytest
 from unittest import mock
@@ -14,8 +14,7 @@ from shapely.geometry import Polygon, Point, mapping
 from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.collections import FeatureCollection, FileCollection, FeatureCollectionIOError
-from telluric.georaster import GeoRaster2, merge_all, mercator_zoom_to_resolution
+from telluric.collections import FeatureCollection, FileCollection, FeatureCollectionIOError, dissolve
 
 
 def fc_generator(num_features):
@@ -65,17 +64,20 @@ def test_feature_collection_filter_returns_proper_elements():
     assert len(list(res)) == 1
 
 
-def test_convex_hull_and_envelope():
+def test_convex_hull_and_envelope_and_cascaded_union():
     fc = FeatureCollection.from_geovectors([
         GeoVector.from_bounds(xmin=0, ymin=0, xmax=1, ymax=1),
         GeoVector.from_bounds(xmin=1, ymin=0, xmax=2, ymax=1),
         GeoVector.from_bounds(xmin=1, ymin=1, xmax=2, ymax=2),
     ])
+
+    expected_cascaded_union = GeoVector(Polygon([(0, 0), (2, 0), (2, 2), (1, 2), (1, 1), (0, 1), (0, 0)]))
     expected_convex_hull = GeoVector(Polygon([(0, 0), (2, 0), (2, 2), (1, 2), (0, 1), (0, 0)]))
     expected_envelope = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=2)
 
     assert fc.convex_hull.equals(expected_convex_hull)
     assert fc.envelope.equals(expected_envelope)
+    assert fc.cascaded_union.equals(expected_cascaded_union)
 
 
 def test_convex_hull_raises_warning_with_invalid_shape():
@@ -343,3 +345,97 @@ def test_feature_collection_with_dates_serializes_correctly():
         assert fc.schema == schema
         assert fc[0].geometry == feature.geometry
         assert fc[0].attributes == expected_attributes
+
+
+def test_get_values():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 2}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 3}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr2': 1}),
+    ])
+
+    assert list(fc.get_values('attr1')) == [1, 2, 3, None]
+
+
+def test_sort():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 3}),
+        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 1}),
+        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 2})
+    ])
+
+    expected_fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 1}),
+        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 2}),
+        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 3})
+    ])
+
+    assert fc.sort("attr1") == expected_fc
+
+
+def test_groupby_has_proper_groups():
+    gfa1 = GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'a'})
+    gfa2 = GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'a'})
+    gfb1 = GeoFeature(GeoVector(Point(2, 2)), {'attr1': 'b'})
+    fc = FeatureCollection([gfa1, gfa2, gfb1])
+
+    expected_groups = [
+        ('a', FeatureCollection([gfa1, gfa2])),
+        ('b', FeatureCollection([gfb1]))
+    ]
+
+    assert list(fc.groupby('attr1')) == expected_groups
+
+
+def test_groupby_can_extract_property():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'a', 'b': 1}),
+        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'a', 'b': 2}),
+        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 'b', 'b': 3})
+    ])
+
+    expected_groups = [
+        ('a', FeatureCollection([
+            GeoFeature(GeoVector(Point(3, 3)), {'b': 1}),
+            GeoFeature(GeoVector(Point(1, 1)), {'b': 2}),
+        ])),
+        ('b', FeatureCollection([
+            GeoFeature(GeoVector(Point(2, 2)), {'b': 3})
+        ]))
+    ]
+
+    assert list(fc.groupby('attr1')['b']) == expected_groups
+
+
+def test_groupby_agg_returns_expected_result():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'a', 'b': 1}),
+        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'a', 'b': 2}),
+        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 'b', 'b': 3})
+    ])
+
+    def first(collection):
+        return collection[0]
+
+    expected_result = FeatureCollection([
+        GeoFeature(GeoVector(Point(3, 3)), {'b': 1}),
+        GeoFeature(GeoVector(Point(2, 2)), {'b': 3})
+    ])
+
+    assert list(fc.groupby('attr1')['b'].agg(first)) == expected_result
+
+
+def test_groupby_with_dissolve():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'attr1': 'a', 'b': 1}),
+        GeoFeature(GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=1, crs=DEFAULT_CRS), {'attr1': 'a', 'b': 2}),
+        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'attr1': 'b', 'b': 3}),
+    ])
+
+    expected_result = FeatureCollection([
+        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=3, ymax=1, crs=DEFAULT_CRS), {'b': 3}),
+        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'b': 3}),
+    ])
+
+    assert fc.dissolve('attr1', sum) == fc.groupby('attr1').agg(partial(dissolve, aggfunc=sum)) == expected_result
