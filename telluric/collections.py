@@ -144,7 +144,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         """Get all values of a certain property.
 
         """
-        return [feature[key] for feature in self]
+        for feature in self:
+            yield feature.get(key)
 
     def reproject(self, new_crs):
         return FeatureCollection([feature.reproject(new_crs) for feature in self])
