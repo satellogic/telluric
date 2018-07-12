@@ -141,7 +141,7 @@ class GeoRaster2TestGetTile(TestCase):
 
     def test_geo_bounding_tile(self):
         gr = self.raster_for_test()
-        gv = gr.footprint().reproject({'init': 'epsg:4326'})
+        gv = gr.footprint().reproject(CRS({'init': 'epsg:4326'}))
         bounding_tile = mercantile.bounding_tile(*gv.get_shape(gv.crs).bounds)
         self.assertEqual(bounding_tile, (2319, 1578, 12))
 
@@ -422,10 +422,10 @@ class GeoRasterCropTest(TestCase):
     def test_geographic_crop_with_resize(self):
         coords = mercantile.xy_bounds(*tiles[17])
         raster = self.geographic_raster()
-        vector = GeoVector(Polygon.from_bounds(*coords), crs=self.metric_crs).reproject(self.geographic_crs)
-        cropped = raster.crop(vector, mercator_zoom_to_resolution[17])
+        vector = GeoVector(Polygon.from_bounds(*coords), crs=self.metric_crs)
         x_ex_res, y_ex_res = convert_resolution_from_meters_to_deg(
             self.metric_affine[6], mercator_zoom_to_resolution[17])
+        cropped = raster.crop(vector, (x_ex_res, y_ex_res))
         self.assertAlmostEqual(cropped.affine[0], x_ex_res)
         self.assertAlmostEqual(abs(cropped.affine[4]), y_ex_res, 6)
 
@@ -434,6 +434,30 @@ class GeoRasterCropTest(TestCase):
         vector = GeoVector(Polygon.from_bounds(-180, -90, 180, 90), crs=self.geographic_crs)
         with self.assertRaises(GeoRaster2Error):
             raster.crop(vector)
+
+    def test_crop_of_rasters_with_opposite_affine_and_data_return_the_same(self):
+        array = np.arange(0, 20).reshape(1, 4, 5)
+        array2 = np.arange(19, -1, -1).reshape(1, 4, 5)
+        array2.sort()
+
+        image1 = np.ma.array(array, mask=False)
+        image2 = np.ma.array(array2, mask=False)
+
+        aff2 = Affine.translation(0, -8) * Affine.scale(2, 2)
+        aff = Affine.scale(2, -2)
+
+        r1 = GeoRaster2(image=image1, affine=aff, crs=WEB_MERCATOR_CRS)
+        r2 = GeoRaster2(image=image2, affine=aff2, crs=WEB_MERCATOR_CRS)
+
+        # r1 == r2  # doesn't work, see https://github.com/satellogic/telluric/issues/79
+        roi = GeoVector(Polygon.from_bounds(0, 0, 3, -3), crs=WEB_MERCATOR_CRS)
+
+        r1c = r1.crop(roi)
+        r2c = r2.crop(roi)
+
+        # r1c == r2c  # doesn't work, see https://github.com/satellogic/telluric/issues/79
+        # currently this is the only way to test the result is the same
+        assert r2c.to_png() == r1c.to_png()
 
 
 class GeoRasterMaskedTest(TestCase):
@@ -495,6 +519,16 @@ class GeoRasterMaskedTest(TestCase):
 
         assert cropped.image[:, :, -1].mask.all()  # This line of pixels is masked
         assert (~cropped.image[:, :, :-1].mask).all()  # The rest is not masked
+
+
+def test_small_geographic_raster_crop():
+    # See https://github.com/satellogic/telluric/issues/61
+    roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=2, crs=WGS84_CRS)
+    resolution = 1.0  # deg / px
+
+    raster = GeoRaster2.empty_from_roi(roi, resolution)
+
+    assert raster.crop(roi) == raster.crop(roi, raster.resolution())
 
 
 @manualtest

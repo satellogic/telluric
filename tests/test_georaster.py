@@ -1,18 +1,22 @@
 import pytest
 import os
 from tempfile import TemporaryDirectory
-from copy import copy, deepcopy
+from copy import deepcopy
 
 import numpy as np
 from affine import Affine
 from rasterio.enums import Resampling
+from rasterio.warp import calculate_default_transform
 from PIL import Image
 from shapely.geometry import Point, Polygon
-from common_for_tests import make_test_raster
+
+from rasterio.crs import CRS
 
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning
 from telluric.vectors import GeoVector
+
+from common_for_tests import make_test_raster
 
 
 some_array = np.array([[0, 1, 2], [3, 4, 5]], dtype=np.uint8)
@@ -24,7 +28,7 @@ some_image_3d_multiband = np.ma.array(
     np.array([some_array, some_array, some_array]), mask=np.array([some_mask, some_mask, some_mask]))
 raster_origin = Point(2, 3)
 some_affine = Affine.translation(raster_origin.x, raster_origin.y)
-some_crs = {'init': 'epsg:32620'}
+some_crs = CRS({'init': 'epsg:32620'})
 some_raster = GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs, band_names=['r'])
 some_raster_alt = GeoRaster2(some_image_2d_alt, affine=some_affine, crs=some_crs, band_names=['r'])
 some_raster_multiband = GeoRaster2(
@@ -435,6 +439,39 @@ def test_georaster_contains_geometry():
     assert roi in empty
     assert roi.buffer(-1) in empty
     assert roi.buffer(1) not in empty
+
+
+def test_empty_from_roi_respects_footprint():
+    # See https://github.com/satellogic/telluric/issues/39
+    raster = GeoRaster2.open("tests/data/raster/overlap1.tif")
+
+    empty = GeoRaster2.empty_from_roi(shape=raster.shape[1:][::-1], ul_corner=(v[0] for v in raster.corner('ul').xy),
+                                      resolution=raster.res_xy(), crs=raster.crs,
+                                      band_names=raster.band_names, dtype=raster.dtype)
+
+    empty_simple = GeoRaster2.empty_from_roi(roi=raster.footprint(),
+                                             resolution=raster.res_xy(),
+                                             band_names=raster.band_names, dtype=raster.dtype)
+
+    assert raster.footprint().almost_equals(empty.footprint())
+    assert raster.footprint().almost_equals(empty_simple.footprint())
+
+
+def test_georaster_reproject_without_load_into_memory():
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif")
+    new_width = int(0.5 * raster.width)
+    new_height = int(0.5 * raster.height)
+    with raster._raster_opener(raster._filename) as src:
+        dst_affine, dst_width, dst_height = calculate_default_transform(
+            src.crs, WGS84_CRS, src.width, src.height, *src.bounds)
+    dst_affine = dst_affine * Affine.scale(2, 2)
+
+    try:
+        raster_reprojected = raster._reproject(new_width, new_height, dst_affine, dst_crs=WGS84_CRS)
+        assert raster_reprojected._image is None
+        assert raster_reprojected._filename is not None
+    finally:
+        os.remove(raster_reprojected._filename)
 
 
 def test_astype_uint8_to_uint8_conversion():

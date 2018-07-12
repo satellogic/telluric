@@ -31,6 +31,7 @@ setup(
         'pillow',
         'mercantile>=0.10.0',
         'matplotlib',
+        'boltons',
     ],
     extras_require={
         ':python_version<="3.4"': ['typing', 'pandas<0.21.0'],

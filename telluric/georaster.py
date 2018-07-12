@@ -1,14 +1,17 @@
 import json
 import os
 import io
+import contextlib
+import shutil
 from functools import reduce, partial
-from typing import Callable, Union, Iterable, Dict
+from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 from enum import Enum
 
 import tempfile
 from copy import copy, deepcopy
 
 import math
+from itertools import groupby
 
 import mercantile
 
@@ -16,6 +19,8 @@ import warnings
 
 import numpy as np
 import scipy.misc
+
+from boltons.setutils import IndexedSet
 
 from rasterio.crs import CRS
 import rasterio
@@ -33,7 +38,6 @@ from PIL import Image
 from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
-from telluric.util.general import convert_resolution_from_meters_to_deg
 
 from telluric.util.raster_utils import convert_to_cog, _calc_overviews_factors, _mask_from_masked_array
 from telluric.products_mixin import ProductsMixin
@@ -81,26 +85,102 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
        When roi is provided the ul_corner, shape and crs are ignored
     """
     if dest_resolution is None:
-        dest_resolution = rasters[0].resolution()
+        dest_resolution = rasters[0].res_xy()
 
     # Create empty raster
     empty = GeoRaster2.empty_from_roi(
         roi, resolution=dest_resolution, band_names=rasters[0].band_names,
         dtype=rasters[0].dtype, shape=shape, ul_corner=ul_corner, crs=crs)
 
-    projected_rasters = [_prepare_other_raster(empty, raster) for raster in rasters]
-    projected_rasters = [raster for raster in projected_rasters if raster is not None]
-    func = partial(_merge, merge_strategy=merge_strategy)  # type: Callable[[_Raster, _Raster], _Raster]
-    raster = reduce(func, projected_rasters, empty)
-    return empty.copy_with(image=raster.image, band_names=raster.band_names)
+    # Create a list of single band rasters
+    all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty)
+
+    if all_band_names:
+        # Merge common bands
+        projected_rasters = _merge_common_bands(projected_rasters)
+
+        # Merge all bands
+        raster = reduce(_stack_bands, projected_rasters)
+
+        return empty.copy_with(image=raster.image, band_names=raster.band_names)
+
+    else:
+        raise ValueError("result contains no bands, use another merge strategy")
+
+
+def _merge_common_bands(rasters):
+    # type: (List[_Raster]) -> List[_Raster]
+    """Combine the common bands.
+
+    """
+    # Compute band order
+    all_bands = IndexedSet([rs.band_names[0] for rs in rasters])
+
+    def key(rs):
+        return all_bands.index(rs.band_names[0])
+
+    rasters_final = []  # type: List[_Raster]
+    for band_name, rasters_group in groupby(sorted(rasters, key=key), key=key):
+        rasters_final.append(reduce(_fill_pixels, rasters_group))
+
+    return rasters_final
+
+
+def _prepare_rasters(rasters, merge_strategy, first):
+    # type: (List[GeoRaster2], MergeStrategy, GeoRaster2) -> Tuple[IndexedSet[str], List[_Raster]]
+    """Prepares the rasters according to the baseline (first) raster and the merge strategy.
+
+    The baseline (first) raster is used to crop and reproject the other rasters,
+    while the merge strategy is used to compute the bands of the result. These
+    are returned for diagnostics.
+
+    """
+    # Create list of prepared rasters
+    all_band_names = IndexedSet(first.band_names)
+    projected_rasters = []  # type: List[GeoRaster2]
+    for raster in rasters:
+        projected_raster = _prepare_other_raster(first, raster)
+
+        # Modify the bands only if an intersecting raster was returned
+        if projected_raster:
+            if merge_strategy is MergeStrategy.INTERSECTION:
+                all_band_names.intersection_update(projected_raster.band_names)
+            elif merge_strategy is MergeStrategy.UNION:
+                all_band_names.update(projected_raster.band_names)
+
+            projected_rasters.append(projected_raster)
+
+    # Extend the rasters list with only those that have the requested bands
+    single_band_rasters = []
+    for projected_raster in projected_rasters:
+        single_band_rasters.extend(_explode_raster(projected_raster, all_band_names))
+
+    return all_band_names, single_band_rasters
+
+
+# noinspection PyDefaultArgument
+def _explode_raster(raster, band_names=[]):
+    # type: (GeoRaster2, Iterable[str]) -> List[_Raster]
+    """Splits a raster into multiband rasters.
+
+    """
+    # Using band_names=[] does no harm because we are not mutating it in place
+    # and it makes MyPy happy
+    if not band_names:
+        band_names = raster.band_names
+    else:
+        band_names = list(IndexedSet(raster.band_names).intersection(band_names))
+
+    return [_Raster(image=raster.bands_data([band_name]), band_names=[band_name]) for band_name in band_names]
 
 
 def _prepare_other_raster(one, other):
+    # type: (GeoRaster2, GeoRaster2) -> Union[GeoRaster2, None]
     # Crop and reproject the second raster, if necessary
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
             other = other.crop(one.footprint(), resolution=one.resolution())
-            other = other.reproject(new_width=one.width, new_height=one.height,
+            other = other._reproject(new_width=one.width, new_height=one.height,
                                     dest_affine=one.affine, dst_crs=one.crs,
                                     resampling=Resampling.nearest)
 
@@ -110,116 +190,87 @@ def _prepare_other_raster(one, other):
     return other
 
 
-def _merge(one, other, merge_strategy=MergeStrategy.UNION, requested_bands=None):
-    if merge_strategy is MergeStrategy.LEFT_ALL:
-        # If the bands are not the same, return one
-        try:
-            other = _Raster(image=other.bands_data(one.band_names), band_names=one.band_names)
-        except GeoRaster2Error:
-            return one
+def _fill_pixels(one, other):
+    # type: (_Raster, _Raster) -> _Raster
+    """Merges two single band rasters with the same band by filling the pixels according to depth.
 
-        return _merge(one, other, merge_strategy=MergeStrategy.INTERSECTION)
+    """
+    assert len(one.band_names) == len(other.band_names) == 1, "Rasters are not single band"
 
-    elif merge_strategy is MergeStrategy.INTERSECTION:
-        # https://stackoverflow.com/a/23529016/554319
-        if requested_bands is None:
-            common_bands = [band for band in one.band_names if band in set(other.band_names)]
-        else:
-            common_bands = requested_bands
+    # We raise an error in the intersection is empty.
+    # Other options include returning an "empty" raster or just None.
+    # The problem with the former is that GeoRaster2 expects a 2D or 3D
+    # numpy array, so there is no obvious way to signal that this raster
+    # has no bands. Also, returning a (1, 1, 0) numpy array is useless
+    # for future concatenation, so the expected shape should be used
+    # instead. The problem with the latter is that it breaks concatenation
+    # anyway and requires special attention. Suggestions welcome.
+    if one.band_names != other.band_names:
+        raise ValueError("rasters have no bands in common, use another merge strategy")
 
-        # We raise an error in the intersection is empty.
-        # Other options include returning an "empty" raster or just None.
-        # The problem with the former is that GeoRaster2 expects a 2D or 3D
-        # numpy array, so there is no obvious way to signal that this raster
-        # has no bands. Also, returning a (1, 1, 0) numpy array is useless
-        # for future concatenation, so the expected shape should be used
-        # instead. The problem with the latter is that it breaks concatenation
-        # anyway and requires special attention. Suggestions welcome.
-        if not common_bands:
-            raise ValueError("rasters have no bands in common, use another merge strategy")
+    new_image = one.image.copy()
+    other_image = other.image
 
-        # Change the binary mask to stay "under" the first raster
-        new_image = one.bands_data(common_bands).copy()
-        other_image = other.bands_data(common_bands)
+    # The values that I want to mask are the ones that:
+    # * Were already masked in the other array, _or_
+    # * Were already unmasked in the one array, so I don't overwrite them
+    other_values_mask = (other_image.mask[0] | (~one.image.mask[0]))
 
-        # The values that I want to mask are the ones that:
-        # * Were already masked in the other array, _or_
-        # * Were already unmasked in the one array, so I don't overwrite them
-        other_values_mask = (other_image.mask[0] | (~one.image.mask[0]))
+    # Reshape the mask to fit the future array
+    other_values_mask = other_values_mask[None, ...]
 
-        # Reshape the mask to fit the future arrays, considering
-        # that rasterio does not support one mask per band (see
-        # http://rasterio.readthedocs.io/en/latest/topics/masks.html#dataset-masks)
-        other_values_mask = other_values_mask[None, ...].repeat(len(common_bands), axis=0)
+    # Overwrite the values that I don't want to mask
+    new_image[~other_values_mask] = other_image[~other_values_mask]
 
-        # Overwrite the values that I don't want to mask
-        new_image[~other_values_mask] = other_image[~other_values_mask]
+    # In other words, the values that I wanted to write are the ones that:
+    # * Were already masked in the one array, _and_
+    # * Were not masked in the other array
+    # The reason for using the inverted form is to retain the semantics
+    # of "masked=True" that apply for masked arrays. The same logic
+    # could be written, using the De Morgan's laws, as
+    # other_values_mask = (one.image.mask[0] & (~other_image.mask[0])
+    # other_values_mask = other_values_mask[None, ...]
+    # new_image[other_values_mask] = other_image[other_values_mask]
+    # but here the word "mask" does not mean the same as in masked arrays.
 
-        # In other words, the values that I wanted to write are the ones that:
-        # * Were already masked in the one array, _and_
-        # * Were not masked in the other array
-        # The reason for using the inverted form is to retain the semantics
-        # of "masked=True" that apply for masked arrays. The same logic
-        # could be written, using the De Morgan's laws, as
-        # other_values_mask = (one.image.mask[0] & (~other_image.mask[0])
-        # other_values_mask = ...
-        # new_image[other_values_mask] = other_image[other_values_mask]
-        # but here the word "mask" does not mean the same as in masked arrays.
-
-        return _Raster(image=new_image, band_names=common_bands)
-
-    elif merge_strategy is MergeStrategy.UNION:
-        # Join the common bands using the INTERSECTION strategy
-        common_bands = [band for band in one.band_names if band in set(other.band_names)]
-
-        # We build the new image
-        # Just stacking the masks will not work, since TIFF exporing
-        # relies on all the dimensions of the mask to be equal
-        if common_bands:
-            # Merge the common bands by intersection
-            res_common = _merge(one, other,
-                                merge_strategy=MergeStrategy.INTERSECTION, requested_bands=common_bands)
-            new_bands = res_common.band_names
-            all_data = [res_common.image.data]
-
-        else:
-            res_common = one
-            new_bands = []
-            all_data = []
-
-        new_mask = res_common.image.mask[0]
-
-        # Add the rest of the bands
-        one_remaining_bands = [band for band in one.band_names if band not in set(common_bands)]
-        other_remaining_bands = [band for band in other.band_names if band not in set(common_bands)]
-
-        if one_remaining_bands:
-            all_data.insert(0, one.bands_data(one_remaining_bands).data)
-            # This is not necessary, as new_mask already includes
-            # at least all the values of one.image.mask because it comes
-            # either from one or from the intersection of one and other
-            # new_mask |= one.image.mask[0]
-            new_bands = one_remaining_bands + new_bands
-
-        if other_remaining_bands:
-            all_data.append(other.bands_data(other_remaining_bands).data)
-            # Apply "or" to the mask in the same way rasterio does, see
-            # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks
-            new_mask |= other.image.mask[0]
-            new_bands = new_bands + other_remaining_bands
-        new_image = np.ma.MaskedArray(
-            np.concatenate(all_data),
-            mask=[new_mask] * len(new_bands)
-        )
-        # We don't copy image and mask here, due to performance issues,
-        # this output should not use without eventually being copied
-        # In this context we are copying the object in the end of merge_all merge_first and merge
-        return _Raster(image=new_image, band_names=new_bands)
-    else:
-        raise ValueError("Use one the strategies available in MergeStrategy instead.")
+    return _Raster(image=new_image, band_names=one.band_names)
 
 
-def merge(one, other, merge_strategy=MergeStrategy.UNION):
+def _stack_bands(one, other):
+    # type: (_Raster, _Raster) -> _Raster
+    """Merges two rasters with non overlapping bands by stacking the bands.
+
+    """
+    assert set(one.band_names).intersection(set(other.band_names)) == set()
+
+    # We raise an error in the bands are the same. See above.
+    if one.band_names == other.band_names:
+        raise ValueError("rasters have the same bands, use another merge strategy")
+
+    # Apply "or" to the mask in the same way rasterio does, see
+    # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks
+    # In other words, mask the values that are already masked in either
+    # of the two rasters, since one mask per band is not supported
+    new_mask = one.image.mask[0] | other.image.mask[0]
+
+    # Concatenate the data along the band axis and apply the mask
+    new_image = np.ma.masked_array(
+        np.concatenate([
+            one.image.data,
+            other.image.data
+        ]),
+        mask=[new_mask] * (one.image.shape[0] + other.image.shape[0])
+    )
+    new_bands = one.band_names + other.band_names
+
+    # We don't copy image and mask here, due to performance issues,
+    # this output should not use without eventually being copied
+    # In this context we are copying the object in the end of merge_all merge_first and merge
+    return _Raster(image=new_image, band_names=new_bands)
+
+
+def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
+    # type: (GeoRaster2, GeoRaster2, MergeStrategy, bool) -> GeoRaster2
     """Merge two rasters into one.
 
     Parameters
@@ -230,42 +281,36 @@ def merge(one, other, merge_strategy=MergeStrategy.UNION):
         Right raster to merge.
     merge_strategy : MergeStrategy
         Merge strategy, from :py:data:`telluric.georaster.MergeStrategy` (default to "union").
+    silent : bool, optional
+        Whether to raise errors or return some result, default to False (raise errors).
 
     Returns
     -------
     GeoRaster2
 
     """
-    other = _prepare_other_raster(one, other)
-    if other is None:
-        raise ValueError("rasters do not intersect")
-    raster = _merge(one, other, merge_strategy)
-    return one.copy_with(image=raster.image, band_names=raster.band_names)
+    other_res = _prepare_other_raster(one, other)
+    if other_res is None:
+        if silent:
+            return one
+        else:
+            raise ValueError("rasters do not intersect")
 
+    else:
+        other = other_res  # To make MyPy happy
 
-def merge_to_first(one, other, merge_strategy=MergeStrategy.UNION):
-    """Merge the second raster to the first.
+    # Create a list of single band rasters
+    # Cropping won't happen twice, since other was already cropped
+    all_band_names, projected_rasters = _prepare_rasters([other], merge_strategy, first=one)
 
-    if rasters dont overlap it returns the first one.
+    if not all_band_names and not silent:
+        raise ValueError("rasters have no bands in common, use another merge strategy")
 
-    Parameters
-    ----------
-    one : GeoRaster2
-        Left raster to merge.
-    other : GeoRaster2
-        Right raster to merge.
-    merge_strategy : MergeStrategy
-        Merge strategy, from :py:data:`telluric.georaster.MergeStrategy` (default to "union").
+    # Merge common bands
+    projected_rasters = _merge_common_bands(_explode_raster(one, all_band_names) + projected_rasters)
 
-    Returns
-    -------
-    GeoRaster2
-
-    """
-    other = _prepare_other_raster(one, other)
-    if other is None:
-        return one
-    raster = _merge(one, other, merge_strategy)
+    # Merge all bands
+    raster = reduce(_stack_bands, projected_rasters)
 
     return one.copy_with(image=raster.image, band_names=raster.band_names)
 
@@ -292,7 +337,7 @@ class GeoRaster2NotImplementedError(GeoRaster2Error, NotImplementedError):
     pass
 
 
-class _Raster():
+class _Raster:
     """ A class that has image, band_names and shape
     """
 
@@ -401,7 +446,8 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
     """
     def __init__(self, image=None, affine=None, crs=None,
-                 filename=None, band_names=None, nodata=0, shape=None, footprint=None):
+                 filename=None, band_names=None, nodata=0, shape=None, footprint=None,
+                 temporary=False):
         """Create a GeoRaster object
 
         :param filename: optional path/url to raster file for lazy loading
@@ -412,12 +458,18 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         :param band_names: e.g. ['red', 'blue'] or 'red'
         :param shape: raster image shape, optional
         :param nodata: if provided image is array (not masked array), treat pixels with value=nodata as nodata
+        :param temporary: True means that file referenced by filename is temporary
+            and will be removed by destructor, default False
         """
         super().__init__(image=image, band_names=band_names, shape=shape, nodata=nodata)
         self._affine = deepcopy(affine)
         self._crs = CRS(copy(crs)) if crs else None  # type: Union[None, CRS]
         self._filename = filename
+        self._temporary = temporary
         self._footprint = copy(footprint)
+
+    def __del__(self):
+        self._cleanup()
 
     #  IO:
     @classmethod
@@ -459,10 +511,18 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         return rasterization.rasterize([], crs, roi, resolution, band_names=band_names,
                                        dtype=dtype, shape=shape, ul_corner=ul_corner)
 
+    def _cleanup(self):
+        if self._filename is not None and self._temporary:
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(self._filename)
+            self._filename = None
+            self._temporary = False
+
     def _populate_from_rasterio_object(self, read_image):
         with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
             self._affine = copy(raster.transform)
             self._crs = copy(raster.crs)
+            assert self._crs.is_valid
             self._dtype = np.dtype(raster.dtypes[0])
 
             # if band_names not provided, try read them from raster tags.
@@ -576,6 +636,20 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
         """
 
+        folder = os.path.abspath(os.path.join(filename, os.pardir))
+        os.makedirs(folder, exist_ok=True)
+
+        if (
+            (self._image is None and self._filename is not None) and
+            (tags is None and not kwargs)
+        ):
+            # can be replaced with rasterio.shutil.copy in case
+            # we should pass creation_options while saving
+            shutil.copyfile(self._filename, filename)
+            self._cleanup()
+            self._filename = filename
+            return
+
         internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
         nodata_value = kwargs.get('nodata', None)
         compression = kwargs.get('compression', Compression.lzw)
@@ -584,8 +658,6 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             rasterio_envs['CPL_DEBUG'] = True
         with rasterio.Env(**rasterio_envs):
             try:
-                folder = os.path.abspath(os.path.join(filename, os.pardir))
-                os.makedirs(folder, exist_ok=True)
                 size = self.image.shape
                 extension = os.path.splitext(filename)[1].lower()[1:]
                 driver = gdal_drivers[extension]
@@ -804,7 +876,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         """
         crops raster outside vector (convex hull)
         :param vector: GeoVector
-        :param output resolution in m/pixel, None for full resolution
+        :param resolution: output resolution, None for full resolution
         :return: GeoRaster
         """
         bounds, window = self._vector_to_raster_bounds(vector)
@@ -815,13 +887,24 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
         return self.pixel_crop(bounds, xsize, ysize, window=window)
 
+    def _window(self, bounds):
+        # self.window expects to receive the arguments west, south, east, north,
+        # so for positive e in affine we should swap top and bottom
+        if self.affine[4] > 0:
+            window = self.window(bounds[0], bounds[3], bounds[2], bounds[1], precision=6)
+        else:
+            window = self.window(*bounds, precision=6)
+
+        window = window.round_offsets().round_shape(op='ceil', pixel_precision=3)
+        return window
+
     def _vector_to_raster_bounds(self, vector, boundless=False):
         # bounds = tuple(round(bb) for bb in self.to_raster(vector).bounds)
         bounds = vector.get_shape(self.crs).bounds
         if any(map(math.isinf, bounds)):
             raise GeoRaster2Error('bounds %s cannot be transformed from %s to %s' % (
                 vector.get_shape(vector.crs).bounds, vector.crs, self.crs))
-        window = self.window(*bounds, precision=6).round_offsets().round_shape(op='ceil', pixel_precision=3)
+        window = self._window(bounds)
         (ymin, ymax), (xmin, xmax) = window.toranges()
         bounds = (xmin, ymin, xmax, ymax)
         if not boundless:
@@ -840,15 +923,12 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         return bounds, window
 
     def _resolution_to_output_shape(self, bounds, resolution):
-        if resolution is None:
-            xscale = yscale = 1
-        elif self.crs.is_geographic:
-            xresolution, yresolution = convert_resolution_from_meters_to_deg(self.affine[6], resolution)
-            xscale = xresolution / abs(self.affine[0])
-            yscale = yresolution / abs(self.affine[4])
-        else:
-            base_resolution = abs(self.affine[0])
+        base_resolution = abs(self.affine[0])
+        if isinstance(resolution, (int, float)):
             xscale = yscale = resolution / base_resolution
+        else:
+            xscale = resolution[0] / base_resolution
+            yscale = resolution[1] / base_resolution
 
         width = bounds[2] - bounds[0]
         height = bounds[3] - bounds[1]
@@ -908,7 +988,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         if 'image' not in init_args:
             init_args['image'] = self.image
 
-        return GeoRaster2(**init_args)
+        return self.__class__(**init_args)
 
     deepcopy_with = copy_with
 
@@ -919,8 +999,12 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         return self.deepcopy_with()
 
     def resolution(self):
-        """Return resolution. if different in different axis - return average."""
+        """Return resolution. if different in different axis - return geometric mean."""
         return float(np.sqrt(np.abs(self.affine.determinant)))
+
+    def res_xy(self):
+        """Returns X and Y resolution."""
+        return abs(self.affine[0]), abs(self.affine[4])
 
     def resize(self, ratio=None, ratio_x=None, ratio_y=None, dest_width=None, dest_height=None, dest_resolution=None,
                resampling=Resampling.cubic):
@@ -955,7 +1039,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
         dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
-        return self.reproject(new_width, new_height, dest_affine, resampling=resampling)
+        return self._reproject(new_width, new_height, dest_affine, resampling=resampling)
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
@@ -974,7 +1058,22 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             affine = affine * Affine.translation(eps, eps)
         return affine
 
-    def reproject(self, new_width, new_height, dest_affine, dtype=None, dst_crs=None, resampling=Resampling.cubic):
+    def reproject(self, dest_crs=None, resolution=None, dtype=None, resampling=Resampling.cubic):
+        dest_crs = dest_crs or self.crs
+        if self._image is None and self._filename is not None:
+            with self._raster_opener(self._filename) as src:
+                src_bounds = src.bounds
+        else:
+            src_bounds = self.footprint().get_shape(self.crs).bounds
+            src = self
+
+        dest_affine, new_width, new_height = rasterio.warp.calculate_default_transform(
+            src.crs, dest_crs, src.width, src.height, *src_bounds,
+            resolution=resolution)
+
+        return self._reproject(new_width, new_height, dest_affine, dtype, dest_crs, resampling)
+
+    def _reproject(self, new_width, new_height, dest_affine, dtype=None, dst_crs=None, resampling=Resampling.cubic):
         """Return re-projected raster to new raster.
 
         :param new_width: new raster width in pixels
@@ -989,37 +1088,60 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         if new_width == 0 or new_height == 0:
             return None
         dst_crs = dst_crs or self.crs
-        dtype = dtype or self.image.data.dtype
-        dest_image = np.ma.masked_array(
-            data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
-            mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
-        )
 
         src_transform = self._patch_affine(self.affine)
         dst_transform = self._patch_affine(dest_affine)
-        # first, reproject only data:
-        rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
-                                dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
-                                resampling=resampling)
 
-        # rasterio.reproject has a bug for dtype=bool.
-        # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
-        temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
+        # image is not loaded yet
+        if self._image is None and self._filename is not None:
+            with self._raster_opener(self._filename) as src:
+                profile = src.profile.copy()
+                profile.update({
+                    'crs': dst_crs,
+                    'transform': dest_affine,
+                    'width': new_width,
+                    'height': new_height
+                })
 
-        # extract the mask, and un-shrink if necessary
-        mask = self.image.mask
-        if mask is np.ma.nomask:
-            mask = np.zeros_like(self.image.data, dtype=bool)
+                tf = tempfile.NamedTemporaryFile(suffix='.tif', delete=False)
+                with self._raster_opener(tf.name, 'w', **profile) as dst:
+                    rasterio.warp.reproject(
+                        rasterio.band(src, src.indexes),
+                        rasterio.band(dst, dst.indexes),
+                        src_transform=src_transform, dst_transform=dst_transform,
+                        src_crs=self.crs, dst_crs=dst_crs, resampling=resampling)
+                new_raster = self.copy_with(filename=tf.name, temporary=True,
+                                            image=None, affine=dst_transform, crs=dst_crs)
+        else:
+            dtype = dtype or self.image.data.dtype
+            dest_image = np.ma.masked_array(
+                data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
+                mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
+            )
 
-        # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
-        # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
-        # undo the inversion
-        rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
-                                src_transform=src_transform, dst_transform=dst_transform,
-                                src_crs=self.crs, dst_crs=dst_crs, resampling=Resampling.nearest)
-        dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
+            # first, reproject only data:
+            rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
+                                    dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
+                                    resampling=resampling)
 
-        new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
+            # rasterio.reproject has a bug for dtype=bool.
+            # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
+            temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
+
+            # extract the mask, and un-shrink if necessary
+            mask = self.image.mask
+            if mask is np.ma.nomask:
+                mask = np.zeros_like(self.image.data, dtype=bool)
+
+            # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
+            # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
+            # undo the inversion
+            rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
+                                    src_transform=src_transform, dst_transform=dst_transform,
+                                    src_crs=self.crs, dst_crs=dst_crs, resampling=resampling)
+            dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
+
+            new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
 
         return new_raster
 
@@ -1315,7 +1437,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
 
     def merge(self, other, merge_strategy=MergeStrategy.UNION):
         # TODO: Evaluate whether this should be add_raster
-        return merge(self, other, merge_strategy)
+        return merge_two(self, other, merge_strategy)
 
     def intersect(self, other):
         """Pixels outside either raster are set nodata"""
@@ -1415,7 +1537,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         height = round(dy / aligned_zoom_level)
 
         affine = Affine.translation(minx, maxy) * Affine.scale(aligned_zoom_level, -aligned_zoom_level)
-        aligned_raster = self.reproject(width, height, affine, dtype=self.dtype, dst_crs=WEB_MERCATOR_CRS)
+        aligned_raster = self._reproject(width, height, affine, dtype=self.dtype, dst_crs=WEB_MERCATOR_CRS)
         return aligned_raster
 
     def _overviews_factors(self, blocksize=256):
