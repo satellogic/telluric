@@ -26,7 +26,7 @@ setup(
         'ipyleaflet!=0.8.2',
         'pyproj',
         'shapely>=1.6.3,<2.*',
-        'rasterio>=1.0b2',
+        'rasterio>=1.0,<2.*',
         'scipy',
         'pillow',
         'mercantile>=0.10.0',
