@@ -108,6 +108,7 @@ def multi_raster_with_no_data():
     source_raster.image.mask[1, 2, 3] = True
     source_raster.image.mask[2, 0, 0] = True
     source_raster.image.mask[3, 1, 3] = True
+    source_raster.image.setflags(write=0)
     return source_raster
 
 
