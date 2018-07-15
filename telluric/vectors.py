@@ -10,9 +10,11 @@ from shapely.geometry import (
     CAP_STYLE,
     mapping)
 
+from mercantile import Bbox, xy_bounds
+
 from rasterio.crs import CRS
 
-from telluric.constants import DEFAULT_CRS, EQUAL_AREA_CRS, WGS84_CRS
+from telluric.constants import DEFAULT_CRS, EQUAL_AREA_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.plotting import NotebookPlottingMixin
 from telluric.util.projections import transform
 
@@ -66,6 +68,12 @@ GEOM_NONVECTOR_PROPERTIES = [
     'coords',
     'exterior',
     'interiors',
+]
+BOUND_NONVECTOR_PROPERTIES = [
+    'left',
+    'bottom',
+    'right',
+    'top',
 ]
 
 
@@ -175,6 +183,16 @@ class _GeoVectorDelegator:
             # Use class docstring to properly translate properties, see
             # https://stackoverflow.com/a/38118315/554319
             delegated_.__doc__ = getattr(self._shape.__class__, item).__doc__
+
+            # Transform to a property
+            delegated_property = property(delegated_)
+
+            # Bind the property
+            setattr(self.__class__, item, delegated_property)
+
+        elif item in BOUND_NONVECTOR_PROPERTIES:
+            def delegated_(self_):
+                return getattr(self_.get_bounds(self_.crs), item)
 
             # Transform to a property
             delegated_property = property(delegated_)
@@ -308,6 +326,16 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         """
         return cls(Polygon.from_bounds(xmin, ymin, xmax, ymax), crs)
 
+    @classmethod
+    def from_xyz(cls, x, y, z):
+        """Creates GeoVector from Mercator slippy map values.
+
+        """
+        bb = xy_bounds(x, y, z)
+        return cls.from_bounds(xmin=bb.left, ymin=bb.bottom,
+                               xmax=bb.right, ymax=bb.top,
+                               crs=WEB_MERCATOR_CRS)
+
     @property
     def __geo_interface__(self):
         return self.to_record(WGS84_CRS)
@@ -342,6 +370,10 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
             return self._shape
         else:
             return self.reproject(crs)._shape
+
+    def get_bounds(self, crs):
+        left, bottom, right, top = self.get_shape(crs).bounds
+        return Bbox(left, bottom, right, top)
 
     def _repr_svg_(self):
         return self._shape._repr_svg_()

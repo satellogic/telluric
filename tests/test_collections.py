@@ -1,10 +1,10 @@
 import os
 from collections import OrderedDict
-from datetime import date, datetime
+from datetime import date
+from functools import partial
 
 import fiona
 import tempfile
-import mercantile
 
 import pytest
 from unittest import mock
@@ -14,8 +14,7 @@ from shapely.geometry import Polygon, Point, mapping
 from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.collections import FeatureCollection, FileCollection, FeatureCollectionIOError
-from telluric.georaster import GeoRaster2, merge_all, mercator_zoom_to_resolution
+from telluric.collections import FeatureCollection, FileCollection, FeatureCollectionIOError, dissolve
 
 
 def fc_generator(num_features):
@@ -65,17 +64,20 @@ def test_feature_collection_filter_returns_proper_elements():
     assert len(list(res)) == 1
 
 
-def test_convex_hull_and_envelope():
+def test_convex_hull_and_envelope_and_cascaded_union():
     fc = FeatureCollection.from_geovectors([
         GeoVector.from_bounds(xmin=0, ymin=0, xmax=1, ymax=1),
         GeoVector.from_bounds(xmin=1, ymin=0, xmax=2, ymax=1),
         GeoVector.from_bounds(xmin=1, ymin=1, xmax=2, ymax=2),
     ])
+
+    expected_cascaded_union = GeoVector(Polygon([(0, 0), (2, 0), (2, 2), (1, 2), (1, 1), (0, 1), (0, 0)]))
     expected_convex_hull = GeoVector(Polygon([(0, 0), (2, 0), (2, 2), (1, 2), (0, 1), (0, 0)]))
     expected_envelope = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=2)
 
     assert fc.convex_hull.equals(expected_convex_hull)
     assert fc.envelope.equals(expected_envelope)
+    assert fc.cascaded_union.equals(expected_cascaded_union)
 
 
 def test_convex_hull_raises_warning_with_invalid_shape():
@@ -345,48 +347,95 @@ def test_feature_collection_with_dates_serializes_correctly():
         assert fc[0].attributes == expected_attributes
 
 
-def test_get_tile_that_returend_257():
-    bounds = GeoVector.from_bounds(xmin=-295505.5513504914,
-                                   ymin=4705921.785461731,
-                                   xmax=-295352.3793504914,
-                                   ymax=4706074.957461731,
-                                   crs={'init': 'epsg:3857'})
-    resolution = 0.596
-    raster = GeoRaster2.empty_from_roi(roi=bounds, resolution=resolution)
-    with tempfile.NamedTemporaryFile(suffix='.tif') as fp:
-        raster.save(fp.name)
-        feature = GeoFeature(raster.footprint(), {"raster_url": fp.name})
-        fc = FeatureCollection([feature])
-        tile = fc.get_tile(z=18, x=129139, y=100288)
-        assert tile.shape == (1, 256, 256)
+def test_get_values():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 2}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 3}),
+        GeoFeature(GeoVector(Point(0, 0)), {'attr2': 1}),
+    ])
+
+    assert list(fc.get_values('attr1')) == [1, 2, 3, None]
 
 
-@pytest.mark.parametrize("tile", [(4377, 3039, 13), (4376, 3039, 13), (4377, 3039, 13),
-                                  (2189, 1519, 12), (8756, 6076, 14), (8751, 6075, 14)])
-def test_get_tile_merge_tiles(tile):
-    raster1_path = './tests/data/raster/overlap1.tif'
-    raster2_path = './tests/data/raster/overlap2.tif'
-    raster1 = GeoRaster2.open(raster1_path)
-    raster2 = GeoRaster2.open(raster2_path)
+def test_sort():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 3}),
+        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 1}),
+        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 2})
+    ])
 
-    features = [
-        GeoFeature(raster1.footprint().reproject(new_crs=WGS84_CRS),
-                   {'raster_url': raster1_path, 'created': datetime.now()}),
-        GeoFeature(raster2.footprint().reproject(new_crs=WGS84_CRS),
-                   {'raster_url': raster2_path, 'created': datetime.now()}),
+    expected_fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 1}),
+        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 2}),
+        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 3})
+    ])
+
+    assert fc.sort("attr1") == expected_fc
+
+
+def test_groupby_has_proper_groups():
+    gfa1 = GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'a'})
+    gfa2 = GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'a'})
+    gfb1 = GeoFeature(GeoVector(Point(2, 2)), {'attr1': 'b'})
+    fc = FeatureCollection([gfa1, gfa2, gfb1])
+
+    expected_groups = [
+        ('a', FeatureCollection([gfa1, gfa2])),
+        ('b', FeatureCollection([gfb1]))
     ]
 
-    fc = FeatureCollection(features)
-    bounds = mercantile.xy_bounds(*tile)
-    eroi = GeoVector.from_bounds(xmin=bounds.left, xmax=bounds.right,
-                                 ymin=bounds.bottom, ymax=bounds.top,
-                                 crs=WEB_MERCATOR_CRS)
-    expected_tile = merge_all([raster1.get_tile(*tile), raster2.get_tile(*tile)],
-                              roi=eroi,
-                              dest_resolution=mercator_zoom_to_resolution[tile[2]])
-    merged = fc.get_tile(*tile, sort_by='created')
-    if merged is not None:
-        assert merged == expected_tile
-    else:
-        assert expected_tile.image.mask.all()
-        assert (expected_tile.image.data == 0).all()
+    assert list(fc.groupby('attr1')) == expected_groups
+
+
+def test_groupby_can_extract_property():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'a', 'b': 1}),
+        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'a', 'b': 2}),
+        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 'b', 'b': 3})
+    ])
+
+    expected_groups = [
+        ('a', FeatureCollection([
+            GeoFeature(GeoVector(Point(3, 3)), {'b': 1}),
+            GeoFeature(GeoVector(Point(1, 1)), {'b': 2}),
+        ])),
+        ('b', FeatureCollection([
+            GeoFeature(GeoVector(Point(2, 2)), {'b': 3})
+        ]))
+    ]
+
+    assert list(fc.groupby('attr1')['b']) == expected_groups
+
+
+def test_groupby_agg_returns_expected_result():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'a', 'b': 1}),
+        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'a', 'b': 2}),
+        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 'b', 'b': 3})
+    ])
+
+    def first(collection):
+        return collection[0]
+
+    expected_result = FeatureCollection([
+        GeoFeature(GeoVector(Point(3, 3)), {'b': 1}),
+        GeoFeature(GeoVector(Point(2, 2)), {'b': 3})
+    ])
+
+    assert list(fc.groupby('attr1')['b'].agg(first)) == expected_result
+
+
+def test_groupby_with_dissolve():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'attr1': 'a', 'b': 1}),
+        GeoFeature(GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=1, crs=DEFAULT_CRS), {'attr1': 'a', 'b': 2}),
+        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'attr1': 'b', 'b': 3}),
+    ])
+
+    expected_result = FeatureCollection([
+        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=3, ymax=1, crs=DEFAULT_CRS), {'b': 3}),
+        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'b': 3}),
+    ])
+
+    assert fc.dissolve('attr1', sum) == fc.groupby('attr1').agg(partial(dissolve, aggfunc=sum)) == expected_result
