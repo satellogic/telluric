@@ -40,6 +40,8 @@ from telluric.util.projections import transform
 from telluric.util.raster_utils import (convert_to_cog, _calc_overviews_factors,
                                         _mask_from_masked_array, _join_masks_from_masked_array)
 
+import matplotlib  # for mypy
+
 with warnings.catch_warnings():  # silences warning, see https://github.com/matplotlib/matplotlib/issues/5836
     warnings.simplefilter("ignore", UserWarning)
     import matplotlib.pyplot as plt
@@ -1662,7 +1664,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """
         vmin = vmin or min(self.min())
         vmax = vmax or max(self.max())
-        cmap = plt.get_cmap(colormap)
+
+        cmap = plt.get_cmap(colormap)  # type: matplotlib.colors.Colormap
 
         band_index = 0
         if band_name is None:
@@ -1671,7 +1674,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         else:
             band_index = self.band_names.index(band_name)
 
-        normalized = np.divide(self.image.data[band_index, :, :] - vmin, vmax - vmin)
+        normalized = (self.image.data[band_index, :, :] - vmin) / (vmax - vmin)
+
+        # Colormap instances are used to convert data values (floats)
+        # to RGBA color that the respective Colormap
+        #
+        # https://matplotlib.org/_modules/matplotlib/colors.html#Colormap
         image_data = cmap(normalized)
         image_data = image_data[:, :, 0:3]
 
