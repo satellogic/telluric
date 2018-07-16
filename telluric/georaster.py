@@ -1143,12 +1143,14 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             three_first_bands = self.band_names[:3]
             raster = self.limit_to_bands(three_first_bands)
         elif self.num_bands == 2:
-            warnings.warn("Deprecation: to_png of two bands raster will be not be supported in next release",
+            warnings.warn("Deprecation: to_png of two bands raster will be not be supported in next release \
+                           use: .colorize('gray').to_png()",
                           GeoRaster2Warning)
             first_band = self.band_names[:1]
             raster = self.limit_to_bands(first_band)
         else:
-            warnings.warn("Deprecation: to_png of a single band raster will be not be supported in next release",
+            warnings.warn("Deprecation: to_png of a single band raster will be not be supported in next release\
+                           use: .colorize('gray').to_png()",
                           GeoRaster2Warning)
             raster = self
 
