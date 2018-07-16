@@ -1,8 +1,8 @@
 import json
 import os
 import io
-from functools import reduce
-from typing import Union, Iterable, Dict, List, Tuple
+from functools import reduce, partial
+from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 from enum import Enum
 
 import tempfile
@@ -1137,21 +1137,21 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """
         resampling = resampling if resampling is not None else Resampling.cubic
 
+        if self.num_bands < 3:
+            warnings.warn("Deprecation: to_png of less then three bands raster will be not be supported in next \
+release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
+
         if self.num_bands > 3:
             warnings.warn("Limiting %d bands raster to first three bands to generate png" % self.num_bands,
                           GeoRaster2Warning)
             three_first_bands = self.band_names[:3]
             raster = self.limit_to_bands(three_first_bands)
         elif self.num_bands == 2:
-            warnings.warn("Deprecation: to_png of two bands raster will be not be supported in next release \
-                           use: .colorize('gray').to_png()",
+            warnings.warn("Limiting two bands raster to use the first band to generate png",
                           GeoRaster2Warning)
             first_band = self.band_names[:1]
             raster = self.limit_to_bands(first_band)
         else:
-            warnings.warn("Deprecation: to_png of a single band raster will be not be supported in next release\
-                           use: .colorize('gray').to_png()",
-                          GeoRaster2Warning)
             raster = self
 
         if raster.image.dtype != np.uint8:
