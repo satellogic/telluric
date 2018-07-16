@@ -126,9 +126,9 @@ def test_copy():
     """ Tests .__copy__() and .__deepcopy__() """
     a_raster = some_raster.deepcopy_with()
     deep_copy = deepcopy(a_raster)
-    # shallow_copy = copy(a_raster)
+    a_raster.image.setflags(write=1)
     a_raster.image.data[0, 0, 0] += 1
-    # assert shallow_copy.image[0, 0, 0] == a_raster.image[0, 0, 0]
+    a_raster.image.setflags(write=0)
     assert deep_copy.image[0, 0, 0] == a_raster.image[0, 0, 0] - 1
 
 
@@ -245,11 +245,26 @@ def test_to_png_uses_the_first_band_for_a_two_bands_raster(recwarn):
 
     png_bytes = raster.to_png(transparent=True, thumbnail_size=512)
     w = recwarn.pop(GeoRaster2Warning)
+    assert str(w.message) == "Deprecation: to_png of less then three bands raster will be not be supported in next \
+release, please use: .colorize('gray').to_png()"
+    w = recwarn.pop(GeoRaster2Warning)
     assert str(w.message) == "Limiting two bands raster to use the first band to generate png"
 
     w = recwarn.pop(GeoRaster2Warning)
     assert str(w.message) == "downscaling dtype to 'uint8' to convert to png"
 
+    img = Image.frombytes('RGBA', (raster.width, raster.height), png_bytes)
+    expected_image_size = raster.limit_to_bands([1]).astype(np.uint8).to_pillow_image().size
+    assert img.size == expected_image_size
+
+
+def test_to_png_uses_warns_on_single_bands_raster(recwarn):
+    raster = make_test_raster(42, band_names=[1], dtype=np.uint8)
+
+    png_bytes = raster.to_png(transparent=True, thumbnail_size=512)
+    w = recwarn.pop(GeoRaster2Warning)
+    assert str(w.message) == "Deprecation: to_png of less then three bands raster will be not be supported in next \
+release, please use: .colorize('gray').to_png()"
     img = Image.frombytes('RGBA', (raster.width, raster.height), png_bytes)
     expected_image_size = raster.limit_to_bands([1]).astype(np.uint8).to_pillow_image().size
     assert img.size == expected_image_size

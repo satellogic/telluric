@@ -82,6 +82,7 @@ blue_value = 101   # blue values 100 102 avg 101
 def multi_raster_16b():
     source_raster = make_test_raster(4200, ['green', 'red', 'nir', 'blue'], dtype=np.uint16)
     array = source_raster.image.data
+    array.setflags(write=1)
     array[0, :, :] = multi_values_16b['green']
     array[1, :, :] = multi_values_16b['red']
     array[2, :, :] = multi_values_16b['nir']
@@ -92,6 +93,7 @@ def multi_raster_16b():
 def multi_raster_8b():
     source_raster = make_test_raster(4200, ['green', 'red', 'nir', 'blue'], dtype=np.uint16)
     array = source_raster.image.data
+    array.setflags(write=1)
     array[0, :, :] = multi_values_8b['green']
     array[1, :, :] = multi_values_8b['red']
     array[2, :, :] = multi_values_8b['nir']
@@ -101,10 +103,12 @@ def multi_raster_8b():
 
 def multi_raster_with_no_data():
     source_raster = multi_raster_8b()
+    source_raster.image.setflags(write=1)
     source_raster.image.mask[0, 1, 2] = True
     source_raster.image.mask[1, 2, 3] = True
     source_raster.image.mask[2, 0, 0] = True
     source_raster.image.mask[3, 1, 3] = True
+    source_raster.image.setflags(write=0)
     return source_raster
 
 
@@ -113,16 +117,20 @@ hyper_bands = ["HC_%i" % wl for wl in hyper_wavelengths]
 
 def hyper_raster():
     source_raster = make_test_raster(142, hyper_bands, dtype=np.uint8)
+    source_raster.image.setflags(write=1)
     for i, band in enumerate(hyper_bands):
         source_raster.image.data[i, :, :] = 2 * i + 100
+    source_raster.image.setflags(write=0)
     return source_raster
 
 
 def hyper_raster_with_no_data():
     source_raster = hyper_raster()
+    source_raster.image.setflags(write=1)
     source_raster.image.mask[:, 1, 2] = True
     source_raster.image.mask[2, 2, 3] = True
     source_raster.image.mask[5, 0, 0] = True
     source_raster.image.mask[14, 1, 3] = True
     source_raster.image.mask[15, 1, 3] = True
+    source_raster.image.setflags(write=0)
     return source_raster

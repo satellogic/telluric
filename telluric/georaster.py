@@ -1,8 +1,8 @@
 import json
 import os
 import io
-from functools import reduce
-from typing import Union, Iterable, Dict, List, Tuple
+from functools import reduce, partial
+from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 from enum import Enum
 
 import tempfile
@@ -37,8 +37,10 @@ from telluric.constants import DEFAULT_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 
-from telluric.util.raster_utils import convert_to_cog, _calc_overviews_factors, _mask_from_masked_array
-from telluric.products_mixin import ProductsMixin
+from telluric.util.raster_utils import (convert_to_cog, _calc_overviews_factors,
+                                        _mask_from_masked_array, _join_masks_from_masked_array)
+
+import matplotlib  # for mypy
 
 with warnings.catch_warnings():  # silences warning, see https://github.com/matplotlib/matplotlib/issues/5836
     warnings.simplefilter("ignore", UserWarning)
@@ -407,6 +409,8 @@ class _Raster:
 
         self._image_after_load_validations()
 
+        self._image.setflags(write=0)
+
     def _set_shape(self, shape):
         self._shape = shape
         # update band_names
@@ -449,7 +453,7 @@ class _Raster:
         return self._image
 
 
-class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
+class GeoRaster2(WindowMethodsMixin, _Raster):
     """
     Represents multiband georeferenced image, supporting nodata pixels.
     The name "GeoRaster2" is temporary.
@@ -1133,6 +1137,10 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         """
         resampling = resampling if resampling is not None else Resampling.cubic
 
+        if self.num_bands < 3:
+            warnings.warn("Deprecation: to_png of less then three bands raster will be not be supported in next \
+release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
+
         if self.num_bands > 3:
             warnings.warn("Limiting %d bands raster to first three bands to generate png" % self.num_bands,
                           GeoRaster2Warning)
@@ -1637,6 +1645,61 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         y_scale = height / blockysize
         new_affine = new_affine * Affine.scale(x_scale, y_scale)
         return new_affine
+
+    def colorize(self, colormap, band_name=None, vmin=None, vmax=None):
+        """Apply a colormap on a selected band.
+
+        colormap list: https://matplotlib.org/examples/color/colormaps_reference.html
+
+        Parameters
+        ----------
+        colormap : str
+        Colormap name from this list https://matplotlib.org/examples/color/colormaps_reference.html
+
+        band_name : str, optional
+        Name of band to colorize, if none the first band will be used
+
+        vmin, vmax : int, optional
+        minimum and maximum range for normalizing array values, if None actual raster values will be used
+
+        Returns
+        -------
+        GeoRaster2
+        """
+        vmin = vmin or min(self.min())
+        vmax = vmax or max(self.max())
+
+        cmap = plt.get_cmap(colormap)  # type: matplotlib.colors.Colormap
+
+        band_index = 0
+        if band_name is None:
+            if self.num_bands > 1:
+                warnings.warn("Using the first band to colorize the raster", GeoRaster2Warning)
+        else:
+            band_index = self.band_names.index(band_name)
+
+        normalized = (self.image.data[band_index, :, :] - vmin) / (vmax - vmin)
+
+        # Colormap instances are used to convert data values (floats)
+        # to RGBA color that the respective Colormap
+        #
+        # https://matplotlib.org/_modules/matplotlib/colors.html#Colormap
+        image_data = cmap(normalized)
+        image_data = image_data[:, :, 0:3]
+
+        # convert floats [0,1] to uint8 [0,255]
+        image_data = image_data * 255
+        image_data = image_data.astype(self.dtype)
+
+        image_data = np.rollaxis(image_data, 2)
+
+        # force nodata where it was in original raster:
+        mask = _join_masks_from_masked_array(self.image)
+        mask = np.stack([mask[0, :, :]] * 3)
+        array = np.ma.array(image_data, mask=mask).filled(0)  # type: np.ndarray
+        array = np.ma.array(array, mask=mask)
+
+        return self.copy_with(image=array, band_names=['red', 'green', 'blue'])
 
 
 class Histogram:
