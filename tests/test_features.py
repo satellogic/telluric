@@ -11,54 +11,54 @@ from telluric.vectors import (
     GEOM_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
 
-from telluric.features import transform_attributes, GeoFeature
+from telluric.features import transform_properties, GeoFeature
 
 
 def test_geofeature_initializer():
     expected_geovector = GeoVector(Point(0.0, 0.0))
-    expected_attributes = {'attribute_1': 1}
+    expected_properties = {'property_1': 1}
 
-    res = GeoFeature(expected_geovector, expected_attributes)
+    res = GeoFeature(expected_geovector, expected_properties)
 
     assert res.geometry is expected_geovector
-    assert dict(res) == expected_attributes
+    assert dict(res) == expected_properties
 
 
 def test_geofeature_str():
     expected_geovector = GeoVector(Point(0.0, 0.0))
-    expected_attributes = {'attribute_1': 1}
+    expected_properties = {'property_1': 1}
 
-    res = GeoFeature(expected_geovector, expected_attributes)
+    res = GeoFeature(expected_geovector, expected_properties)
 
-    assert str(res) == "GeoFeature(Point, {'attribute_1': 1})"
+    assert str(res) == "GeoFeature(Point, {'property_1': 1})"
 
 
 def test_geofeature_dict():
     expected_geovector = GeoVector(Point(0.0, 0.0))
-    expected_attributes = {'attribute_1': 1}
+    expected_properties = {'property_1': 1}
 
-    res = GeoFeature(expected_geovector, expected_attributes)
+    res = GeoFeature(expected_geovector, expected_properties)
 
-    assert res['attribute_1'] == 1
+    assert res['property_1'] == 1
     assert res.geometry == expected_geovector
 
 
 def test_geofeature_geo_interface():
     shape = Point(0.0, 10.0)
     crs = {'init': 'epsg:32630'}
-    attributes = {
-        'attribute_1': '1',
-        'attribute_2': 'a',
+    properties = {
+        'property_1': '1',
+        'property_2': 'a',
     }
     gv = GeoVector(shape, crs)
 
     expected_geo_interface = {
         'type': 'Feature',
         'geometry': gv.__geo_interface__,
-        'properties': attributes
+        'properties': properties
     }
 
-    feature = GeoFeature(gv, attributes)
+    feature = GeoFeature(gv, properties)
 
     geo_interface = mapping(feature)
 
@@ -69,14 +69,14 @@ def test_geofeature_geo_interface():
 
 @pytest.mark.parametrize("property_name", GEOM_PROPERTIES)
 def test_delegated_properties(property_name):
-    expected_attributes = {'attribute_1': 1}
+    expected_properties = {'property_1': 1}
     feature = GeoFeature(
         GeoVector(Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])),
-        expected_attributes
+        expected_properties
     )
 
     assert getattr(feature, property_name).geometry == getattr(feature.geometry, property_name)
-    assert getattr(feature, property_name).attributes == feature.attributes
+    assert getattr(feature, property_name).properties == feature.properties
 
 
 @pytest.mark.parametrize("property_name", ['x', 'y', 'xy'])
@@ -110,38 +110,38 @@ def test_delegated_predicates(predicate_name):
 
 @pytest.mark.parametrize("operation_name", GEOM_BINARY_OPERATIONS)
 def test_delegated_operations(operation_name):
-    attributes_1 = {'attribute_1': 1}
-    attributes_2 = {'attribute_2': 2}
+    properties_1 = {'property_1': 1}
+    properties_2 = {'property_2': 2}
     feature_1 = GeoFeature(
         GeoVector(Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])),
-        attributes_1
+        properties_1
     )
     feature_2 = GeoFeature(
         GeoVector(Polygon([(0.5, 0), (1.5, 0), (1.5, 1), (0.5, 1)])),
-        attributes_2
+        properties_2
     )
-    expected_attributes = {'attribute_1': 1, 'attribute_2': 2}
+    expected_properties = {'property_1': 1, 'property_2': 2}
 
     assert (getattr(feature_1, operation_name)(feature_2).geometry ==
             getattr(feature_1.geometry, operation_name)(feature_2.geometry))
 
-    assert getattr(feature_1, operation_name)(feature_2).attributes == expected_attributes
-    assert getattr(feature_2, operation_name)(feature_1).attributes == expected_attributes
+    assert getattr(feature_1, operation_name)(feature_2).properties == expected_properties
+    assert getattr(feature_2, operation_name)(feature_1).properties == expected_properties
 
 
 @pytest.mark.parametrize("operation_name", GEOM_BINARY_OPERATIONS)
 def test_geofeature_and_geovector(operation_name):
-    expected_attributes = {'attribute_1': 1}
+    expected_properties = {'property_1': 1}
     feature = GeoFeature(
         GeoVector(Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])),
-        expected_attributes
+        expected_properties
     )
     vector = GeoVector(Polygon([(0.5, 0), (1.5, 0), (1.5, 1), (0.5, 1)]))
 
     assert (getattr(feature, operation_name)(vector).geometry ==
             getattr(feature.geometry, operation_name)(vector))
 
-    assert getattr(feature, operation_name)(vector).attributes == expected_attributes
+    assert getattr(feature, operation_name)(vector).properties == expected_properties
 
 
 def test_polygonize_is_equivalent_to_geovector():
@@ -149,31 +149,31 @@ def test_polygonize_is_equivalent_to_geovector():
     feature = GeoFeature.from_shape(line)
 
     assert feature.polygonize(1).geometry == feature.geometry.polygonize(1)
-    assert feature.polygonize(1).attributes == feature.attributes
+    assert feature.polygonize(1).properties == feature.properties
 
 
 @pytest.mark.parametrize("geometry", [
     GeoVector(Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])),
     GeoVector(Polygon([(0, 0), (1, 0), (1, 1), (0, 2)])),
 ])
-@pytest.mark.parametrize("attributes", [
-    {'attribute_1': 1},
-    {'attribute_1': 2}
+@pytest.mark.parametrize("properties", [
+    {'property_1': 1},
+    {'property_1': 2}
 ])
-def test_geofeature_equality_checks_geometry_and_attributes(geometry, attributes):
+def test_geofeature_equality_checks_geometry_and_properties(geometry, properties):
     ref_geometry = GeoVector(Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]))
-    ref_attributes = {'attribute_1': 1}
+    ref_properties = {'property_1': 1}
 
     feature1 = GeoFeature(
         ref_geometry,
-        ref_attributes
+        ref_properties
     )
     feature2 = GeoFeature(
         geometry,
-        attributes
+        properties
     )
 
-    if geometry == ref_geometry and attributes == ref_attributes:
+    if geometry == ref_geometry and properties == ref_properties:
         assert feature1 == feature2
 
     else:
@@ -192,7 +192,7 @@ def test_geofeature_correctly_serializes_non_simple_types():
     assert mapping(feature)['properties'] == expected_properties
 
 
-def test_transform_attributes():
+def test_transform_properties():
     schema = {
         'properties': OrderedDict([
             ('attr1', 'time'),
@@ -207,7 +207,7 @@ def test_transform_attributes():
         ('attr3', datetime(2018, 5, 19, 15, 0)),
         ('attr4', None)
     ])
-    assert transform_attributes(OrderedDict([
+    assert transform_properties(OrderedDict([
         ('attr1', '15:00:00'),
         ('attr2', '2018-05-19'),
         ('attr3', '2018-05-19T15:00:00'),

@@ -73,13 +73,13 @@ def style_element(element, style_func=None):
     # This import is here to avoid cyclic references
     from telluric.features import GeoFeature
 
-    if hasattr(element, "attributes") and style_func is not None:
-        new_attributes = copy(element.attributes)
-        new_attributes["style"] = style_func(mapping(element))
-        return GeoFeature(element.geometry, new_attributes)
+    if hasattr(element, "properties") and style_func is not None:
+        new_properties = copy(element.properties)
+        new_properties["style"] = style_func(mapping(element))
+        return GeoFeature(element.geometry, new_properties)
 
     else:
-        # If there are no attributes or no function, there's nothing to style
+        # If there are no properties or no function, there's nothing to style
         return element
 
 
