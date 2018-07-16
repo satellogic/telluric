@@ -1685,8 +1685,6 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         window_polygon = Polygon.from_bounds(xmin, ymin, xmax, ymax)
         return self.bounds().intersects(window_polygon)
 
-    def get_closest_to_block(self, val, blocksize):
-        return round(val/blocksize) * blocksize
 
 
 
@@ -1703,13 +1701,19 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
         """
         coordinates = mercantile.xy_bounds(x_tile, y_tile, zoom)
         window = self.window(*coordinates).round_offsets().round_shape()
-        if align_to_block:
-            window.col_off = self.get_closest_to_block(window.col_off, blocksize)
-            window.row_off = self.get_closest_to_block(window.row_off, blocksize)
-            window.width = self.get_closest_to_block(window.width, blocksize)
-            window.height = self.get_closest_to_block(window.height, blocksize)
+        boundless = True
+        if self._is_ul_in_mercator_tile_corner():
+            ul = self.corner("ul").get_shape(WGS84_CRS)
+            ul_tile = t = mercantile.tile(lat=ul.y, lng=ul.x, zoom=self.mercator_upper_zoom_level())
+            requested_block_tile = mercantile.tile(*mercantile.ul((x_tile, y_tile, zoom)), zoom=self.mercator_upper_zoom_level())
+            window.col_off = (requested_block_tile.x - ul_tile.x) * blocksize
+            window.row_off = (requested_block_tile.y - ul_tile.y) * blocksize
+            zoom_factor = pow(2, self.mercator_upper_zoom_level() - zoom)
+            window.width = blocksize * zoom_factor
+            window.height = blocksize * zoom_factor
+            boundless = False
         return self.get_window(window, bands=bands,
-                               xsize=blocksize, ysize=blocksize, masked=masked)
+                               xsize=blocksize, ysize=blocksize, masked=masked, boundless=boundless)
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
         new_affine = self.window_transform(window)
