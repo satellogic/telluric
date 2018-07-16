@@ -13,6 +13,7 @@ from shapely.geometry import (
 from mercantile import Bbox, xy_bounds
 
 from rasterio.crs import CRS
+from typing import Tuple, Iterator
 
 from telluric.constants import DEFAULT_CRS, EQUAL_AREA_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.plotting import NotebookPlottingMixin
@@ -94,6 +95,7 @@ def get_dimension(geometry):
 
 
 def generate_tile_coordinates(roi, num_tiles):
+    # type: (GeoVector, Tuple[int, int]) -> Iterator[GeoVector]
     """Yields N x M rectangular tiles for a region of interest.
 
     Parameters
@@ -110,8 +112,8 @@ def generate_tile_coordinates(roi, num_tiles):
     """
     bounds = roi.get_shape(roi.crs).bounds
 
-    x_range = np.linspace(bounds[0], bounds[2], num_tiles[0] + 1)
-    y_range = np.linspace(bounds[1], bounds[3], num_tiles[1] + 1)
+    x_range = np.linspace(bounds[0], bounds[2], int(num_tiles[0]) + 1)
+    y_range = np.linspace(bounds[1], bounds[3], int(num_tiles[1]) + 1)
 
     for y_start, y_end in zip(y_range[:-1], y_range[1:]):
         for x_start, x_end in zip(x_range[:-1], x_range[1:]):

@@ -30,9 +30,11 @@ def rasterize(shapes, crs, bounds=None, dest_resolution=None, *, fill_value=None
     if dtype is None:
         dtype = get_minimum_dtype(fill_value)
 
-    nodata_value = kwargs.get('nodata_value', NODATA_VALUE)
+    nodata_value = kwargs.get('nodata_value')
     if nodata_value is not None:
         warnings.warn(NODATA_DEPRECATION_WARNING, DeprecationWarning)
+    else:
+        nodata_value = NODATA_VALUE
 
     if not dest_resolution:
         raise ValueError("dest_resolution must be specified")
