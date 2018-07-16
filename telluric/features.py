@@ -1,4 +1,3 @@
-import copy
 from collections import Mapping
 
 from dateutil.parser import parse as parse_date
@@ -10,7 +9,6 @@ from telluric.vectors import (
     GeoVector,
     GEOM_PROPERTIES, GEOM_NONVECTOR_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
-from telluric.georaster import GeoRaster2
 from telluric.plotting import NotebookPlottingMixin
 
 
@@ -76,7 +74,6 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         """
         self.geometry = geovector  # type: GeoVector
         self._attributes = attributes
-        self._raster = None
 
     @property
     def crs(self):
@@ -216,12 +213,6 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         """Gets the underlying Shapely shape in a specified CRS."""
         return self.geometry.get_shape(crs)
 
-    def get_raster(self, field_name='raster_url'):
-        if self._raster is None:
-            self._raster = GeoRaster2.open(self[field_name])
-
-        return self._raster
-
     def polygonize(self, width, **kwargs):
         return self.__class__(
             self.geometry.polygonize(width, **kwargs),
@@ -239,30 +230,3 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
     def __repr__(self):
         return str(self)
-
-    def get_tiled_feature(self, x, y, z, bands, masked):
-        """Generate a new GeoFeature with new attribute a mercator tile from the raster.
-
-        Parameters
-        ----------
-        x: int
-            x coordinate of tile
-        y: int
-            y coordinate of tile
-        z: int
-            zoom level
-        bands: list
-            list of indices of requested bads, default None which returns all bands
-
-        Returns
-        -------
-        GeoFeature
-
-        """
-        attributes = copy.deepcopy(self.attributes)
-        attributes['tile'] = self.get_raster().get_tile(x, y, z, bands,masked=masked)
-        attributes['tile_x'] = x
-        attributes['tile_y'] = y
-        attributes['tile_z'] = z
-        attributes['tile_bans'] = bands
-        return self.__class__(self.geometry, attributes)

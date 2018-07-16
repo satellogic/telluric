@@ -2,9 +2,10 @@ import os
 import os.path
 import warnings
 import contextlib
-from collections import Sequence
+from collections import Sequence, OrderedDict, defaultdict
+from functools import partial
 from itertools import islice
-from typing import Set, Iterator
+from typing import Set, Iterator, Dict, Callable, Optional, Any, Union, DefaultDict
 
 import fiona
 from shapely.geometry import CAP_STYLE
@@ -12,15 +13,12 @@ from rasterio.crs import CRS
 from shapely.ops import cascaded_union
 from shapely.prepared import prep
 
-import mercantile
-from concurrent.futures import ThreadPoolExecutor
-
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
 from telluric.rasterization import rasterize, NODATA_DEPRECATION_WARNING
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.georaster import merge_all, mercator_zoom_to_resolution, MergeStrategy
+from telluric.georaster import merge_all, MergeStrategy
 
 from telluric.tileserver import TileServer
 
@@ -32,6 +30,30 @@ DRIVERS = {
 
 MAX_WORKERS = int(os.environ.get('TELLURIC_LIB_MAX_WORKERS', 100))
 CONCURRENCY_TIMEOUT = int(os.environ.get('TELLURIC_LIB_CONCURRENCY_TIMEOUT', 600))
+
+
+def dissolve(collection, aggfunc=None):
+    # type: (BaseCollection, Optional[Callable[[list], Any]]) -> GeoFeature
+    """Dissolves features contained in a FeatureCollection and applies an aggregation
+    function to its properties.
+
+    """
+    new_properties = {}
+    if aggfunc:
+        temp_properties = defaultdict(list)  # type: DefaultDict[Any, Any]
+        for feature in collection:
+            for key, value in feature.attributes.items():
+                temp_properties[key].append(value)
+
+        for key, values in temp_properties.items():
+            try:
+                new_properties[key] = aggfunc(values)
+
+            except Exception:
+                # We just do not use these results
+                pass
+
+    return GeoFeature(collection.cascaded_union, new_properties)
 
 
 class BaseCollection(Sequence, NotebookPlottingMixin):
@@ -65,7 +87,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         return all(feature.is_empty for feature in self)
 
     @property
-    def convex_hull(self):  # type: () -> GeoVector
+    def cascaded_union(self):  # type: () -> GeoVector
         try:
             crs = self.crs
             shapes = [feature.geometry.get_shape(crs) for feature in self]
@@ -80,12 +102,19 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             shapes = []
 
         return GeoVector(
-            cascaded_union([sh for sh in shapes if sh.is_valid]).convex_hull,
+            cascaded_union([sh for sh in shapes if sh.is_valid]).simplify(0),
             crs=crs
         )
 
     @property
+    def convex_hull(self):  # type: () -> GeoVector
+        return self.cascaded_union.convex_hull
+
+    @property
     def envelope(self):  # type: () -> GeoVector
+        # This is not exactly equal as cascaded_union,
+        # as we are computing the envelope of the envelopes,
+        # hence saving time
         try:
             crs = self.crs
             envelopes = [feature.geometry.envelope.get_shape(crs) for feature in self]
@@ -114,6 +143,13 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             'features': [feature.to_record(crs) for feature in self],
         }
 
+    def get_values(self, key):
+        """Get all values of a certain property.
+
+        """
+        for feature in self:
+            yield feature.get(key)
+
     def reproject(self, new_crs):
         return FeatureCollection([feature.reproject(new_crs) for feature in self])
 
@@ -137,10 +173,64 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
         return FeatureCollection(hits)
 
-    def serve(self, port=4444):
-        ts = TileServer(self, port=port)
-        print(ts.get_url())
-        ts.run()
+    def sort(self, by, desc=False):
+        """Sorts by given property or function, ascending or descending order.
+
+        Parameters
+        ----------
+        by : str or callable
+            If string, property by which to sort.
+            If callable, it should receive a GeoFeature a return a value by which to sort.
+        desc : bool, optional
+            Descending sort, default to False (ascending).
+
+        """
+        if callable(by):
+            key = by
+        else:
+            def key(feature):
+                return feature[by]
+
+        sorted_features = sorted(list(self), reverse=desc, key=key)
+        return self.__class__(sorted_features)
+
+    def groupby(self, by):
+        # type: (Union[str, Callable[[GeoFeature], str]]) -> _CollectionGroupBy
+        """Groups collection using a value of a property.
+
+        Parameters
+        ----------
+        by : str or callable
+            If string, name of the property by which to group.
+            If callable, should receive a GeoFeature and return the category.
+
+        Returns
+        -------
+        _CollectionGroupBy
+
+        """
+        results = OrderedDict()  # type: OrderedDict[str, list]
+        for feature in self:
+            if callable(by):
+                value = by(feature)
+            else:
+                value = feature[by]
+
+            results.setdefault(value, []).append(feature)
+
+        return _CollectionGroupBy(results)
+
+    def dissolve(self, by=None, aggfunc=None):
+        # type: (Optional[str], Optional[Callable]) -> FeatureCollection
+        """Dissolve geometries and rasters within `groupby`.
+
+        """
+        if by:
+            agg = partial(dissolve, aggfunc=aggfunc)  # type: Callable[[BaseCollection], GeoFeature]
+            return self.groupby(by).agg(agg)
+
+        else:
+            return FeatureCollection([dissolve(self, aggfunc)])
 
     def map(self, map_function):
         """Return a new FeatureCollection with the results of applying `map_function` to each element.
@@ -250,61 +340,6 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
 
-    executer = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-
-    def get_tile(self, x, y, z, sort_by=None, desc=False, bands=None, masked=True):
-        """Generate mercator tile from rasters in FeatureCollection.
-
-        Parameters
-        ----------
-        x: int
-            x coordinate of tile
-        y: int
-            y coordinate of tile
-        z: int
-            zoom level
-        sort_by: str
-            attribute in feature to sort by
-        desc: bool
-            True for descending order, False for ascending
-        bands: list
-            list of indices of requested bads, default None which returns all bands
-
-        Returns
-        -------
-        GeoRaster2
-
-        """
-        bb = mercantile.xy_bounds(x, y, z)
-        roi = GeoVector.from_bounds(xmin=bb.left, ymin=bb.bottom,
-                                    xmax=bb.right, ymax=bb.top,
-                                    crs=WEB_MERCATOR_CRS)
-
-        filtered_fc = self.filter(roi)
-
-        def _get_tiled_feature(feature):
-            return feature.get_tiled_feature(x, y, z, bands, masked=masked)
-
-        tiled_features = list(self.executer.map(_get_tiled_feature,
-                                                filtered_fc,
-                                                timeout=CONCURRENCY_TIMEOUT))
-
-        # tiled_features can be sort for different merge strategies
-        if sort_by is not None:
-            tiled_features = sorted(tiled_features,
-                                    reverse=desc,
-                                    key=lambda f: f[sort_by])
-
-        tiles = [f['tile'] for f in tiled_features]
-        if tiles:
-            resolution = mercator_zoom_to_resolution[z]
-            tile = merge_all(tiles, dest_resolution=resolution, ul_corner=(bb.left, bb.top),
-                             shape=(256, 256), crs=WEB_MERCATOR_CRS)
-            return tile
-        else:
-            return None
-
-
 class FeatureCollectionIOError(BaseException):
     pass
 
@@ -315,8 +350,8 @@ class FeatureCollection(BaseCollection):
 
         Parameters
         ----------
-        results : list
-            List of :py:class:`~telluric.features.GeoFeature` objects.
+        results : iterable
+            Iterable of :py:class:`~telluric.features.GeoFeature` objects.
 
         """
         super().__init__()
@@ -485,3 +520,35 @@ class FileCollection(BaseCollection):
                 results = list(self)[index]
 
             return FeatureCollection(results)
+
+
+class _CollectionGroupBy:
+    def __init__(self, groups):
+        # type: (Dict) -> None
+        self._groups = groups
+
+    def __getitem__(self, key):
+        results = OrderedDict.fromkeys(self._groups)
+        for name, group in self:
+            results[name] = []
+            for feature in group:
+                new_feature = GeoFeature(
+                    feature.geometry,
+                    {key: feature[key]}
+                )
+                results[name].append(new_feature)
+
+        return self.__class__(results)
+
+    def __iter__(self):
+        for name, group in self._groups.items():
+            yield name, FeatureCollection(group)
+
+    def agg(self, func):
+        # type: (Callable[[BaseCollection], GeoFeature]) -> FeatureCollection
+        """Apply some aggregation function to each of the groups.
+
+        The function must take a FeatureCollection and produce a Feature.
+
+        """
+        return FeatureCollection(func(fc) for _, fc in self)
