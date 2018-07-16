@@ -23,6 +23,7 @@ from boltons.setutils import IndexedSet
 from rasterio.crs import CRS
 import rasterio
 import rasterio.warp
+import rasterio.vrt
 import rasterio.shutil
 from rasterio.enums import Resampling, Compression
 from rasterio.features import geometry_mask
@@ -37,7 +38,12 @@ from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 
-from telluric.util.raster_utils import convert_to_cog, _calc_overviews_factors, _mask_from_masked_array
+from telluric.util.raster_utils import (
+    convert_to_cog,
+    _calc_overviews_factors,
+    _mask_from_masked_array,
+    reproject as reproject_util)
+
 from telluric.products_mixin import ProductsMixin
 
 with warnings.catch_warnings():  # silences warning, see https://github.com/matplotlib/matplotlib/issues/5836
@@ -1056,30 +1062,44 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             affine = affine * Affine.translation(eps, eps)
         return affine
 
-    def reproject(self, dest_crs=None, resolution=None, dtype=None, resampling=Resampling.cubic):
-        dest_crs = dest_crs or self.crs
-        if self._image is None and self._filename is not None:
-            with self._raster_opener(self._filename) as src:
-                src_bounds = src.bounds
+    def reproject(self, dst_crs=None, bounds=None, resolution=None, resampling=Resampling.cubic, **kwargs):
+        dest_crs = dst_crs or self.crs
+
+        read_from_file = self._image is None and self._filename is not None
+        if (
+            (not read_from_file and bounds is None) or
+            read_from_file
+        ):
+            if read_from_file:
+                with self._raster_opener(self._filename) as src:
+                    src_bounds = src.bounds
+            else:
+                src_bounds = self.footprint().get_shape(self.crs).bounds
+                src = self
+
+            dest_affine, new_width, new_height = rasterio.warp.calculate_default_transform(
+                src.crs, dest_crs, src.width, src.height, *src_bounds,
+                resolution=resolution)
+
         else:
-            src_bounds = self.footprint().get_shape(self.crs).bounds
-            src = self
+            minx, miny, maxx, maxy = bounds
+            new_width = round((maxx - minx) / resolution)
+            new_height = round((maxy - miny) / resolution)
+            dest_affine = Affine.translation(minx, maxy) * Affine.scale(resolution, -resolution)
 
-        dest_affine, new_width, new_height = rasterio.warp.calculate_default_transform(
-            src.crs, dest_crs, src.width, src.height, *src_bounds,
-            resolution=resolution)
+        return self._reproject(new_width, new_height, dest_affine, dest_crs, resampling, **kwargs)
 
-        return self._reproject(new_width, new_height, dest_affine, dtype, dest_crs, resampling)
-
-    def _reproject(self, new_width, new_height, dest_affine, dtype=None, dst_crs=None, resampling=Resampling.cubic):
+    def _reproject(self, new_width, new_height, dest_affine, dst_crs=None, resampling=Resampling.cubic,
+                   profile=None, **kwargs):
         """Return re-projected raster to new raster.
 
         :param new_width: new raster width in pixels
         :param new_height: new raster height in pixels
         :param dest_affine: new raster affine
-        :param dtype: new raster dtype, default current dtype
         :param dst_crs: new raster crs, default current crs
         :param resampling: reprojection resampling method, default `cubic`
+        :param profile: custom creation options
+        :param kwargs: additional arguments passed to transformation function
 
         :return GeoRaster2
         """
@@ -1087,31 +1107,19 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             return None
         dst_crs = dst_crs or self.crs
 
-        src_transform = self._patch_affine(self.affine)
-        dst_transform = self._patch_affine(dest_affine)
-
         # image is not loaded yet
         if self._image is None and self._filename is not None:
-            with self._raster_opener(self._filename) as src:
-                profile = src.profile.copy()
-                profile.update({
-                    'crs': dst_crs,
-                    'transform': dest_affine,
-                    'width': new_width,
-                    'height': new_height
-                })
+            with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tf:
+                reproject_util(self._filename, tf.name, dst_crs, profile=profile,
+                               resampling=resampling, **kwargs)
 
-                tf = tempfile.NamedTemporaryFile(suffix='.tif', delete=False)
-                with self._raster_opener(tf.name, 'w', **profile) as dst:
-                    rasterio.warp.reproject(
-                        rasterio.band(src, src.indexes),
-                        rasterio.band(dst, dst.indexes),
-                        src_transform=src_transform, dst_transform=dst_transform,
-                        src_crs=self.crs, dst_crs=dst_crs, resampling=resampling)
-                new_raster = self.copy_with(filename=tf.name, temporary=True,
-                                            image=None, affine=dst_transform, crs=dst_crs)
+            new_raster = GeoRaster2(filename=tf.name, temporary=True)
         else:
-            dtype = dtype or self.image.data.dtype
+            src_transform = self._patch_affine(self.affine)
+            dst_transform = self._patch_affine(dest_affine)
+
+            dtype = self.image.data.dtype
+
             dest_image = np.ma.masked_array(
                 data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
                 mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
@@ -1120,7 +1128,7 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             # first, reproject only data:
             rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
                                     dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
-                                    resampling=resampling)
+                                    resampling=resampling, **kwargs)
 
             # rasterio.reproject has a bug for dtype=bool.
             # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
@@ -1136,7 +1144,8 @@ class GeoRaster2(WindowMethodsMixin, ProductsMixin, _Raster):
             # undo the inversion
             rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
                                     src_transform=src_transform, dst_transform=dst_transform,
-                                    src_crs=self.crs, dst_crs=dst_crs, resampling=resampling)
+                                    src_crs=self.crs, dst_crs=dst_crs, resampling=resampling,
+                                    **kwargs)
             dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
 
             new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
