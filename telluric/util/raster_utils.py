@@ -3,6 +3,7 @@ import rasterio
 import numpy as np
 from rasterio import shutil as rasterio_sh
 from rasterio.enums import Resampling, MaskFlags
+from rasterio.warp import calculate_default_transform
 from tempfile import TemporaryDirectory
 
 
@@ -83,3 +84,35 @@ def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss):
             rasterio_sh.copy(temp_file, destination_file,
                              COPY_SRC_OVERVIEWS=True, tiled=True,
                              compress='DEFLATE', photometric='MINISBLACK')
+
+
+def reproject(source_file, destination_file, crs, resolution=None, profile=None, **kwargs):
+    """Reproject a source file to a destination file.
+
+    :param source_file: path to the original raster
+    :param destination_file: path to the new raster
+    :param crs: target coordinate reference system
+    :param resolution: target resolution, in units of target crs
+    :param profile: custom creation options
+    :param kwargs: additional arguments passed to transformation function
+    """
+    with rasterio.Env():
+        with rasterio.open(source_file) as src:
+            affine, width, height = calculate_default_transform(
+                src.crs, crs, src.width, src.height, *src.bounds,
+                resolution=resolution)
+
+            sprofile = src.profile.copy()
+            sprofile.update({
+                'crs': crs,
+                'transform': affine,
+                'width': width,
+                'height': height})
+            if profile is not None:
+                sprofile.update(profile)
+
+            with rasterio.open(destination_file, 'w', **sprofile) as dst:
+                rasterio.warp.reproject(
+                    rasterio.band(src, src.indexes),
+                    rasterio.band(dst, dst.indexes),
+                    **kwargs)
