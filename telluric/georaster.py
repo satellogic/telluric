@@ -1587,8 +1587,6 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 'GDAL_DISABLE_READDIR_ON_OPEN': True,
                 'GDAL_TIFF_INTERNAL_MASK_TO_8BIT': False,
             }   # type: Dict
-            if self._filename.split('.')[-1] == 'tif':
-                rasterio_env['CPL_VSIL_CURL_ALLOWED_EXTENSIONS'] = '.tif'
 
             with rasterio.Env(**rasterio_env):
                 with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
