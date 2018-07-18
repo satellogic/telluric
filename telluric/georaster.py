@@ -5,6 +5,7 @@ import contextlib
 import shutil
 from functools import reduce, partial
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
+from types import SimpleNamespace
 from enum import Enum
 
 import tempfile
@@ -26,6 +27,7 @@ from rasterio.crs import CRS
 import rasterio
 import rasterio.warp
 import rasterio.shutil
+from rasterio.coords import BoundingBox
 from rasterio.enums import Resampling, Compression
 from rasterio.features import geometry_mask
 from rasterio.io import WindowMethodsMixin
@@ -41,7 +43,8 @@ from telluric.util.projections import transform
 
 from telluric.util.raster_utils import (
     convert_to_cog, _calc_overviews_factors,
-    _mask_from_masked_array, _join_masks_from_masked_array, warp)
+    _mask_from_masked_array, _join_masks_from_masked_array,
+    calc_transform, warp)
 
 import matplotlib  # for mypy
 
@@ -203,9 +206,9 @@ def _prepare_other_raster(one, other):
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
             other = other.crop(one.footprint(), resolution=one.resolution())
-            other = other.reproject(new_width=one.width, new_height=one.height,
-                                    dest_affine=one.affine, dst_crs=one.crs,
-                                    resampling=Resampling.nearest)
+            other = other._reproject(new_width=one.width, new_height=one.height,
+                                     dest_affine=one.affine, dst_crs=one.crs,
+                                     resampling=Resampling.nearest)
 
         else:
             return None
@@ -1063,7 +1066,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
         dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
-        return self.reproject(new_width, new_height, dest_affine, resampling=resampling)
+        return self._reproject(new_width, new_height, dest_affine, resampling=resampling)
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
@@ -1082,95 +1085,89 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             affine = affine * Affine.translation(eps, eps)
         return affine
 
-    def reproject(self, new_width=None, new_height=None, dest_affine=None, dst_crs=None,
+    def _reproject(self, new_width, new_height, dest_affine, dtype=None,
+                   dst_crs=None, resampling=Resampling.cubic):
+        """Return re-projected raster to new raster.
+
+        :param new_width: new raster width in pixels
+        :param new_height: new raster height in pixels
+        :param dest_affine: new raster affine
+        :param dtype: new raster dtype, default current dtype
+        :param dst_crs: new raster crs, default current crs
+        :param resampling: reprojection resampling method, default `cubic`
+
+        :return GeoRaster2
+        """
+        if new_width == 0 or new_height == 0:
+            return None
+        dst_crs = dst_crs or self.crs
+        dtype = dtype or self.image.data.dtype
+        dest_image = np.ma.masked_array(
+            data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
+            mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
+        )
+
+        src_transform = self._patch_affine(self.affine)
+        dst_transform = self._patch_affine(dest_affine)
+        # first, reproject only data:
+        rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
+                                dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
+                                resampling=resampling)
+
+        # rasterio.reproject has a bug for dtype=bool.
+        # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
+        temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
+
+        # extract the mask, and un-shrink if necessary
+        mask = self.image.mask
+        if mask is np.ma.nomask:
+            mask = np.zeros_like(self.image.data, dtype=bool)
+
+        # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
+        # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
+        # undo the inversion
+        rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
+                                src_transform=src_transform, dst_transform=dst_transform,
+                                src_crs=self.crs, dst_crs=dst_crs, resampling=Resampling.nearest)
+        dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
+
+        new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
+
+        return new_raster
+
+    def reproject(self, dst_crs=None, resolution=None, dimensions=None,
                   resampling=Resampling.cubic, creation_options=None, **kwargs):
         """Return re-projected raster to new raster.
 
-        :param new_width: new raster width in pixels, optional if image is not loaded
-        :param new_height: new raster height in pixels, optional if image is not loaded
-        :param dest_affine: new raster affine, optional if image is not loaded
         :param dst_crs: new raster crs, default current crs
+        :param resolution: target resolution, in units of target crs
+        :param dimensions: output file size in pixels and lines
         :param resampling: reprojection resampling method, default `cubic`
         :param creation_options: custom creation options
         :param kwargs: additional arguments passed to transformation function
 
         :return GeoRaster2
         """
-        if new_width == 0 or new_height == 0:
-            return None
-
         dst_crs = dst_crs or self.crs
-        src_transform = self._patch_affine(self.affine)
-        dst_transform = None
-        if dest_affine is not None:
-            dst_transform = self._patch_affine(dest_affine)
 
-        # image is not loaded yet
         if self._image is None and self._filename is not None:
-            if (
-                (new_width is not None and new_height is not None) and
-                (dst_transform is not None)
-            ):
-                warnings.warn(
-                    "Parmeter dest_affine is redundant and therefore will be omitted.", GeoRaster2Warning)
-                dst_transform = None
-
-            if dst_transform is not None:
-                resolution = (dst_transform.a, -dst_transform.e)
-                kwargs.update({
-                    'resolution': resolution
-                })
-
-            if new_width is not None and new_height is not None:
-                dimensions = (new_width, new_height)
-                kwargs.update({
-                    'dimensions': dimensions
-                })
-
+            # image is not loaded yet
             with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tf:
-                warp(self._filename, tf.name, dst_crs,
-                     creation_options=creation_options,
+                warp(self._filename, tf.name, dst_crs=dst_crs, resolution=resolution,
+                     dimensions=dimensions, creation_options=creation_options,
                      resampling=resampling, **kwargs)
 
             new_raster = GeoRaster2(filename=tf.name, temporary=True)
         else:
-            if (
-                (new_width is None and new_height is None) and
-                (dst_transform is None)
-            ):
-                raise GeoRaster2Error(
-                    "Parameters new_width, new_height and dest_affine are required.")
-
-            dtype = self.image.data.dtype
-            dest_image = np.ma.masked_array(
-                data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
-                mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
-            )
-
-            # first, reproject only data:
-            rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
-                                    dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
-                                    resampling=resampling, **kwargs)
-
-            # rasterio.reproject has a bug for dtype=bool.
-            # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
-            temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
-
-            # extract the mask, and un-shrink if necessary
-            mask = self.image.mask
-            if mask is np.ma.nomask:
-                mask = np.zeros_like(self.image.data, dtype=bool)
-
-            # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
-            # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
-            # undo the inversion
-            rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
-                                    src_transform=src_transform, dst_transform=dst_transform,
-                                    src_crs=self.crs, dst_crs=dst_crs, resampling=resampling,
-                                    **kwargs)
-            dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
-
-            new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
+            # image is loaded already
+            src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
+                                  bounds=BoundingBox(*self.footprint().get_shape(self.crs).bounds),
+                                  gcps=None)
+            dst_transform, dst_width, dst_height = calc_transform(
+                src, dst_crs=dst_crs, resolution=resolution,
+                dimensions=dimensions)
+            new_raster = self._reproject(dst_width, dst_height, dst_transform,
+                                         dst_crs=dst_crs, resampling=resampling)
 
         return new_raster
 
