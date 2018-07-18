@@ -33,7 +33,7 @@ from shapely.geometry import Point, Polygon
 
 from PIL import Image
 
-from telluric.constants import DEFAULT_CRS
+from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, mercator_zoom_to_resolution
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 
@@ -65,31 +65,6 @@ gdal_drivers = {
     'jpg': 'JPEG',
     'jpeg': 'JPEG',
 }
-
-# source: http://wiki.openstreetmap.org/wiki/Zoom_levels
-mercator_zoom_to_resolution = {
-    0: 156412.,
-    1: 78206.,
-    2: 39103.,
-    3: 19551.,
-    4: 9776.,
-    5: 4888.,
-    6: 2444.,
-    7: 1222.,
-    8: 610.984,
-    9: 305.492,
-    10: 152.746,
-    11: 76.373,
-    12: 38.187,
-    13: 19.093,
-    14: 9.547,
-    15: 4.773,
-    16: 2.387,
-    17: 1.193,
-    18: 0.596,
-    19: 0.298,
-}
-
 
 class MergeStrategy(Enum):
     LEFT_ALL = 0
@@ -882,15 +857,15 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         return self.pixel_crop(bounds, xsize, ysize, window=window)
 
-    def _window(self, bounds):
+    def _window(self, bounds, to_round=True):
         # self.window expects to receive the arguments west, south, east, north,
         # so for positive e in affine we should swap top and bottom
         if self.affine[4] > 0:
             window = self.window(bounds[0], bounds[3], bounds[2], bounds[1], precision=6)
         else:
             window = self.window(*bounds, precision=6)
-
-        window = window.round_offsets().round_shape(op='ceil', pixel_precision=3)
+        if to_round:
+            window = window.round_offsets().round_shape(op='ceil', pixel_precision=3)
         return window
 
     def _vector_to_raster_bounds(self, vector, boundless=False):
@@ -1546,6 +1521,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         ymin = math.floor(abs(min(window.row_off, 0)) / yratio)
         return xmin, ymin
 
+
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
                    resampling=Resampling.cubic, masked=True,
@@ -1622,7 +1598,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return self.bounds().intersects(window_polygon)
 
     def get_tile(self, x_tile, y_tile, zoom,
-                 bands=None, blocksize=256):
+                 bands=None, masked=False, resampling=Resampling.cubic):
         """Convert mercator tile to raster window.
 
         :param x_tile: x coordinate of tile
@@ -1632,10 +1608,31 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param blocksize: tile size  (x & y) default 256, for full resolution pass None
         :return: GeoRaster2 of tile
         """
-        coordinates = mercantile.xy_bounds(x_tile, y_tile, zoom)
-        window = self._window(coordinates)
-        return self.get_window(window, bands=bands,
-                               xsize=blocksize, ysize=blocksize)
+        roi = GeoVector.from_xyz(x_tile, y_tile, zoom)
+        coordinates = roi.get_bounds(WEB_MERCATOR_CRS)
+        window = self._window(coordinates, to_round=False)
+        window.col_off = round(window.col_off)
+        window.row_off = round(window.row_off)
+        window.width = round(window.width)
+        window.height = round(window.height)
+        bands = bands or list(range(1, self.num_bands + 1))
+        out_shape = (len(bands), 256, 256)
+        resolution = mercator_zoom_to_resolution[zoom]
+        try:
+            read_params = {
+                "window": window,
+                "resampling": resampling,
+                "masked": masked,
+                "out_shape": out_shape,
+                "boundless": True
+            }
+            with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
+                    array = raster.read(bands, **read_params)
+            affine = Affine.translation(coordinates.left, coordinates.top) * Affine.scale(resolution, -resolution)
+            result = GeoRaster2(image=array, affine=affine, band_names=self.band_names, crs=WEB_MERCATOR_CRS )
+            return result
+        except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_HttpResponseError) as e:
+            raise GeoRaster2IOError(e)
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
         new_affine = self.window_transform(window)
