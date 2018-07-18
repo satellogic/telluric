@@ -1136,17 +1136,33 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return new_raster
 
     def reproject(self, dst_crs=None, resolution=None, dimensions=None,
+                  src_bounds=None, dst_bounds=None,
                   resampling=Resampling.cubic, creation_options=None, **kwargs):
         """Return re-projected raster to new raster.
 
-        :param dst_crs: new raster crs, default current crs
-        :param resolution: target resolution, in units of target crs
-        :param dimensions: output file size in pixels and lines
-        :param resampling: reprojection resampling method, default `cubic`
-        :param creation_options: custom creation options
-        :param kwargs: additional arguments passed to transformation function
+        Parameters
+        ------------
+        dst_crs: rasterio.crs.CRS, optional
+            Target coordinate reference system.
+        resolution: tuple (x resolution, y resolution) or float, optional
+            Target resolution, in units of target coordinate reference
+            system.
+        dimensions: tuple (width, height), optional
+            Output size in pixels and lines.
+        src_bounds: tuple (xmin, ymin, xmax, ymax), optional
+            Georeferenced extent of output (in source georeferenced units).
+        dst_bounds: tuple (xmin, ymin, xmax, ymax), optional
+            Georeferenced extent of output (in destination georeferenced units).
+        resampling: rasterio.enums.Resampling
+            Reprojection resampling method. Default is `cubic`.
+        creation_options: dict, optional
+            Custom creation options.
+        kwargs: optional
+            Additional arguments passed to transformation function.
 
-        :return GeoRaster2
+        Returns
+        ---------
+        out: GeoRaster2
         """
         dst_crs = dst_crs or self.crs
 
@@ -1155,6 +1171,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tf:
                 warp(self._filename, tf.name, dst_crs=dst_crs, resolution=resolution,
                      dimensions=dimensions, creation_options=creation_options,
+                     src_bounds=src_bounds, dst_bounds=dst_bounds,
                      resampling=resampling, **kwargs)
 
             new_raster = GeoRaster2(filename=tf.name, temporary=True)
@@ -1164,8 +1181,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                   bounds=BoundingBox(*self.footprint().get_shape(self.crs).bounds),
                                   gcps=None)
             dst_transform, dst_width, dst_height = calc_transform(
-                src, dst_crs=dst_crs, resolution=resolution,
-                dimensions=dimensions)
+                src, dst_crs=dst_crs, resolution=resolution, dimensions=dimensions,
+                src_bounds=src_bounds, dst_bounds=dst_bounds)
             new_raster = self._reproject(dst_width, dst_height, dst_transform,
                                          dst_crs=dst_crs, resampling=resampling)
 
