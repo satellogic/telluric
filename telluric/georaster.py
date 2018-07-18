@@ -39,9 +39,9 @@ from telluric.constants import DEFAULT_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 
-from telluric.util.raster_utils import (convert_to_cog, _calc_overviews_factors,
-                                        _mask_from_masked_array, _join_masks_from_masked_array,
-                                        reproject as reproject_util)
+from telluric.util.raster_utils import (
+    convert_to_cog, _calc_overviews_factors,
+    _mask_from_masked_array, _join_masks_from_masked_array, warp)
 
 import matplotlib  # for mypy
 
@@ -1082,13 +1082,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             affine = affine * Affine.translation(eps, eps)
         return affine
 
-    def reproject(self, new_width, new_height, dest_affine, dst_crs=None, resampling=Resampling.cubic,
-                  creation_options=None, **kwargs):
+    def reproject(self, new_width=None, new_height=None, dest_affine=None, dst_crs=None,
+                  resampling=Resampling.cubic, creation_options=None, **kwargs):
         """Return re-projected raster to new raster.
 
-        :param new_width: new raster width in pixels
-        :param new_height: new raster height in pixels
-        :param dest_affine: new raster affine
+        :param new_width: new raster width in pixels, optional if image is not loaded
+        :param new_height: new raster height in pixels, optional if image is not loaded
+        :param dest_affine: new raster affine, optional if image is not loaded
         :param dst_crs: new raster crs, default current crs
         :param resampling: reprojection resampling method, default `cubic`
         :param creation_options: custom creation options
@@ -1101,19 +1101,47 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         dst_crs = dst_crs or self.crs
         src_transform = self._patch_affine(self.affine)
-        dst_transform = self._patch_affine(dest_affine)
+        dst_transform = None
+        if dest_affine is not None:
+            dst_transform = self._patch_affine(dest_affine)
 
         # image is not loaded yet
         if self._image is None and self._filename is not None:
-            resolution = dst_transform.a, -dst_transform.e
+            if (
+                (new_width is not None and new_height is not None) and
+                (dst_transform is not None)
+            ):
+                warnings.warn(
+                    "Parmeter dest_affine is redundant and therefore will be omitted.", GeoRaster2Warning)
+                dst_transform = None
+
+            if dst_transform is not None:
+                resolution = (dst_transform.a, -dst_transform.e)
+                kwargs.update({
+                    'resolution': resolution
+                })
+
+            if new_width is not None and new_height is not None:
+                dimensions = (new_width, new_height)
+                kwargs.update({
+                    'dimensions': dimensions
+                })
+
             with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tf:
-                reproject_util(self._filename, tf.name, dst_crs, resolution=resolution,
-                               creation_options=creation_options, resampling=resampling, **kwargs)
+                warp(self._filename, tf.name, dst_crs,
+                     creation_options=creation_options,
+                     resampling=resampling, **kwargs)
 
             new_raster = GeoRaster2(filename=tf.name, temporary=True)
         else:
-            dtype = self.image.data.dtype
+            if (
+                (new_width is None and new_height is None) and
+                (dst_transform is None)
+            ):
+                raise GeoRaster2Error(
+                    "Parameters new_width, new_height and dest_affine are required.")
 
+            dtype = self.image.data.dtype
             dest_image = np.ma.masked_array(
                 data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
                 mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
