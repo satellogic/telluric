@@ -15,10 +15,8 @@ from shapely.prepared import prep
 
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
-from telluric.rasterization import rasterize, NODATA_DEPRECATION_WARNING
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.georaster import merge_all, MergeStrategy
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -262,6 +260,10 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             Extra parameters to the polygonize function.
 
         """
+        # Avoid circular imports
+        from telluric.georaster import merge_all, MergeStrategy
+        from telluric.rasterization import rasterize, NODATA_DEPRECATION_WARNING
+
         # Compute the size in real units and polygonize the features
         if not isinstance(polygonize_width, int):
             raise TypeError("The width in pixels must be an integer")
