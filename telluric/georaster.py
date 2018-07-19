@@ -1559,6 +1559,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         window.width = round(window.width)
         window.height = round(window.height)
         bands = bands or list(range(1, self.num_bands + 1))
+        # we know the affine the result should produce becuase we know where
+        # it is located by the xyz, therefore we calculate it here
         resolution = MERCATOR_RESOLUTION_MAPPING[zoom]
         affine = Affine.translation(coordinates.left, coordinates.top) * Affine.scale(resolution, -resolution)
         return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
