@@ -37,28 +37,28 @@ def black_and_white_raster(band_names=[], height=10, width=10, dtype=np.uint16,
 def test_merge_single_band_single_raster_returns_itself_for_all_strategies():
     for ms in MergeStrategy:
         raster = make_test_raster(88, [1])
-        raster2 = merge_all([raster], roi=raster.footprint(), merge_strategy=ms)
+        raster2, _ = merge_all([raster], roi=raster.footprint(), merge_strategy=ms)
         assert(raster2 == raster)
 
 
 def test_merge_multi_band_single_raster_returns_itself_for_all_strategies():
     for ms in MergeStrategy:
         raster = black_and_white_raster([1, 2, 3])
-        raster2 = merge_all([raster], roi=raster.footprint(), merge_strategy=ms)
+        raster2, _ = merge_all([raster], roi=raster.footprint(), merge_strategy=ms)
         assert(raster2 == raster)
 
 
 def test_merge_multi_band_multi_raster_returns_itself():
     rasters = [black_and_white_raster([1, 2, 3]) for i in range(10)]
     raster = black_and_white_raster([1, 2, 3])
-    raster2 = merge_all(rasters, roi=raster.footprint())
+    raster2, _ = merge_all(rasters, roi=raster.footprint())
     assert(raster2 == black_and_white_raster([1, 2, 3]))
 
 
 def test_merge_multi_band_multi_raster_smaller_roi_returns_itself():
     rasters = [black_and_white_raster([1, 2, 3])]
     raster = black_and_white_raster([1, 2, 3], height=7, width=6)
-    raster2 = merge_all(rasters, roi=raster.footprint())
+    raster2, _ = merge_all(rasters, roi=raster.footprint())
     assert(raster2 == raster)
 
 
@@ -72,25 +72,25 @@ def get_rasters():
 
 def test_merge_multi_band_multi_size_raster_0():
     rasters = get_rasters()
-    raster2 = merge_all(rasters, roi=rasters[0].footprint())
+    raster2, _ = merge_all(rasters, roi=rasters[0].footprint())
     assert(raster2 == rasters[0])
 
 
 def test_merge_multi_band_multi_size_raster_1():
     rasters = get_rasters()
-    raster2 = merge_all(rasters, roi=rasters[1].footprint())
+    raster2, _ = merge_all(rasters, roi=rasters[1].footprint())
     assert(raster2 == rasters[1])
 
 
 def test_merge_multi_band_multi_size_raster_2():
     rasters = get_rasters()
-    raster2 = merge_all(rasters, roi=rasters[2].footprint())
+    raster2, _ = merge_all(rasters, roi=rasters[2].footprint())
     assert(raster2 == rasters[2])
 
 
 def test_merge_multi_band_multi_size_raster_3():
     rasters = get_rasters()
-    raster2 = merge_all(rasters, roi=rasters[3].footprint())
+    raster2, _ = merge_all(rasters, roi=rasters[3].footprint())
     assert(raster2 == rasters[3])
 
 
@@ -174,7 +174,7 @@ def test_rasters_covering_different_overlapping_areas_on_x():
     raster_b = make_test_raster(2, [1], height=10, width=20, affine=affine_b)
     roi = GeoVector.from_bounds(xmin=1, ymin=-8, xmax=30, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
-    merged = merge_all(rasters, roi)
+    merged, _ = merge_all(rasters, roi)
     assert(merged.affine.almost_equals(affine_a))
     assert(not merged.image.mask.all())
     assert((merged.image.data[0, 0:10, 0:20] == 1).all())
@@ -188,7 +188,7 @@ def test_rasters_covering_different_overlapping_areas_on_y():
     raster_b = make_test_raster(2, [1], height=20, width=20, affine=affine_b)
     roi = GeoVector.from_bounds(xmin=1, ymin=-29, xmax=21, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
-    merged = merge_all(rasters, roi)
+    merged, _ = merge_all(rasters, roi)
     assert(merged.affine.almost_equals(affine_a))
     assert(not merged.image.mask.all())
     assert((merged.image.data[0, 0:20, 0:20] == 1).all())
@@ -202,7 +202,7 @@ def test_rasters_covering_different_areas_with_gap_on_x():
     raster_b = make_test_raster(2, [1], height=10, width=10, affine=affine_b)
     roi = GeoVector.from_bounds(xmin=1, ymin=-8, xmax=30, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
-    merged = merge_all(rasters, roi)
+    merged, _ = merge_all(rasters, roi)
     assert(merged.affine.almost_equals(affine_a))
     assert(not merged.image.mask[0, 0:10, 0:10].all())
     assert(merged.image.mask[0, 0:10, 10:20].all())
@@ -219,7 +219,7 @@ def test_rasters_covering_different_areas_with_gap_on_y():
     raster_b = make_test_raster(2, [1], height=10, width=10, affine=affine_b)
     roi = GeoVector.from_bounds(xmin=1, ymin=-29, xmax=11, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
-    merged = merge_all(rasters, roi)
+    merged, _ = merge_all(rasters, roi)
     assert(merged.affine.almost_equals(affine_a))
     assert(not merged.image.mask[0, 0:10, 0:10].all())
     assert(merged.image.mask[0, 11:20, 0:10].all())
@@ -263,7 +263,7 @@ def test_merge_raise_on_non_overlapping_rasters():
     assert "rasters do not intersect" in ex.exconly()
 
 
-def test_merge_to_firs_on_non_overlapping_rasters_returns_first_raster():
+def test_merge_to_first_on_non_overlapping_rasters_returns_first_raster():
     affine1 = Affine.translation(10, 12) * Affine.scale(1, -1)
     affine2 = Affine.translation(100, 120) * Affine.scale(1, -1)
     raster1 = make_test_raster(affine=affine1)
@@ -277,7 +277,7 @@ def test_merge_all_on_non_overlapping_rasters_returns_first_raster():
     affine2 = Affine.translation(100, 120) * Affine.scale(1, -1)
     raster1 = make_test_raster(value=1, band_names=['blue'], affine=affine1, height=30, width=40)
     raster2 = make_test_raster(value=2, band_names=['blue'], affine=affine2, height=30, width=40)
-    merged = merge_all([raster1, raster2], raster1.footprint())
+    merged, _ = merge_all([raster1, raster2], raster1.footprint())
     assert merged == raster1
 
 
@@ -340,7 +340,8 @@ def test_merge_does_not_uncover_masked_pixels():
             ]
         ], dtype=np.uint8)
 
-    result = merge_all([rs_a, rs_b], rs_a.footprint()).limit_to_bands(['red', 'green'])
+    result, _ = merge_all([rs_a, rs_b], rs_a.footprint())
+    result = result.limit_to_bands(['red', 'green'])
 
     assert_array_equal(np.ma.filled(result.image, 0), np.ma.filled(expected_image, 0))
     assert_array_equal(result.image.mask, expected_image.mask)
@@ -401,7 +402,8 @@ def test_merge_all_non_overlapping_covers_all():
         ]
     ], False)
 
-    result = merge_all([rs1, rs2, rs3, rs4], rs1.footprint()).limit_to_bands(['red', 'green'])
+    result, _ = merge_all([rs1, rs2, rs3, rs4], rs1.footprint())
+    result = result.limit_to_bands(['red', 'green'])
 
     assert_array_equal(result.image.data, expected_image.data)
     assert_array_equal(result.image.mask, expected_image.mask)

@@ -296,7 +296,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                     dest_resolution, fill_value=fill_value(feature), bounds=bounds, dtype=dtype)
                 )
 
-            return merge_all(rasters, bounds, dest_resolution, merge_strategy=MergeStrategy.INTERSECTION)
+            result, _ = merge_all(rasters, bounds, dest_resolution, merge_strategy=MergeStrategy.INTERSECTION)
+            return result
 
         else:
             return rasterize(shapes, crs, bounds.get_shape(crs), dest_resolution, fill_value=fill_value, dtype=dtype)

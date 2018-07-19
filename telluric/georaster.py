@@ -103,7 +103,7 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
         # Merge all bands
         raster = reduce(_stack_bands, projected_rasters)
 
-        return empty.copy_with(image=raster.image, band_names=raster.band_names)
+        return empty.copy_with(image=raster.image, band_names=raster.band_names), None
 
     else:
         raise ValueError("result contains no bands, use another merge strategy")
