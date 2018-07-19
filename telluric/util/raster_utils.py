@@ -117,6 +117,8 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
 
     Returns
     -------
+    dst_crs: rasterio.crs.CRS
+        Output crs
     transform: Affine
         Output affine transformation matrix
     width, height: int
@@ -130,7 +132,7 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
 
     if target_aligned_pixels:
         if not resolution:
-            raise ValueError('target_aligned_pixels requires a specified resolution')
+            raise ValueError('target_aligned_pixels cannot be used without resolution')
         if src_bounds or dst_bounds:
             raise ValueError('target_aligned_pixels cannot be used with src_bounds or dst_bounds')
 
@@ -222,7 +224,7 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
         dst_transform, dst_width, dst_height = aligned_target(
             dst_transform, dst_width, dst_height, resolution)
 
-    return dst_transform, dst_width, dst_height
+    return dst_crs, dst_transform, dst_width, dst_height
 
 
 # Code was adapted from rasterio.rio.warp module
@@ -277,7 +279,7 @@ def warp(source_file, destination_file, dst_crs=None, resolution=None, dimension
     with rasterio.Env(CHECK_WITH_INVERT_PROJ=check_invert_proj):
         with rasterio.open(source_file) as src:
             out_kwargs = src.profile.copy()
-            dst_transform, dst_width, dst_height = calc_transform(
+            dst_crs, dst_transform, dst_width, dst_height = calc_transform(
                 src, dst_crs, resolution, dimensions,
                 src_bounds, dst_bounds, target_aligned_pixels)
 

@@ -1,6 +1,6 @@
 import pytest
 import os
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 from copy import deepcopy
 
 import numpy as np
@@ -657,3 +657,31 @@ def test_png_thumbnail_has_expected_properties():
     )
 
     assert result_thumbnail == expected_thumbnail
+
+
+def test_destructor():
+    with NamedTemporaryFile(suffix='.tif', delete=False) as src:
+        raster = GeoRaster2(filename=src.name, temporary=True)
+        raster = some_raster
+        assert not os.path.isfile(src.name)
+
+
+def test_save_temporary():
+    with NamedTemporaryFile(suffix='.tif', delete=False) as src, NamedTemporaryFile(suffix='.tif') as dst:
+        raster = GeoRaster2(filename=src.name, temporary=True)
+        assert raster._filename == src.name
+        assert raster._temporary
+
+        raster.save(dst.name)
+        assert not raster._temporary
+        assert raster._filename == dst.name
+        # temporary file is removed
+        assert not os.path.isfile(src.name)
+
+
+def test_reproject_lazy():
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif")
+    reprojected = raster.reproject(dst_crs=WGS84_CRS)
+    assert reprojected._image is None
+    assert reprojected._filename is not None
+    assert reprojected._temporary
