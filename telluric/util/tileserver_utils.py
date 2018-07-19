@@ -1,6 +1,6 @@
 import telluric as tl
 import mercantile
-from telluric.util.raster_utils import _calc_overviews_factors, warp
+from telluric.util.raster_utils import _calc_overviews_factors, warp, _get_telluric_tags
 from affine import Affine
 import time
 import rasterio
@@ -49,6 +49,10 @@ def tileserver_optimized_raster(src, dest):
                 factors = _calc_overviews_factors(tmp_raster)
                 tmp_raster.build_overviews(factors, resampling=resampling)
                 tmp_raster.update_tags(ns='rio_overview', resampling=resampling.name)
+                telluric_tags = _get_telluric_tags(src)
+                if telluric_tags:
+                    tmp_raster.update_tags(**telluric_tags)
+
             rasterio_sh.copy(temp_file, dest,
                              COPY_SRC_OVERVIEWS=True, tiled=True,
                              compress='DEFLATE', photometric='MINISBLACK')
