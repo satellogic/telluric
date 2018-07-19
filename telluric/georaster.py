@@ -850,10 +850,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param resolution: output resolution, None for full resolution
         :return: GeoRaster
         """
-        if self._image is not None:
-            bounds, window = self._vector_to_raster_bounds(vector)
-        else:
-            bounds, window = self._vector_to_raster_bounds(vector, boundless=True)
+        bounds, window = self._vector_to_raster_bounds(vector, boundless=self._image is None)
         if resolution:
             xsize, ysize = self._resolution_to_output_shape(bounds, resolution)
         else:
@@ -874,7 +871,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def _vector_to_raster_bounds(self, vector, boundless=False):
         # bounds = tuple(round(bb) for bb in self.to_raster(vector).bounds)
-        vector_bounds = vector.get_shape(self.crs).bounds
+        vector_bounds = vector.get_bounds(self.crs)
         if any(map(math.isinf, vector_bounds)):
             raise GeoRaster2Error('bounds %s cannot be transformed from %s to %s' % (
                 vector.get_shape(vector.crs).bounds, vector.crs, self.crs))
@@ -1481,7 +1478,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         geotiff = GeoRaster2.open(dest_url)
         return geotiff
 
-    def _get_widow_calculate_resize_ratio(self, xsize, ysize, window):
+    def _get_window_calculate_resize_ratio(self, xsize, ysize, window):
         """Calculate the resize ratio of get_window.
 
         this method is only used inside get_window to calculate the resizing ratio
@@ -1502,7 +1499,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         this method is only used inside get_window to calculate the out_shape
         """
-        xratio, yratio = self._get_widow_calculate_resize_ratio(xsize, ysize, window)
+        xratio, yratio = self._get_window_calculate_resize_ratio(xsize, ysize, window)
         out_shape = (len(bands), math.ceil(abs(window.height / yratio)), math.ceil(abs(window.width / xratio)))
         return out_shape
 
