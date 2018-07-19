@@ -371,6 +371,9 @@ class FeatureCollection(BaseCollection):
             return self.__class__(self._results[index])
         return self._results[index]
 
+    def __repr__(self):
+        return str(list(self))
+
     @property
     def crs(self):
         # Get the CRS from the first feature
