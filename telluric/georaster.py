@@ -1500,86 +1500,19 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         """Compose raster from tiles. return GeoRaster."""
         raise NotImplementedError
 
-    def is_aligned_to_mercator_tiles(self):
-        """Return True if image aligned to coordinates tiles."""
-        # check orientation
-        aligned = self._is_image_oriented_to_coordinates()
-        # check in resolution
-        aligned = aligned and self._is_resolution_in_mercator_zoom_level()
-        # check corner
-        aligned = aligned and self._is_ul_in_mercator_tile_corner()
-        return aligned
-
-    def _is_image_oriented_to_coordinates(self):
-        """Check if coordinates rectilinear."""
-        a = self.affine[1]
-        b = self.affine[3]
-        return abs(a) < self.affine.precision and abs(b) < self.affine.precision
-
-    def _is_resolution_in_mercator_zoom_level(self, rtol=1e-02):
-        zoom_res = list(mercator_zoom_to_resolution.values())
-        resolution = self.resolution()
-        res_array = [resolution] * len(zoom_res)
-        resolution_ok = any(np.isclose(res_array, zoom_res, rtol=rtol))
-        a = self.transform
-        scales = [abs(a[0]), abs(a[4])]
-        resolutions = [resolution, resolution]
-        scale_ok = all(np.isclose(scales, resolutions, rtol=rtol))
-        return resolution_ok and scale_ok
-
-    def _is_ul_in_mercator_tile_corner(self, rtol=1e-05):
-        # this requires geographical crs
-        gv = self.footprint().reproject(DEFAULT_CRS)
-        x, y, _, _ = gv.shape.bounds
-        z = self._mercator_upper_zoom_level()
-        tile = mercantile.tile(x, y, z)
-        tile_ul = mercantile.ul(*tile)
-        return all(np.isclose(list(tile_ul), [x, y], rtol=rtol))
-
-    def _mercator_upper_zoom_level(self):
-        r = self.resolution()
-        for zoom, resolution in mercator_zoom_to_resolution.items():
-            if r > resolution:
-                return zoom
-        raise GeoRaster2Error("resolution out of range (grater than zoom level 19)")
-
-    def align_raster_to_mercator_tiles(self):
-        """Return new raster aligned to compasing tile.
-
-        :return: GeoRaster2
-        """
-        if not self._is_resolution_in_mercator_zoom_level():
-            upper_zoom_level = self._mercator_upper_zoom_level()
-            raster = self.resize(self.resolution() / mercator_zoom_to_resolution[upper_zoom_level])
-        else:
-            raster = self
-        # this requires geographical crs
-        gv = raster.footprint().reproject(DEFAULT_CRS)
-        bounding_tile = mercantile.bounding_tile(*gv.shape.bounds)
-        window = raster._tile_to_window(*bounding_tile)
-        width = math.ceil(abs(window.width))
-        height = math.ceil(abs(window.height))
-        affine = raster.window_transform(window)
-        aligned_raster = self.reproject(width, height, affine)
-        return aligned_raster
-
     def _overviews_factors(self, blocksize=256):
         return _calc_overviews_factors(self, blocksize=blocksize)
 
-    def save_cloud_optimized(self, dest_url, aligned_to_mercator=False, resampling=Resampling.gauss):
+    def save_cloud_optimized(self, dest_url, resampling=Resampling.gauss):
         """Save as Cloud Optimized GeoTiff object to a new file.
 
         :param dest_url: path to the new raster
-        :param aligned_to_mercator: if True raster will be aligned to mercator tiles, default False
         :param resampling: which Resampling to use on reading, default Resampling.gauss
 
         :return: new VirtualGeoRaster of the tiled object
         """
 
-        if aligned_to_mercator:
-            src = self.align_raster_to_mercator_tiles()
-        else:
-            src = self  # GeoRaster2.open(self._filename)
+        src = self  # GeoRaster2.open(self._filename)
 
         with tempfile.NamedTemporaryFile(suffix='.tif') as tf:
             src.save(tf.name, overviews=False)
