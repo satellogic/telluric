@@ -1569,6 +1569,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
         new_affine = self.window_transform(window)
+        width = math.ceil(abs(window.width))
+        height = math.ceil(abs(window.height))
+        x_scale = width / blockxsize
+        y_scale = height / blockysize
+        new_affine = new_affine * Affine.scale(x_scale, y_scale)
         return new_affine
 
     def colorize(self, colormap, band_name=None, vmin=None, vmax=None):
