@@ -38,6 +38,8 @@ from PIL import Image
 
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
 from telluric.vectors import GeoVector
+from telluric.features import GeoFeature
+from telluric.collections import FeatureCollection
 from telluric.util.projections import transform
 
 from telluric.util.raster_utils import (
@@ -94,23 +96,29 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
         dtype=rasters[0].dtype, shape=shape, ul_corner=ul_corner, crs=crs)
 
     # Create a list of single band rasters
-    all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty)
+    all_band_names, projected_rasters, metadata_properties = _prepare_rasters(rasters, merge_strategy, empty)
 
     if all_band_names:
         # Merge common bands
-        projected_rasters = _merge_common_bands(projected_rasters)
+        separated_bands, _ = _merge_common_bands(projected_rasters, metadata_properties)
+        regions = [roi for _ in projected_rasters]
+        assert len(regions) == len(metadata_properties)
+
+        metadata = FeatureCollection([
+            GeoFeature(region, properties) for region, properties in zip(regions, metadata_properties)
+        ])
 
         # Merge all bands
-        raster = reduce(_stack_bands, projected_rasters)
+        raster = reduce(_stack_bands, separated_bands)
 
-        return empty.copy_with(image=raster.image, band_names=raster.band_names), None
+        return empty.copy_with(image=raster.image, band_names=raster.band_names), metadata
 
     else:
         raise ValueError("result contains no bands, use another merge strategy")
 
 
-def _merge_common_bands(rasters):
-    # type: (List[_Raster]) -> List[_Raster]
+def _merge_common_bands(rasters, metadata_properties=None):
+    # type: (List[_Raster], Optional[List[Dict[str, Any]]]) -> Tuple[List[_Raster], List[GeoVector]]
     """Combine the common bands.
 
     """
@@ -120,15 +128,17 @@ def _merge_common_bands(rasters):
     def key(rs):
         return all_bands.index(rs.band_names[0])
 
-    rasters_final = []  # type: List[_Raster]
+    # Merge all rasters within each band
+    rasters_final = []
+    regions = []  # type: List[GeoVector]
     for band_name, rasters_group in groupby(sorted(rasters, key=key), key=key):
         rasters_final.append(reduce(_fill_pixels, rasters_group))
 
-    return rasters_final
+    return rasters_final, regions
 
 
 def _prepare_rasters(rasters, merge_strategy, first):
-    # type: (List[GeoRaster2], MergeStrategy, GeoRaster2) -> Tuple[IndexedSet[str], List[_Raster]]
+    # type: (List[GeoRaster2], MergeStrategy, GeoRaster2) -> Tuple[IndexedSet[str], List[_Raster], List[Dict[str, Any]]]
     """Prepares the rasters according to the baseline (first) raster and the merge strategy.
 
     The baseline (first) raster is used to crop and reproject the other rasters,
@@ -138,8 +148,8 @@ def _prepare_rasters(rasters, merge_strategy, first):
     """
     # Create list of prepared rasters
     all_band_names = IndexedSet(first.band_names)
-    projected_rasters = []  # type: List[GeoRaster2]
-    for raster in rasters:
+    projected_rasters = []  # type: List[Tuple[int, GeoRaster2]]
+    for ii, raster in enumerate(rasters):
         projected_raster = _prepare_other_raster(first, raster)
 
         # Modify the bands only if an intersecting raster was returned
@@ -149,30 +159,36 @@ def _prepare_rasters(rasters, merge_strategy, first):
             elif merge_strategy is MergeStrategy.UNION:
                 all_band_names.update(projected_raster.band_names)
 
-            projected_rasters.append(projected_raster)
+            projected_rasters.append((ii, projected_raster))
 
     # Extend the rasters list with only those that have the requested bands
     single_band_rasters = []
-    for projected_raster in projected_rasters:
-        single_band_rasters.extend(_explode_raster(projected_raster, all_band_names))
+    metadata_properties = []
+    for ii, projected_raster in projected_rasters:
+        exploded_rasters, band_names = _explode_raster(projected_raster, all_band_names)
+        single_band_rasters.extend(exploded_rasters)
+        metadata_properties.extend([{'raster_index': ii, 'band_name': band} for band in band_names])
 
-    return all_band_names, single_band_rasters
+    return all_band_names, single_band_rasters, metadata_properties
 
 
 # noinspection PyDefaultArgument
-def _explode_raster(raster, band_names=[]):
-    # type: (GeoRaster2, Iterable[str]) -> List[_Raster]
+def _explode_raster(raster, requested_band_names=[]):
+    # type: (GeoRaster2, Iterable[str]) -> Tuple[List[_Raster], List[str]]
     """Splits a raster into multiband rasters.
 
     """
     # Using band_names=[] does no harm because we are not mutating it in place
     # and it makes MyPy happy
-    if not band_names:
+    if not requested_band_names:
         band_names = raster.band_names
     else:
-        band_names = list(IndexedSet(raster.band_names).intersection(band_names))
+        band_names = list(IndexedSet(raster.band_names).intersection(requested_band_names))
 
-    return [_Raster(image=raster.bands_data([band_name]), band_names=[band_name]) for band_name in band_names]
+    return (
+        [_Raster(image=raster.bands_data([band_name]), band_names=[band_name]) for band_name in band_names],
+        band_names
+    )
 
 
 def _prepare_other_raster(one, other):
@@ -302,16 +318,16 @@ def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
 
     # Create a list of single band rasters
     # Cropping won't happen twice, since other was already cropped
-    all_band_names, projected_rasters = _prepare_rasters([other], merge_strategy, first=one)
+    all_band_names, single_band_rasters, _ = _prepare_rasters([other], merge_strategy, first=one)
 
     if not all_band_names and not silent:
         raise ValueError("rasters have no bands in common, use another merge strategy")
 
     # Merge common bands
-    projected_rasters = _merge_common_bands(_explode_raster(one, all_band_names) + projected_rasters)
+    separated_bands, _ = _merge_common_bands(_explode_raster(one, all_band_names)[0] + single_band_rasters, _)
 
     # Merge all bands
-    raster = reduce(_stack_bands, projected_rasters)
+    raster = reduce(_stack_bands, separated_bands)
 
     return one.copy_with(image=raster.image, band_names=raster.band_names)
 
