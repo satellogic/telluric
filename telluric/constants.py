@@ -22,8 +22,8 @@ DEFAULT_SRID = WGS84_SRID
 DEFAULT_CRS = WGS84_CRS
 
 
-def _mercator_zoom_to_resolution(zoom_level):
+def _MERCATOR_RESOLUTION_MAPPING(zoom_level):
     return (2 * 20037508.342789244) / (256 * pow(2, zoom_level))
 
 
-mercator_zoom_to_resolution = dict((i, _mercator_zoom_to_resolution(i)) for i in range(19))
+MERCATOR_RESOLUTION_MAPPING = dict((i, _MERCATOR_RESOLUTION_MAPPING(i)) for i in range(19))

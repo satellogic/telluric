@@ -33,7 +33,7 @@ from shapely.geometry import Point, Polygon
 
 from PIL import Image
 
-from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, mercator_zoom_to_resolution
+from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 
@@ -1407,7 +1407,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return abs(a) < self.affine.precision and abs(b) < self.affine.precision
 
     def _is_resolution_in_mercator_zoom_level(self, rtol=1e-02):
-        zoom_res = list(mercator_zoom_to_resolution.values())
+        zoom_res = list(MERCATOR_RESOLUTION_MAPPING.values())
         resolution = self.resolution()
         res_array = [resolution] * len(zoom_res)
         resolution_ok = any(np.isclose(res_array, zoom_res, rtol=rtol))
@@ -1428,7 +1428,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def _mercator_upper_zoom_level(self):
         r = self.resolution()
-        for zoom, resolution in mercator_zoom_to_resolution.items():
+        for zoom, resolution in MERCATOR_RESOLUTION_MAPPING.items():
             if r > resolution:
                 return zoom
         raise GeoRaster2Error("resolution out of range (grater than zoom level 19)")
@@ -1440,7 +1440,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         """
         if not self._is_resolution_in_mercator_zoom_level():
             upper_zoom_level = self._mercator_upper_zoom_level()
-            raster = self.resize(self.resolution() / mercator_zoom_to_resolution[upper_zoom_level])
+            raster = self.resize(self.resolution() / MERCATOR_RESOLUTION_MAPPING[upper_zoom_level])
         else:
             raster = self
         # this requires geographical crs
@@ -1559,7 +1559,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         window.width = round(window.width)
         window.height = round(window.height)
         bands = bands or list(range(1, self.num_bands + 1))
-        resolution = mercator_zoom_to_resolution[zoom]
+        resolution = MERCATOR_RESOLUTION_MAPPING[zoom]
         affine = Affine.translation(coordinates.left, coordinates.top) * Affine.scale(resolution, -resolution)
         return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
 
