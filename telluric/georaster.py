@@ -1,8 +1,11 @@
 import json
 import os
 import io
+import contextlib
+import shutil
 from functools import reduce, partial
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
+from types import SimpleNamespace
 from enum import Enum
 
 import tempfile
@@ -24,6 +27,7 @@ from rasterio.crs import CRS
 import rasterio
 import rasterio.warp
 import rasterio.shutil
+from rasterio.coords import BoundingBox
 from rasterio.enums import Resampling, Compression
 from rasterio.features import geometry_mask
 from rasterio.io import WindowMethodsMixin
@@ -37,8 +41,10 @@ from telluric.constants import DEFAULT_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 
-from telluric.util.raster_utils import (convert_to_cog, _calc_overviews_factors,
-                                        _mask_from_masked_array, _join_masks_from_masked_array)
+from telluric.util.raster_utils import (
+    convert_to_cog, _calc_overviews_factors,
+    _mask_from_masked_array, _join_masks_from_masked_array,
+    calc_transform, warp)
 
 import matplotlib  # for mypy
 
@@ -200,9 +206,9 @@ def _prepare_other_raster(one, other):
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
             other = other.crop(one.footprint(), resolution=one.resolution())
-            other = other.reproject(new_width=one.width, new_height=one.height,
-                                    dest_affine=one.affine, dst_crs=one.crs,
-                                    resampling=Resampling.nearest)
+            other = other._reproject(new_width=one.width, new_height=one.height,
+                                     dest_affine=one.affine, dst_crs=one.crs,
+                                     resampling=Resampling.nearest)
 
         else:
             return None
@@ -468,7 +474,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     """
     def __init__(self, image=None, affine=None, crs=None,
-                 filename=None, band_names=None, nodata=0, shape=None, footprint=None):
+                 filename=None, band_names=None, nodata=0, shape=None, footprint=None,
+                 temporary=False):
         """Create a GeoRaster object
 
         :param filename: optional path/url to raster file for lazy loading
@@ -479,12 +486,18 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param band_names: e.g. ['red', 'blue'] or 'red'
         :param shape: raster image shape, optional
         :param nodata: if provided image is array (not masked array), treat pixels with value=nodata as nodata
+        :param temporary: True means that file referenced by filename is temporary
+            and will be removed by destructor, default False
         """
         super().__init__(image=image, band_names=band_names, shape=shape, nodata=nodata)
         self._affine = deepcopy(affine)
         self._crs = CRS(copy(crs)) if crs else None  # type: Union[None, CRS]
         self._filename = filename
+        self._temporary = temporary
         self._footprint = copy(footprint)
+
+    def __del__(self):
+        self._cleanup()
 
     #  IO:
     @classmethod
@@ -525,6 +538,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         return rasterization.rasterize([], crs, roi, resolution, band_names=band_names,
                                        dtype=dtype, shape=shape, ul_corner=ul_corner)
+
+    def _cleanup(self):
+        if self._filename is not None and self._temporary:
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(self._filename)
+            self._filename = None
+            self._temporary = False
 
     def _populate_from_rasterio_object(self, read_image):
         with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
@@ -644,6 +664,20 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         """
 
+        folder = os.path.abspath(os.path.join(filename, os.pardir))
+        os.makedirs(folder, exist_ok=True)
+
+        if (
+            (self._image is None and self._filename is not None) and
+            (tags is None and not kwargs)
+        ):
+            # can be replaced with rasterio.shutil.copy in case
+            # we should pass creation_options while saving
+            shutil.copyfile(self._filename, filename)
+            self._cleanup()
+            self._filename = filename
+            return
+
         internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
         nodata_value = kwargs.get('nodata', None)
         compression = kwargs.get('compression', Compression.lzw)
@@ -652,8 +686,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             rasterio_envs['CPL_DEBUG'] = True
         with rasterio.Env(**rasterio_envs):
             try:
-                folder = os.path.abspath(os.path.join(filename, os.pardir))
-                os.makedirs(folder, exist_ok=True)
                 size = self.image.shape
                 extension = os.path.splitext(filename)[1].lower()[1:]
                 driver = gdal_drivers[extension]
@@ -1034,7 +1066,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
         dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
-        return self.reproject(new_width, new_height, dest_affine, resampling=resampling)
+        return self._reproject(new_width, new_height, dest_affine, resampling=resampling)
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
@@ -1053,7 +1085,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             affine = affine * Affine.translation(eps, eps)
         return affine
 
-    def reproject(self, new_width, new_height, dest_affine, dtype=None, dst_crs=None, resampling=Resampling.cubic):
+    def _reproject(self, new_width, new_height, dest_affine, dtype=None,
+                   dst_crs=None, resampling=Resampling.cubic):
         """Return re-projected raster to new raster.
 
         :param new_width: new raster width in pixels
@@ -1099,6 +1132,64 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
 
         new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
+
+        return new_raster
+
+    def reproject(self, dst_crs=None, resolution=None, dimensions=None,
+                  src_bounds=None, dst_bounds=None, target_aligned_pixels=False,
+                  resampling=Resampling.cubic, creation_options=None, **kwargs):
+        """Return re-projected raster to new raster.
+
+        Parameters
+        ------------
+        dst_crs: rasterio.crs.CRS, optional
+            Target coordinate reference system.
+        resolution: tuple (x resolution, y resolution) or float, optional
+            Target resolution, in units of target coordinate reference
+            system.
+        dimensions: tuple (width, height), optional
+            Output size in pixels and lines.
+        src_bounds: tuple (xmin, ymin, xmax, ymax), optional
+            Georeferenced extent of output (in source georeferenced units).
+        dst_bounds: tuple (xmin, ymin, xmax, ymax), optional
+            Georeferenced extent of output (in destination georeferenced units).
+        target_aligned_pixels: bool, optional
+            Align the output bounds based on the resolution.
+            Default is `False`.
+        resampling: rasterio.enums.Resampling
+            Reprojection resampling method. Default is `cubic`.
+        creation_options: dict, optional
+            Custom creation options.
+        kwargs: optional
+            Additional arguments passed to transformation function.
+
+        Returns
+        ---------
+        out: GeoRaster2
+        """
+        dst_crs = dst_crs or self.crs
+
+        if self._image is None and self._filename is not None:
+            # image is not loaded yet
+            with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tf:
+                warp(self._filename, tf.name, dst_crs=dst_crs, resolution=resolution,
+                     dimensions=dimensions, creation_options=creation_options,
+                     src_bounds=src_bounds, dst_bounds=dst_bounds,
+                     target_aligned_pixels=target_aligned_pixels,
+                     resampling=resampling, **kwargs)
+
+            new_raster = GeoRaster2(filename=tf.name, temporary=True)
+        else:
+            # image is loaded already
+            src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
+                                  bounds=BoundingBox(*self.footprint().get_shape(self.crs).bounds),
+                                  gcps=None)
+            dst_transform, dst_width, dst_height = calc_transform(
+                src, dst_crs=dst_crs, resolution=resolution, dimensions=dimensions,
+                target_aligned_pixels=target_aligned_pixels,
+                src_bounds=src_bounds, dst_bounds=dst_bounds)
+            new_raster = self._reproject(dst_width, dst_height, dst_transform,
+                                         dst_crs=dst_crs, resampling=resampling)
 
         return new_raster
 
