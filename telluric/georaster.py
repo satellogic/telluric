@@ -1136,7 +1136,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return new_raster
 
     def reproject(self, dst_crs=None, resolution=None, dimensions=None,
-                  src_bounds=None, dst_bounds=None,
+                  src_bounds=None, dst_bounds=None, target_aligned_pixels=False,
                   resampling=Resampling.cubic, creation_options=None, **kwargs):
         """Return re-projected raster to new raster.
 
@@ -1153,6 +1153,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             Georeferenced extent of output (in source georeferenced units).
         dst_bounds: tuple (xmin, ymin, xmax, ymax), optional
             Georeferenced extent of output (in destination georeferenced units).
+        target_aligned_pixels: bool, optional
+            Align the output bounds based on the resolution.
+            Default is `False`.
         resampling: rasterio.enums.Resampling
             Reprojection resampling method. Default is `cubic`.
         creation_options: dict, optional
@@ -1172,6 +1175,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 warp(self._filename, tf.name, dst_crs=dst_crs, resolution=resolution,
                      dimensions=dimensions, creation_options=creation_options,
                      src_bounds=src_bounds, dst_bounds=dst_bounds,
+                     target_aligned_pixels=target_aligned_pixels,
                      resampling=resampling, **kwargs)
 
             new_raster = GeoRaster2(filename=tf.name, temporary=True)
@@ -1182,6 +1186,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                   gcps=None)
             dst_transform, dst_width, dst_height = calc_transform(
                 src, dst_crs=dst_crs, resolution=resolution, dimensions=dimensions,
+                target_aligned_pixels=target_aligned_pixels,
                 src_bounds=src_bounds, dst_bounds=dst_bounds)
             new_raster = self._reproject(dst_width, dst_height, dst_transform,
                                          dst_crs=dst_crs, resampling=resampling)
