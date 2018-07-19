@@ -19,7 +19,7 @@ from rasterio.crs import CRS
 
 from telluric import GeoRaster2, GeoVector
 from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
-from telluric.georaster import mercator_zoom_to_resolution, GeoRaster2Error, GeoRaster2IOError
+from telluric.georaster import MERCATOR_RESOLUTION_MAPPING, GeoRaster2Error, GeoRaster2IOError
 from telluric.util.general import convert_resolution_from_meters_to_deg
 
 import sys
@@ -73,30 +73,6 @@ class GeoRaster2TilesTestGeneral(TestCase):
         vr = GeoRaster2.open('http://stam')
         with self.assertRaises(GeoRaster2IOError):
             vr.save_cloud_optimized('dest_file')
-
-
-class GeoRaster2windowContainedInRaster(TestCase):
-    """GeoRaster2 _window_contained_in_raster tests."""
-
-    def test_smaller_window_is_contained(self):
-        raster = GeoRaster2(image=np.full((1, 20, 30), 12), affine=Affine.identity(), crs=WEB_MERCATOR_CRS)
-        window = Window(10, 10, 10, 10)
-        self.assertTrue(raster._window_contained_in_raster(window))
-
-    def test_entire_raster_window_is_not_contained(self):
-        raster = GeoRaster2(image=np.full((1, 20, 30), 12), affine=Affine.identity(), crs=WEB_MERCATOR_CRS)
-        window = Window(0, 0, 30, 20)
-        self.assertTrue(raster._window_contained_in_raster(window))
-
-    def test_larger_window_is_not_contained(self):
-        raster = GeoRaster2(image=np.full((1, 20, 30), 12), affine=Affine.identity(), crs=WEB_MERCATOR_CRS)
-        window = Window(-1, -5, 35, 35)
-        self.assertFalse(raster._window_contained_in_raster(window))
-
-    def test_partial_intersecting_window_is_not_contained(self):
-        raster = GeoRaster2(image=np.full((1, 20, 30), 12), affine=Affine.identity(), crs=WEB_MERCATOR_CRS)
-        window = Window(-5, 5, 10, 25)
-        self.assertFalse(raster._window_contained_in_raster(window))
 
 
 class GeoRaster2TestGetTile(TestCase):
@@ -169,14 +145,17 @@ class GeoRaster2TestGetTile(TestCase):
 
     def test_get_entire_all_raster(self):
         vr = self.small_read_only_virtual_geo_raster()
-        r = vr.get_tile(37108, 25248, 16, blocksize=None)
+        roi = GeoVector.from_xyz(37108, 25248, 16)
+        r = vr.crop(roi)
+
         self.assertFalse((r.image.data == 0).all())
         self.assertFalse((r.image.mask).all())
         self.assertEqual(r.shape, (3, 612, 612))
 
     def test_fails_with_empty_raster_for_tile_out_of_raster_area_with_no_tile_size(self):
         vr = self.read_only_virtual_geo_raster()
-        r = vr.get_tile(16384, 16383, 15, blocksize=None)
+        roi = GeoVector.from_xyz(16384, 16383, 15)
+        r = vr.crop(roi)
         self.assertTrue((r.image.data == 0).all())
         self.assertTrue((r.image.mask).all())
         self.assertEqual(r.image.shape, (3, 1223, 1223))
@@ -247,18 +226,18 @@ class GeoRasterCropTest(TestCase):
                           affine=cls.geographic_affine,
                           crs=cls.geographic_crs)
 
-    def test_crop_and_get_tile_do_without_resizing_the_same(self):
+    def test_crop_in_memory_and_off_memory_without_resizing_are_the_same(self):
         coords = mercantile.xy_bounds(*tiles[15])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
         raster = self.metric_raster()
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             raster2 = GeoRaster2.open(rf.name)
-            tile15 = raster2.get_tile(*tiles[15], blocksize=None)
+            off_memory_crop = raster2.crop(shape)
             # load the image data
             raster2.image
-            cropped15 = raster2.crop(shape)
-            self.assertEqual(tile15, cropped15)
+            in_memory_crop = raster2.crop(shape)
+            self.assertEqual(off_memory_crop, in_memory_crop)
 
     @window_data
     def test_crop_and_get_tile_do_the_same(self):
@@ -271,7 +250,7 @@ class GeoRasterCropTest(TestCase):
             tile15 = raster2.get_tile(*tiles[15])
             # load the image data
             raster2.image
-            cropped15 = raster2.crop(shape, mercator_zoom_to_resolution[15])
+            cropped15 = raster2.crop(shape, MERCATOR_RESOLUTION_MAPPING[15])
             self.assertEqual(tile15, cropped15)
 
     @window_data
@@ -284,7 +263,7 @@ class GeoRasterCropTest(TestCase):
             raster = GeoRaster2.open(rf.name)
             tile15 = raster.get_tile(*tiles[15])
             raster._populate_from_rasterio_object(read_image=True)
-            cropped_15 = raster.crop(shape, mercator_zoom_to_resolution[15])
+            cropped_15 = raster.crop(shape, MERCATOR_RESOLUTION_MAPPING[15])
             self.assertEqual(tile15, cropped_15)
 
     @window_data
@@ -335,7 +314,7 @@ class GeoRasterCropTest(TestCase):
             raster = GeoRaster2.open(rf.name)
             raster._populate_from_rasterio_object(read_image=True)
             tile17 = raster.get_tile(*tiles[17])
-            cropped_17 = raster.crop(shape, mercator_zoom_to_resolution[17])
+            cropped_17 = raster.crop(shape, MERCATOR_RESOLUTION_MAPPING[17])
             self.assertEqual(tile17, cropped_17)
 
     @framing
@@ -348,7 +327,7 @@ class GeoRasterCropTest(TestCase):
             raster = GeoRaster2.open(rf.name)
             raster._populate_from_rasterio_object(read_image=True)
             tile15 = raster.get_tile(*tiles[15])
-            cropped_15 = raster.crop(shape, mercator_zoom_to_resolution[15])
+            cropped_15 = raster.crop(shape, MERCATOR_RESOLUTION_MAPPING[15])
             self.assertEqual(tile15, cropped_15)
 
     @framing
@@ -361,7 +340,7 @@ class GeoRasterCropTest(TestCase):
             raster = GeoRaster2.open(rf.name)
             raster._populate_from_rasterio_object(read_image=True)
             tile11 = raster.get_tile(*tiles[11])
-            cropped_11 = raster.crop(shape, mercator_zoom_to_resolution[11])
+            cropped_11 = raster.crop(shape, MERCATOR_RESOLUTION_MAPPING[11])
             self.assertEqual(tile11, cropped_11)
 
     def test_crop_image_from_and_get_win_do_the_same_full_resolution(self):
@@ -380,7 +359,7 @@ class GeoRasterCropTest(TestCase):
         coords = mercantile.xy_bounds(*tiles[15])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
         raster = self.metric_raster()
-        raster.crop(shape, mercator_zoom_to_resolution[15])
+        raster.crop(shape, MERCATOR_RESOLUTION_MAPPING[15])
         assert mock__crop.called_once
 
     @patch.object(GeoRaster2, 'get_window')
@@ -391,7 +370,7 @@ class GeoRasterCropTest(TestCase):
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             raster = GeoRaster2.open(rf.name)
-            raster.crop(shape, mercator_zoom_to_resolution[15])
+            raster.crop(shape, MERCATOR_RESOLUTION_MAPPING[15])
             assert mock_get_window.called_once
 
     def test_crop_returns_full_resolution_as_default(self):
@@ -407,9 +386,9 @@ class GeoRasterCropTest(TestCase):
         coords = mercantile.xy_bounds(*tiles[15])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
         raster = self.metric_raster()
-        cropped = raster.crop(shape, mercator_zoom_to_resolution[15])
+        cropped = raster.crop(shape, MERCATOR_RESOLUTION_MAPPING[15])
         self.assertEqual(cropped.shape, (raster.num_bands, 256, 256))
-        self.assertAlmostEqual(cropped.affine[0], mercator_zoom_to_resolution[15], 2)
+        self.assertAlmostEqual(cropped.affine[0], MERCATOR_RESOLUTION_MAPPING[15], 2)
 
     def test_geographic_crop(self):
         raster = self.geographic_raster()
@@ -424,7 +403,7 @@ class GeoRasterCropTest(TestCase):
         raster = self.geographic_raster()
         vector = GeoVector(Polygon.from_bounds(*coords), crs=self.metric_crs)
         x_ex_res, y_ex_res = convert_resolution_from_meters_to_deg(
-            self.metric_affine[6], mercator_zoom_to_resolution[17])
+            self.metric_affine[6], MERCATOR_RESOLUTION_MAPPING[17])
         cropped = raster.crop(vector, (x_ex_res, y_ex_res))
         self.assertAlmostEqual(cropped.affine[0], x_ex_res)
         self.assertAlmostEqual(abs(cropped.affine[4]), y_ex_res, 6)
