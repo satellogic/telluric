@@ -21,7 +21,9 @@ DEFAULT_SRID = WGS84_SRID
 #: Default CRS, set to :py:data:`~telluric.constants.WGS84_CRS`.
 DEFAULT_CRS = WGS84_CRS
 
+
 def _mercator_zoom_to_resolution(zoom_level):
-    return (2* 20037508.342789244) / (256 * pow(2, zoom_level))
+    return (2 * 20037508.342789244) / (256 * pow(2, zoom_level))
+
 
 mercator_zoom_to_resolution = dict((i, _mercator_zoom_to_resolution(i)) for i in range(19))

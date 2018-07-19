@@ -66,6 +66,7 @@ gdal_drivers = {
     'jpeg': 'JPEG',
 }
 
+
 class MergeStrategy(Enum):
     LEFT_ALL = 0
     INTERSECTION = 1
@@ -849,7 +850,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param resolution: output resolution, None for full resolution
         :return: GeoRaster
         """
-        bounds, window = self._vector_to_raster_bounds(vector)
+        if self._image is not None:
+            bounds, window = self._vector_to_raster_bounds(vector)
+        else:
+            bounds, window = self._vector_to_raster_bounds(vector, boundless=True)
         if resolution:
             xsize, ysize = self._resolution_to_output_shape(bounds, resolution)
         else:
@@ -870,11 +874,11 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def _vector_to_raster_bounds(self, vector, boundless=False):
         # bounds = tuple(round(bb) for bb in self.to_raster(vector).bounds)
-        bounds = vector.get_shape(self.crs).bounds
-        if any(map(math.isinf, bounds)):
+        vector_bounds = vector.get_shape(self.crs).bounds
+        if any(map(math.isinf, vector_bounds)):
             raise GeoRaster2Error('bounds %s cannot be transformed from %s to %s' % (
                 vector.get_shape(vector.crs).bounds, vector.crs, self.crs))
-        window = self._window(bounds)
+        window = self._window(vector_bounds)
         (ymin, ymax), (xmin, xmax) = window.toranges()
         bounds = (xmin, ymin, xmax, ymax)
         if not boundless:
@@ -1493,39 +1497,18 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         return xratio, yratio
 
-    def _get_window_out_shape(self, bands, xratio, yratio, window):
+    def _get_window_out_shape(self, bands, window, xsize, ysize):
         """Get the outshape of a window.
 
         this method is only used inside get_window to calculate the out_shape
         """
+        xratio, yratio = self._get_widow_calculate_resize_ratio(xsize, ysize, window)
         out_shape = (len(bands), math.ceil(abs(window.height / yratio)), math.ceil(abs(window.width / xratio)))
         return out_shape
 
-    def _get_window_requested_window(self, window, boundless):
-        """Return the window for the get window.
-
-        This method is used only on get_window to calculate the `rasterio.read windnow`
-        """
-        if not boundless:
-            requested_window = window.crop(self.height, self.width)
-        else:
-            requested_window = window
-        return requested_window
-
-    def _get_window_origin(self, xratio, yratio, window):
-        """Return the output window origin for the get window.
-
-        This method is used only on get_window
-        """
-        xmin = math.floor(abs(min(window.col_off, 0)) / xratio)
-        ymin = math.floor(abs(min(window.row_off, 0)) / yratio)
-        return xmin, ymin
-
-
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
-                   resampling=Resampling.cubic, masked=True,
-                   boundless=False
+                   resampling=Resampling.cubic, masked=True, affine=None
                    ):
         """Get window from raster.
 
@@ -1537,65 +1520,29 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param masked: boolean, if `True` the return value will be a masked array. Default is True
         :return: GeoRaster2 of tile
         """
-        xratio, yratio = self._get_widow_calculate_resize_ratio(xsize, ysize, window)
         bands = bands or list(range(1, self.num_bands + 1))
-        out_shape = self._get_window_out_shape(bands, xratio, yratio, window)
-        # if window and raster dont intersect return an empty raster in the requested size
-        if not self._window_intersects_with_raster(window):
-            array = np.zeros(out_shape, dtype=self._dtype)
-            affine = self._calculate_new_affine(window, out_shape[2], out_shape[1])
-            return self.copy_with(image=array, affine=affine)
-
-        requested_window = self._get_window_requested_window(window, boundless)
 
         # requested_out_shape and out_shape are different for out of bounds window
-        requested_out_shape = self._get_window_out_shape(bands, xratio, yratio, requested_window)
+        out_shape = self._get_window_out_shape(bands, window, xsize, ysize)
         try:
             read_params = {
-                "window": requested_window,
+                "window": window,
                 "resampling": resampling,
-                "boundless": boundless,
+                "boundless": True,
                 "masked": masked,
-                "out_shape": requested_out_shape
+                "out_shape": out_shape
             }
 
-            rasterio_env = {
-                'GDAL_DISABLE_READDIR_ON_OPEN': True,
-                'GDAL_TIFF_INTERNAL_MASK_TO_8BIT': False,
-            }   # type: Dict
-            if self._filename.split('.')[-1] == 'tif':
-                rasterio_env['CPL_VSIL_CURL_ALLOWED_EXTENSIONS'] = '.tif'
+            with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
+                array = raster.read(bands, **read_params)
 
-            with rasterio.Env(**rasterio_env):
-                with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
-                    array = raster.read(bands, **read_params)
-
-            if not boundless and not self._window_contained_in_raster(window):
-                out_array = np.ma.array(
-                    np.zeros(out_shape, dtype=self._dtype),
-                    mask=np.ones(out_shape, dtype=np.bool)
-                )
-                xmin, ymin = self._get_window_origin(xratio, yratio, window)
-                out_array[:, ymin: ymin + array.shape[-2], xmin: xmin + array.shape[-1]] = array[:, :, :]
-                array = out_array.copy()
-
-            affine = self._calculate_new_affine(window, out_shape[2], out_shape[1])
+            affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
 
             raster = self.copy_with(image=array, affine=affine)
             return raster
 
         except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_HttpResponseError) as e:
             raise GeoRaster2IOError(e)
-
-    def _window_contained_in_raster(self, window):
-        (ymin, ymax), (xmin, xmax) = window.toranges()
-        window_polygon = Polygon.from_bounds(xmin, ymin, xmax, ymax)
-        return self.bounds().contains(window_polygon)
-
-    def _window_intersects_with_raster(self, window):
-        (ymin, ymax), (xmin, xmax) = window.toranges()
-        window_polygon = Polygon.from_bounds(xmin, ymin, xmax, ymax)
-        return self.bounds().intersects(window_polygon)
 
     def get_tile(self, x_tile, y_tile, zoom,
                  bands=None, masked=False, resampling=Resampling.cubic):
@@ -1616,31 +1563,12 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         window.width = round(window.width)
         window.height = round(window.height)
         bands = bands or list(range(1, self.num_bands + 1))
-        out_shape = (len(bands), 256, 256)
         resolution = mercator_zoom_to_resolution[zoom]
-        try:
-            read_params = {
-                "window": window,
-                "resampling": resampling,
-                "masked": masked,
-                "out_shape": out_shape,
-                "boundless": True
-            }
-            with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
-                    array = raster.read(bands, **read_params)
-            affine = Affine.translation(coordinates.left, coordinates.top) * Affine.scale(resolution, -resolution)
-            result = GeoRaster2(image=array, affine=affine, band_names=self.band_names, crs=WEB_MERCATOR_CRS )
-            return result
-        except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_HttpResponseError) as e:
-            raise GeoRaster2IOError(e)
+        affine = Affine.translation(coordinates.left, coordinates.top) * Affine.scale(resolution, -resolution)
+        return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
         new_affine = self.window_transform(window)
-        width = math.ceil(abs(window.width))
-        height = math.ceil(abs(window.height))
-        x_scale = width / blockxsize
-        y_scale = height / blockysize
-        new_affine = new_affine * Affine.scale(x_scale, y_scale)
         return new_affine
 
     def colorize(self, colormap, band_name=None, vmin=None, vmax=None):

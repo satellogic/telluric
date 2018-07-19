@@ -75,30 +75,6 @@ class GeoRaster2TilesTestGeneral(TestCase):
             vr.save_cloud_optimized('dest_file')
 
 
-class GeoRaster2windowContainedInRaster(TestCase):
-    """GeoRaster2 _window_contained_in_raster tests."""
-
-    def test_smaller_window_is_contained(self):
-        raster = GeoRaster2(image=np.full((1, 20, 30), 12), affine=Affine.identity(), crs=WEB_MERCATOR_CRS)
-        window = Window(10, 10, 10, 10)
-        self.assertTrue(raster._window_contained_in_raster(window))
-
-    def test_entire_raster_window_is_not_contained(self):
-        raster = GeoRaster2(image=np.full((1, 20, 30), 12), affine=Affine.identity(), crs=WEB_MERCATOR_CRS)
-        window = Window(0, 0, 30, 20)
-        self.assertTrue(raster._window_contained_in_raster(window))
-
-    def test_larger_window_is_not_contained(self):
-        raster = GeoRaster2(image=np.full((1, 20, 30), 12), affine=Affine.identity(), crs=WEB_MERCATOR_CRS)
-        window = Window(-1, -5, 35, 35)
-        self.assertFalse(raster._window_contained_in_raster(window))
-
-    def test_partial_intersecting_window_is_not_contained(self):
-        raster = GeoRaster2(image=np.full((1, 20, 30), 12), affine=Affine.identity(), crs=WEB_MERCATOR_CRS)
-        window = Window(-5, 5, 10, 25)
-        self.assertFalse(raster._window_contained_in_raster(window))
-
-
 class GeoRaster2TestGetTile(TestCase):
     """GeoRaster2 get tile tests."""
 
@@ -169,14 +145,17 @@ class GeoRaster2TestGetTile(TestCase):
 
     def test_get_entire_all_raster(self):
         vr = self.small_read_only_virtual_geo_raster()
-        r = vr.get_tile(37108, 25248, 16, blocksize=None)
+        roi = GeoVector.from_xyz(37108, 25248, 16)
+        r = vr.crop(roi)
+
         self.assertFalse((r.image.data == 0).all())
         self.assertFalse((r.image.mask).all())
         self.assertEqual(r.shape, (3, 612, 612))
 
     def test_fails_with_empty_raster_for_tile_out_of_raster_area_with_no_tile_size(self):
         vr = self.read_only_virtual_geo_raster()
-        r = vr.get_tile(16384, 16383, 15, blocksize=None)
+        roi = GeoVector.from_xyz(16384, 16383, 15)
+        r = vr.crop(roi)
         self.assertTrue((r.image.data == 0).all())
         self.assertTrue((r.image.mask).all())
         self.assertEqual(r.image.shape, (3, 1223, 1223))
@@ -247,18 +226,18 @@ class GeoRasterCropTest(TestCase):
                           affine=cls.geographic_affine,
                           crs=cls.geographic_crs)
 
-    def test_crop_and_get_tile_do_without_resizing_the_same(self):
+    def test_crop_in_memory_and_off_memory_without_resizing_are_the_same(self):
         coords = mercantile.xy_bounds(*tiles[15])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
         raster = self.metric_raster()
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             raster2 = GeoRaster2.open(rf.name)
-            tile15 = raster2.get_tile(*tiles[15], blocksize=None)
+            off_memory_crop = raster2.crop(shape)
             # load the image data
             raster2.image
-            cropped15 = raster2.crop(shape)
-            self.assertEqual(tile15, cropped15)
+            in_memory_crop = raster2.crop(shape)
+            self.assertEqual(off_memory_crop, in_memory_crop)
 
     @window_data
     def test_crop_and_get_tile_do_the_same(self):
