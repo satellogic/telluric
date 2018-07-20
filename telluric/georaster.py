@@ -1177,6 +1177,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             new_raster = GeoRaster2(filename=tf.name, temporary=True)
         else:
             # image is loaded already
+            # SimpleNamespace is handy to hold the properties that calc_transform expects, see
+            # https://docs.python.org/3/library/types.html#types.SimpleNamespace
             src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
                                   bounds=BoundingBox(*self.footprint().get_bounds(self.crs)),
                                   gcps=None)
