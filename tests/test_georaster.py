@@ -668,6 +668,8 @@ def test_destructor():
 
 def test_save_temporary():
     with NamedTemporaryFile(suffix='.tif', delete=False) as src, NamedTemporaryFile(suffix='.tif') as dst:
+        # create valid raster file
+        some_raster.save(src.name)
         raster = GeoRaster2(filename=src.name, temporary=True)
         assert raster._filename == src.name
         assert raster._temporary

@@ -2,7 +2,6 @@ import json
 import os
 import io
 import contextlib
-import shutil
 from functools import reduce, partial
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 from types import SimpleNamespace
@@ -671,7 +670,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             (self._image is None and self._filename is not None) and
             (tags is None and not kwargs)
         ):
-            shutil.copy(self._filename, filename)
+            rasterio.shutil.copy(self._filename, filename)
             self._cleanup()
             self._filename = filename
             return
