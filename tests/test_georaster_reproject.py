@@ -49,7 +49,7 @@ def test_warp_no_reproject_bounds(in_memory):
         raster_image = raster.image
     dst_bounds = [-6574000, -4077000, -6573000, -4076000]
     expected_raster = raster.reproject(dst_bounds=dst_bounds)
-    expected_bounds = expected_raster.footprint().get_shape(expected_raster.crs).bounds
+    expected_bounds = expected_raster.footprint().get_bounds(expected_raster.crs)
     assert expected_raster.crs == raster.crs
     assert expected_raster.width == 14
     assert expected_raster.height == 14
@@ -77,7 +77,7 @@ def test_warp_no_reproject_bounds_res(in_memory):
     assert expected_raster.width == 134
     assert expected_raster.height == 134
     assert np.allclose(
-        expected_raster.footprint().get_shape(expected_raster.crs).bounds,
+        expected_raster.footprint().get_bounds(expected_raster.crs),
         dst_bounds)
     assert np.allclose([30, 30],
                        [expected_raster.transform.a, -expected_raster.transform.e])
@@ -178,7 +178,7 @@ def test_warp_reproject_src_bounds_resolution(in_memory):
     assert expected_raster.height == 30
     assert np.allclose([resolution, resolution],
                        [expected_raster.transform.a, -expected_raster.transform.e])
-    assert np.allclose(expected_raster.footprint().get_shape(expected_raster.crs).bounds,
+    assert np.allclose(expected_raster.footprint().get_bounds(expected_raster.crs),
                        [-59.05524, -34.35851, -59.01924, -34.32851])
 
 
@@ -191,13 +191,13 @@ def test_warp_reproject_dst_bounds(in_memory):
     dst_bounds = [-59.05437, -34.35519, -59.01042, -34.32627]
     resolution = 0.001
     expected_raster = raster.reproject(dst_crs=WGS84_CRS, dst_bounds=dst_bounds, resolution=resolution)
-    expected_bounds = expected_raster.footprint().get_shape(expected_raster.crs).bounds
+    expected_bounds = expected_raster.footprint().get_bounds(expected_raster.crs)
     assert expected_raster.crs == WGS84_CRS
     assert expected_raster.width == 44
     assert expected_raster.height == 29
     assert np.allclose([resolution, resolution],
                        [expected_raster.transform.a, -expected_raster.transform.e])
-    assert np.allclose(expected_raster.footprint().get_shape(expected_raster.crs).bounds,
+    assert np.allclose(expected_raster.footprint().get_bounds(expected_raster.crs),
                        dst_bounds)
 
 

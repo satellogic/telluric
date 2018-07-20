@@ -1178,7 +1178,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         else:
             # image is loaded already
             src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
-                                  bounds=BoundingBox(*self.footprint().get_shape(self.crs).bounds),
+                                  bounds=BoundingBox(*self.footprint().get_bounds(self.crs)),
                                   gcps=None)
             dst_crs, dst_transform, dst_width, dst_height = calc_transform(
                 src, dst_crs=dst_crs, resolution=resolution, dimensions=dimensions,
