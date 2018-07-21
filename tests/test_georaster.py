@@ -138,7 +138,7 @@ def test_copy_with():
 
 
 def test_resize():
-    resampling_modes = [m for m in dir(Resampling) if not callable(getattr(Resampling, m)) and not m.startswith("__")]
+    resampling_modes = [m.name for m in Resampling]
     for resampling_name in resampling_modes:
         resampling = Resampling[resampling_name]
         print('\nresampling name:', resampling_name)
