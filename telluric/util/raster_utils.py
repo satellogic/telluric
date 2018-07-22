@@ -331,4 +331,4 @@ def warp(source_file, destination_file, dst_crs=None, resolution=None, dimension
                     dst_crs=out_kwargs['crs'],
                     dst_nodata=dst_nodata,
                     resampling=resampling,
-                    **iwargs)
+                    **kwargs)
