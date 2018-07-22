@@ -20,3 +20,10 @@ EQUAL_AREA_CRS = CRS({'proj': 'eck4'})
 DEFAULT_SRID = WGS84_SRID
 #: Default CRS, set to :py:data:`~telluric.constants.WGS84_CRS`.
 DEFAULT_CRS = WGS84_CRS
+
+
+def _MERCATOR_RESOLUTION_MAPPING(zoom_level):
+    return (2 * 20037508.342789244) / (256 * pow(2, zoom_level))
+
+
+MERCATOR_RESOLUTION_MAPPING = dict((i, _MERCATOR_RESOLUTION_MAPPING(i)) for i in range(19))
