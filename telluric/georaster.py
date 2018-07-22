@@ -1581,7 +1581,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         elif xsize is None and ysize is None:
             ysize = math.ceil(window.height)
             xsize = math.ceil(window.width)
-        return (len(bands), abs(ysize), abs(xsize))
+        return (len(bands), ysize, xsize)
 
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
