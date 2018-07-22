@@ -1566,13 +1566,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         geotiff = GeoRaster2.open(dest_url)
         return geotiff
 
-
     def _get_window_out_shape(self, bands, window, xsize, ysize):
         """Get the outshape of a window.
 
         this method is only used inside get_window to calculate the out_shape
         """
-
 
         if xsize and ysize is None:
             ratio = window.width / xsize
@@ -1584,7 +1582,6 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             ysize = math.ceil(window.height)
             xsize = math.ceil(window.width)
         return (len(bands), abs(ysize), abs(xsize))
-
 
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
