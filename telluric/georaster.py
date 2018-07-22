@@ -2,7 +2,6 @@ import json
 import os
 import io
 import contextlib
-import shutil
 from functools import reduce, partial
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 from types import SimpleNamespace
@@ -647,9 +646,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             (self._image is None and self._filename is not None) and
             (tags is None and not kwargs)
         ):
-            # can be replaced with rasterio.shutil.copy in case
-            # we should pass creation_options while saving
-            shutil.copyfile(self._filename, filename)
+            rasterio.shutil.copy(self._filename, filename)
             self._cleanup()
             self._filename = filename
             return
@@ -1143,8 +1140,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         ---------
         out: GeoRaster2
         """
-        dst_crs = dst_crs or self.crs
-
         if self._image is None and self._filename is not None:
             # image is not loaded yet
             with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tf:
@@ -1157,10 +1152,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             new_raster = GeoRaster2(filename=tf.name, temporary=True)
         else:
             # image is loaded already
+            # SimpleNamespace is handy to hold the properties that calc_transform expects, see
+            # https://docs.python.org/3/library/types.html#types.SimpleNamespace
             src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
-                                  bounds=BoundingBox(*self.footprint().get_shape(self.crs).bounds),
+                                  bounds=BoundingBox(*self.footprint().get_bounds(self.crs)),
                                   gcps=None)
-            dst_transform, dst_width, dst_height = calc_transform(
+            dst_crs, dst_transform, dst_width, dst_height = calc_transform(
                 src, dst_crs=dst_crs, resolution=resolution, dimensions=dimensions,
                 target_aligned_pixels=target_aligned_pixels,
                 src_bounds=src_bounds, dst_bounds=dst_bounds)
