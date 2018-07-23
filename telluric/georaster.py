@@ -3,7 +3,7 @@ import os
 import io
 import contextlib
 from functools import reduce, partial
-from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
+from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple, Any
 from types import SimpleNamespace
 from enum import Enum
 
@@ -28,11 +28,11 @@ import rasterio.warp
 import rasterio.shutil
 from rasterio.coords import BoundingBox
 from rasterio.enums import Resampling, Compression
-from rasterio.features import geometry_mask
+from rasterio.features import geometry_mask, shapes as extract_shapes
 from rasterio.io import WindowMethodsMixin
 from affine import Affine
 
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon, shape as to_shape
 
 from PIL import Image
 
@@ -100,13 +100,19 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
 
     if all_band_names:
         # Merge common bands
-        separated_bands, _ = _merge_common_bands(projected_rasters, metadata_properties)
-        regions = [roi for _ in projected_rasters]
+        separated_bands, masks = _merge_common_bands(projected_rasters)
+        regions = _process_masks(masks, empty)
         assert len(regions) == len(metadata_properties)
 
+        # Before creating the metadata, we sort the metadata_properties in the same way
+        # as we did inside _merge_common_bands
+        all_bands = IndexedSet([rs.band_names[0] for rs in projected_rasters])
+        metadata_properties = sorted(metadata_properties, key=lambda pair: all_bands.index(pair['band_name']))
+
+        # And then we sort again
         metadata = FeatureCollection([
             GeoFeature(region, properties) for region, properties in zip(regions, metadata_properties)
-        ])
+        ]).sort(by=lambda feat: feat['raster_index'])
 
         # Merge all bands
         raster = reduce(_stack_bands, separated_bands)
@@ -117,8 +123,8 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
         raise ValueError("result contains no bands, use another merge strategy")
 
 
-def _merge_common_bands(rasters, metadata_properties=None):
-    # type: (List[_Raster], Optional[List[Dict[str, Any]]]) -> Tuple[List[_Raster], List[GeoVector]]
+def _merge_common_bands(rasters):
+    # type: (List[_Raster]) -> Tuple[List[_Raster], List[np.ndarray]]
     """Combine the common bands.
 
     """
@@ -130,11 +136,37 @@ def _merge_common_bands(rasters, metadata_properties=None):
 
     # Merge all rasters within each band
     rasters_final = []
-    regions = []  # type: List[GeoVector]
+    # Can't do _mask_to_vector here, since I'm missing affine and CRS
+    regions = []  # type: List[np.ndarray]
     for band_name, rasters_group in groupby(sorted(rasters, key=key), key=key):
-        rasters_final.append(reduce(_fill_pixels, rasters_group))
+        # Without metadata, this is equivalent to a reduce(...)
+        # rasters_final.append(reduce(_fill_pixels, rasters_group))
+        # But we need to unroll the loop to return the masks
+        raster = next(rasters_group)
+        regions.append(raster.image.mask[0])
+        for rs in rasters_group:
+            raster, mask = _fill_pixels(raster, rs)
+            regions.append(mask[0])
+
+        rasters_final.append(raster)
 
     return rasters_final, regions
+
+
+def _mask_to_vector(mask, affine, crs):
+    # type: (np.ndarray, Affine, CRS) -> GeoVector
+    shapes = extract_shapes(mask.astype(np.uint8), transform=affine)
+
+    zero_shapes = [shape[0] for shape in shapes if shape[1] == 0]
+    assert len(zero_shapes) == 1, "Holes in the image or some other unknown error"
+
+    return GeoVector(to_shape(zero_shapes[0]), crs)
+
+
+def _process_masks(masks, reference_raster):
+    # type: (List[np.ndarray], GeoRaster2) -> List[GeoVector]
+    regions = [_mask_to_vector(mask, reference_raster.affine, reference_raster.crs) for mask in masks]
+    return regions
 
 
 def _prepare_rasters(rasters, merge_strategy, first):
@@ -208,7 +240,7 @@ def _prepare_other_raster(one, other):
 
 
 def _fill_pixels(one, other):
-    # type: (_Raster, _Raster) -> _Raster
+    # type: (_Raster, _Raster) -> Tuple[_Raster, np.ndarray]
     """Merges two single band rasters with the same band by filling the pixels according to depth.
 
     """
@@ -250,7 +282,7 @@ def _fill_pixels(one, other):
     # new_image[other_values_mask] = other_image[other_values_mask]
     # but here the word "mask" does not mean the same as in masked arrays.
 
-    return _Raster(image=new_image, band_names=one.band_names)
+    return _Raster(image=new_image, band_names=one.band_names), other_values_mask
 
 
 def _stack_bands(one, other):
@@ -324,7 +356,7 @@ def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
         raise ValueError("rasters have no bands in common, use another merge strategy")
 
     # Merge common bands
-    separated_bands, _ = _merge_common_bands(_explode_raster(one, all_band_names)[0] + single_band_rasters, _)
+    separated_bands, _ = _merge_common_bands(_explode_raster(one, all_band_names)[0] + single_band_rasters)
 
     # Merge all bands
     raster = reduce(_stack_bands, separated_bands)
