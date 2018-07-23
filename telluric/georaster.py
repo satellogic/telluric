@@ -158,9 +158,15 @@ def _mask_to_vector(mask, affine, crs):
     shapes = extract_shapes(mask.astype(np.uint8), transform=affine)
 
     zero_shapes = [shape[0] for shape in shapes if shape[1] == 0]
-    assert len(zero_shapes) == 1, "Holes in the image or some other unknown error"
+    if not zero_shapes:
+        # All the values are masked, returning empty geometry
+        return GeoVector(Polygon([]), crs)
 
-    return GeoVector(to_shape(zero_shapes[0]), crs)
+    elif len(zero_shapes) > 1:
+        raise NotImplementedError("Holes in the image or some other unknown error")
+
+    else:
+        return GeoVector(to_shape(zero_shapes[0]), crs)
 
 
 def _process_masks(masks, reference_raster):
