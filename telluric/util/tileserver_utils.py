@@ -16,14 +16,15 @@ def mercator_upper_zoom_level(raster):
                 return mercartor_resolution
     return None
 
+
 def tileserver_optimized_raster(src, dest):
     """ This method converts a raster to a tileserver optimized raster.
-	The method will reproject the raster to align to the xyz system, in resolution and projection
-	It will also create overviews
-	And finally it will arragne the raster in a cog way.
-	You could take the dest file upload it to a web server that supports ranges and user GeoRaster.get_tile
-	on it,
-	You are geranteed that you will get as minimal data as possible
+        The method will reproject the raster to align to the xyz system, in resolution and projection
+        It will also create overviews
+        And finally it will arragne the raster in a cog way.
+        You could take the dest file upload it to a web server that supports ranges and user GeoRaster.get_tile
+        on it,
+        You are geranteed that you will get as minimal data as possible
     """
     src_raster = tl.GeoRaster2.open(src)
     bounding_box = src_raster.footprint().get_shape(tl.constants.WGS84_CRS).bounds
@@ -42,7 +43,6 @@ def tileserver_optimized_raster(src, dest):
         warp(src, temp_file, dst_crs=tl.constants.WEB_MERCATOR_CRS, resolution=dest_resolution,
              dst_bounds=bounds, create_options=create_options)
 
-
         with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, GDAL_TIFF_OVR_BLOCKSIZE=256):
             resampling = rasterio.enums.Resampling.gauss
             with rasterio.open(temp_file, 'r+') as tmp_raster:
@@ -56,5 +56,3 @@ def tileserver_optimized_raster(src, dest):
             rasterio_sh.copy(temp_file, dest,
                              COPY_SRC_OVERVIEWS=True, tiled=True,
                              compress='DEFLATE', photometric='MINISBLACK')
-
-
