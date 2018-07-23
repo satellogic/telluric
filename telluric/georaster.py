@@ -1499,30 +1499,22 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         geotiff = GeoRaster2.open(dest_url)
         return geotiff
 
-    def _get_window_calculate_resize_ratio(self, xsize, ysize, window):
-        """Calculate the resize ratio of get_window.
-
-        this method is only used inside get_window to calculate the resizing ratio
-        """
-        if xsize and ysize:
-            xratio, yratio = window.width / xsize, window.height / ysize
-        elif xsize and ysize is None:
-            xratio = yratio = window.width / xsize
-        elif ysize and xsize is None:
-            xratio = yratio = window.height / ysize
-        else:
-            return 1, 1
-
-        return xratio, yratio
-
     def _get_window_out_shape(self, bands, window, xsize, ysize):
         """Get the outshape of a window.
 
         this method is only used inside get_window to calculate the out_shape
         """
-        xratio, yratio = self._get_window_calculate_resize_ratio(xsize, ysize, window)
-        out_shape = (len(bands), math.ceil(abs(window.height / yratio)), math.ceil(abs(window.width / xratio)))
-        return out_shape
+
+        if xsize and ysize is None:
+            ratio = window.width / xsize
+            ysize = math.ceil(window.height / ratio)
+        elif ysize and xsize is None:
+            ratio = window.height / ysize
+            xsize = math.ceil(window.width / ratio)
+        elif xsize is None and ysize is None:
+            ysize = math.ceil(window.height)
+            xsize = math.ceil(window.width)
+        return (len(bands), ysize, xsize)
 
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
@@ -1582,8 +1574,9 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         bands = bands or list(range(1, self.num_bands + 1))
         # we know the affine the result should produce becuase we know where
         # it is located by the xyz, therefore we calculate it here
-        resolution = MERCATOR_RESOLUTION_MAPPING[zoom]
-        affine = Affine.translation(coordinates.left, coordinates.top) * Affine.scale(resolution, -resolution)
+        ratio = MERCATOR_RESOLUTION_MAPPING[zoom]/self.resolution()
+        affine = self.window_transform(window)
+        affine = affine * Affine.scale(ratio, ratio)
         return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
