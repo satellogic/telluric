@@ -454,12 +454,21 @@ def test_merge_all_non_overlapping_has_correct_metadata():
         band_names=['green'],
     )
 
-    expected_metadata = FeatureCollection([
-        GeoFeature(rs1[:(rs1.width // 2), :].footprint(), {'raster_index': 0, 'band_name': "red"}),
-        GeoFeature(rs2[:(rs2.width // 2), :].footprint(), {'raster_index': 1, 'band_name': "green"}),
-        GeoFeature(rs3[(rs3.width // 2):, :].footprint(), {'raster_index': 2, 'band_name': "red"}),
-        GeoFeature(rs4[(rs4.width // 2):, :].footprint(), {'raster_index': 3, 'band_name': "green"}),
-    ])
+    expected_metadata = GeoRaster2(
+        image=np.ma.masked_array([
+            [
+                [0, 2],
+                [0, 2],
+            ],
+            [
+                [1, 3],
+                [1, 3],
+            ]
+        ], np.ma.nomask),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['red', 'green']
+    )
 
     _, metadata = merge_all([rs1, rs2, rs3, rs4], rs1.footprint())
 
