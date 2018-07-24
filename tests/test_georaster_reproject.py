@@ -84,6 +84,23 @@ def test_warp_no_reproject_bounds_res(in_memory):
 
 
 @pytest.mark.parametrize("in_memory", [True, False])
+def test_warp_no_reproject_src_bounds_dimensions(in_memory):
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif")
+    if in_memory:
+        raster_image = raster.image
+    src_bounds = [-6575538, -4078737, -6565840, -4069351]
+    dimensions = (1024, 1024)
+    expected_raster = raster.reproject(src_bounds=src_bounds, dimensions=dimensions)
+    bounds = expected_raster.footprint().get_bounds(raster.crs)
+    assert expected_raster.crs == raster.crs
+    assert np.allclose(bounds, src_bounds)
+    assert np.allclose([9.470703, 9.166015],
+                       [expected_raster.transform.a, -expected_raster.transform.e])
+    assert expected_raster.width == dimensions[0]
+    assert expected_raster.height == dimensions[1]
+
+
+@pytest.mark.parametrize("in_memory", [True, False])
 def test_warp_reproject_dst_crs(in_memory):
     raster = GeoRaster2.open("tests/data/raster/rgb.tif")
     if in_memory:
@@ -180,6 +197,25 @@ def test_warp_reproject_src_bounds_resolution(in_memory):
                        [expected_raster.transform.a, -expected_raster.transform.e])
     assert np.allclose(expected_raster.footprint().get_bounds(expected_raster.crs),
                        [-59.05524, -34.35851, -59.01924, -34.32851])
+
+
+@pytest.mark.parametrize("in_memory", [True, False])
+def test_warp_reproject_src_bounds_dimensions(in_memory):
+    """src-bounds works with dimensions."""
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif")
+    if in_memory:
+        raster_image = raster.image
+    src_bounds = [-6575538, -4078737, -6565840, -4069351]
+    dimensions = (1024, 1024)
+    expected_raster = raster.reproject(dst_crs=WGS84_CRS, src_bounds=src_bounds, dimensions=dimensions)
+    bounds = expected_raster.footprint().get_bounds(expected_raster.crs)
+    assert expected_raster.crs == WGS84_CRS
+    assert expected_raster.width == dimensions[0]
+    assert expected_raster.height == dimensions[1]
+    assert np.allclose(bounds[:],
+                       [-59.06906, -34.37106, -58.98194, -34.30144])
+    assert round(expected_raster.transform.a, 4) == 0.0001
+    assert round(-expected_raster.transform.e, 4) == 0.0001
 
 
 @pytest.mark.parametrize("in_memory", [True, False])
