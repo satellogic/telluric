@@ -55,10 +55,14 @@ def _has_internal_perdataset_mask(rast):
 
 def _get_telluric_tags(source_file):
     with rasterio.open(source_file) as r:
-        tags = r.tags(ns='rastile')
-        if not tags:
-            return tags
-        return {"telluric_%s" % k: v for k, v in tags.items()}
+        rastile_tags = r.tags(ns='rastile')
+        return_tags = {}
+        if rastile_tags:
+            return_tags.update({k: v for k, v in rastile_tags.items() if k.startswith("telluric_")})
+        tags = r.tags()
+        if tags:
+            return_tags.update({k: v for k, v in tags.items() if k.startswith("telluric_")})
+        return return_tags
 
 
 def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss):
