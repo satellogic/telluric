@@ -129,9 +129,6 @@ def _merge_common_bands(rasters, metadata_properties=None):
     if metadata_properties:
         metadata_properties = sorted(metadata_properties, key=lambda pair: all_bands.index(pair['band_name']))
 
-    else:
-        metadata_properties = [defaultdict(lambda: ii) for ii in range(len(rasters))]
-
     def key(rs):
         return all_bands.index(rs.band_names[0])
 
@@ -141,7 +138,7 @@ def _merge_common_bands(rasters, metadata_properties=None):
     # This counter is ugly, but it's the most sensible way I could think of
     # to advance simultaneously in the raster groups and the metadata properties
     ii = 0
-    for band_name, rasters_group in groupby(sorted(rasters, key=key), key=key):
+    for band_index, rasters_group in groupby(sorted(rasters, key=key), key=key):
         # Without metadata, this is equivalent to a reduce(...)
         # rasters_final.append(reduce(_fill_pixels, rasters_group))
         # But we need to unroll the loop to return the masks
@@ -152,7 +149,7 @@ def _merge_common_bands(rasters, metadata_properties=None):
             image=_metadata_mask(
                 raster.image.mask[0],
                 raster_index),
-            band_names=[metadata_properties[ii]['band_name']]
+            band_names=[metadata_properties[ii]['band_name'] if metadata_properties else all_bands[band_index]]
         )
 
         for rs in rasters_group:
