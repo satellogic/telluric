@@ -439,3 +439,29 @@ def test_groupby_with_dissolve():
     ])
 
     assert fc.dissolve('attr1', sum) == fc.groupby('attr1').agg(partial(dissolve, aggfunc=sum)) == expected_result
+
+
+def test_filter_group_by():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'a', 'b': 1}),
+        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'a', 'b': 2}),
+        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'b', 'b': 3}),
+        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'b', 'b': 1}),
+        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 'b', 'b': 2}),
+    ])
+
+    expected_groups = [
+        ('b', FeatureCollection([
+            GeoFeature(GeoVector(Point(3, 3)), {'b': 3}),
+            GeoFeature(GeoVector(Point(1, 1)), {'b': 1}),
+            GeoFeature(GeoVector(Point(2, 2)), {'b': 2})
+        ]))
+    ]
+
+    groups = fc.groupby('attr1')
+
+    def filter_func(fc):
+        return sorted([b for b in fc.get_values('b')]) == [1, 2, 3]
+
+    filtered_group = groups.filter(filter_func)   
+    assert list(filtered_group['b']) == expected_groups
