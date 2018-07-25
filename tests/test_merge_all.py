@@ -9,7 +9,7 @@ from affine import Affine
 from telluric import FeatureCollection, GeoFeature
 from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.vectors import GeoVector
-from telluric.georaster import GeoRaster2, MergeStrategy, merge_all, merge_two
+from telluric.georaster import GeoRaster2, MergeStrategy, PixelStrategy, merge_all, merge_two
 
 from common_for_tests import make_test_raster
 
