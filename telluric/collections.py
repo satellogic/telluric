@@ -551,3 +551,16 @@ class _CollectionGroupBy:
 
         """
         return FeatureCollection(func(fc) for _, fc in self)
+
+    def filter(self, func):
+        # type: (Callable[[BaseCollection], bool]) -> _CollectionGroupBy
+        """Filter out Groups based on filtering function.
+
+        The function should get a FeatureCollection and return True to leave in the Group and False to take it out.
+        """
+        results = OrderedDict()  # type: OrderedDict
+        for name, group in self:
+            if func(group):
+                results[name] = group
+
+        return self.__class__(results)

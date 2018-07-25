@@ -98,11 +98,11 @@ def test_convex_hull_raises_warning_with_invalid_shape():
 
 def test_featurecollection_property_names_includes_all():
     fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1}),
-        GeoFeature(GeoVector(Point(0, 0)), {'attr2': 1})
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 1}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop2': 1})
     ])
 
-    expected_property_names = ['attr1', 'attr2']
+    expected_property_names = ['prop1', 'prop2']
 
     assert sorted(fc.property_names) == expected_property_names
 
@@ -121,8 +121,8 @@ def test_featurecollection_schema_raises_error_for_heterogeneous_geometry_types(
 
 def test_featurecollection_schema_raises_error_for_heterogeneous_property_types():
     fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1}),
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1.0})
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 1}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 1.0})
     ])
 
     with pytest.raises(FeatureCollectionIOError) as excinfo:
@@ -133,17 +133,17 @@ def test_featurecollection_schema_raises_error_for_heterogeneous_property_types(
 
 def test_featurecollection_schema_for_property_types_with_none_values():
     fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': None, 'attr2': 1.0, 'attr3': 'A'}),
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 2, 'attr2': None, 'attr3': 'B'}),
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 3, 'attr2': 3.0, 'attr3': None})
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': None, 'prop2': 1.0, 'prop3': 'A'}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 2, 'prop2': None, 'prop3': 'B'}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 3, 'prop2': 3.0, 'prop3': None})
     ])
 
     expected_schema = {
         'geometry': 'Point',
         'properties': {
-            'attr1': 'int',
-            'attr2': 'float',
-            'attr3': 'str'
+            'prop1': 'int',
+            'prop2': 'float',
+            'prop3': 'str'
         }
     }
 
@@ -152,16 +152,16 @@ def test_featurecollection_schema_for_property_types_with_none_values():
 
 def test_featurecollection_schema_for_property_types_without_none_values():
     fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1, 'attr2': 1.0, 'attr3': 'A'}),
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 2, 'attr2': 2.0, 'attr3': 'B'})
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 1, 'prop2': 1.0, 'prop3': 'A'}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 2, 'prop2': 2.0, 'prop3': 'B'})
     ])
 
     expected_schema = {
         'geometry': 'Point',
         'properties': {
-            'attr1': 'int',
-            'attr2': 'float',
-            'attr3': 'str'
+            'prop1': 'int',
+            'prop2': 'float',
+            'prop3': 'str'
         }
     }
 
@@ -170,15 +170,15 @@ def test_featurecollection_schema_for_property_types_without_none_values():
 
 def test_featurecollection_schema_treat_unsupported_property_types_as_str():
     fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': bool(0), 'attr2': date(2018, 5, 19)}),
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': bool(1), 'attr2': date(2018, 5, 20)})
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': bool(0), 'prop2': date(2018, 5, 19)}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': bool(1), 'prop2': date(2018, 5, 20)})
     ])
 
     expected_schema = {
         'geometry': 'Point',
         'properties': {
-            'attr1': 'str',
-            'attr2': 'str'
+            'prop1': 'str',
+            'prop2': 'str'
         }
     }
 
@@ -191,7 +191,7 @@ def test_featurecollection_map():
     def func(feat):
         return GeoFeature(
             feat.geometry,
-            {'attr1': 1}
+            {'prop1': 1}
         )
 
     new_fc = fc.map(func)
@@ -201,15 +201,15 @@ def test_featurecollection_map():
 
 def test_featurecollection_save_has_no_side_effects():
     fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1}),
-        GeoFeature(GeoVector(Point(0, 0)), {'attr2': 1})
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 1}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop2': 1})
     ])
 
     with tempfile.NamedTemporaryFile(suffix=".json") as fp:
         fc.save(fp.name)
 
-        assert fc[0].properties == {'attr1': 1}
-        assert fc[1].properties == {'attr2': 1}
+        assert fc[0].properties == {'prop1': 1}
+        assert fc[1].properties == {'prop2': 1}
 
 
 @pytest.mark.parametrize("fc", [
@@ -349,35 +349,35 @@ def test_feature_collection_with_dates_serializes_correctly():
 
 def test_get_values():
     fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 1}),
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 2}),
-        GeoFeature(GeoVector(Point(0, 0)), {'attr1': 3}),
-        GeoFeature(GeoVector(Point(0, 0)), {'attr2': 1}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 1}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 2}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop1': 3}),
+        GeoFeature(GeoVector(Point(0, 0)), {'prop2': 1}),
     ])
 
-    assert list(fc.get_values('attr1')) == [1, 2, 3, None]
+    assert list(fc.get_values('prop1')) == [1, 2, 3, None]
 
 
 def test_sort():
     fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 3}),
-        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 1}),
-        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 2})
+        GeoFeature(GeoVector(Point(3, 3)), {'prop1': 3}),
+        GeoFeature(GeoVector(Point(1, 1)), {'prop1': 1}),
+        GeoFeature(GeoVector(Point(2, 2)), {'prop1': 2})
     ])
 
     expected_fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 1}),
-        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 2}),
-        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 3})
+        GeoFeature(GeoVector(Point(1, 1)), {'prop1': 1}),
+        GeoFeature(GeoVector(Point(2, 2)), {'prop1': 2}),
+        GeoFeature(GeoVector(Point(3, 3)), {'prop1': 3})
     ])
 
-    assert fc.sort("attr1") == expected_fc
+    assert fc.sort("prop1") == expected_fc
 
 
 def test_groupby_has_proper_groups():
-    gfa1 = GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'a'})
-    gfa2 = GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'a'})
-    gfb1 = GeoFeature(GeoVector(Point(2, 2)), {'attr1': 'b'})
+    gfa1 = GeoFeature(GeoVector(Point(3, 3)), {'prop1': 'a'})
+    gfa2 = GeoFeature(GeoVector(Point(1, 1)), {'prop1': 'a'})
+    gfb1 = GeoFeature(GeoVector(Point(2, 2)), {'prop1': 'b'})
     fc = FeatureCollection([gfa1, gfa2, gfb1])
 
     expected_groups = [
@@ -385,14 +385,14 @@ def test_groupby_has_proper_groups():
         ('b', FeatureCollection([gfb1]))
     ]
 
-    assert list(fc.groupby('attr1')) == expected_groups
+    assert list(fc.groupby('prop1')) == expected_groups
 
 
 def test_groupby_can_extract_property():
     fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'a', 'b': 1}),
-        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'a', 'b': 2}),
-        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 'b', 'b': 3})
+        GeoFeature(GeoVector(Point(3, 3)), {'prop1': 'a', 'b': 1}),
+        GeoFeature(GeoVector(Point(1, 1)), {'prop1': 'a', 'b': 2}),
+        GeoFeature(GeoVector(Point(2, 2)), {'prop1': 'b', 'b': 3})
     ])
 
     expected_groups = [
@@ -405,14 +405,14 @@ def test_groupby_can_extract_property():
         ]))
     ]
 
-    assert list(fc.groupby('attr1')['b']) == expected_groups
+    assert list(fc.groupby('prop1')['b']) == expected_groups
 
 
 def test_groupby_agg_returns_expected_result():
     fc = FeatureCollection([
-        GeoFeature(GeoVector(Point(3, 3)), {'attr1': 'a', 'b': 1}),
-        GeoFeature(GeoVector(Point(1, 1)), {'attr1': 'a', 'b': 2}),
-        GeoFeature(GeoVector(Point(2, 2)), {'attr1': 'b', 'b': 3})
+        GeoFeature(GeoVector(Point(3, 3)), {'prop1': 'a', 'b': 1}),
+        GeoFeature(GeoVector(Point(1, 1)), {'prop1': 'a', 'b': 2}),
+        GeoFeature(GeoVector(Point(2, 2)), {'prop1': 'b', 'b': 3})
     ])
 
     def first(collection):
@@ -423,14 +423,14 @@ def test_groupby_agg_returns_expected_result():
         GeoFeature(GeoVector(Point(2, 2)), {'b': 3})
     ])
 
-    assert list(fc.groupby('attr1')['b'].agg(first)) == expected_result
+    assert list(fc.groupby('prop1')['b'].agg(first)) == expected_result
 
 
 def test_groupby_with_dissolve():
     fc = FeatureCollection([
-        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'attr1': 'a', 'b': 1}),
-        GeoFeature(GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=1, crs=DEFAULT_CRS), {'attr1': 'a', 'b': 2}),
-        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'attr1': 'b', 'b': 3}),
+        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'prop1': 'a', 'b': 1}),
+        GeoFeature(GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=1, crs=DEFAULT_CRS), {'prop1': 'a', 'b': 2}),
+        GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'prop1': 'b', 'b': 3}),
     ])
 
     expected_result = FeatureCollection([
@@ -438,4 +438,30 @@ def test_groupby_with_dissolve():
         GeoFeature(GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1, crs=DEFAULT_CRS), {'b': 3}),
     ])
 
-    assert fc.dissolve('attr1', sum) == fc.groupby('attr1').agg(partial(dissolve, aggfunc=sum)) == expected_result
+    assert fc.dissolve('prop1', sum) == fc.groupby('prop1').agg(partial(dissolve, aggfunc=sum)) == expected_result
+
+
+def test_filter_group_by():
+    fc = FeatureCollection([
+        GeoFeature(GeoVector(Point(3, 3)), {'prop1': 'a', 'b': 1}),
+        GeoFeature(GeoVector(Point(1, 1)), {'prop1': 'a', 'b': 2}),
+        GeoFeature(GeoVector(Point(3, 3)), {'prop1': 'b', 'b': 3}),
+        GeoFeature(GeoVector(Point(1, 1)), {'prop1': 'b', 'b': 1}),
+        GeoFeature(GeoVector(Point(2, 2)), {'prop1': 'b', 'b': 2}),
+    ])
+
+    expected_groups = [
+        ('b', FeatureCollection([
+            GeoFeature(GeoVector(Point(3, 3)), {'b': 3}),
+            GeoFeature(GeoVector(Point(1, 1)), {'b': 1}),
+            GeoFeature(GeoVector(Point(2, 2)), {'b': 2})
+        ]))
+    ]
+
+    groups = fc.groupby('prop1')
+
+    def filter_func(fc):
+        return sorted([b for b in fc.get_values('b')]) == [1, 2, 3]
+
+    filtered_group = groups.filter(filter_func)
+    assert list(filtered_group['b']) == expected_groups
