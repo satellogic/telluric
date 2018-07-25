@@ -58,7 +58,7 @@ def _get_telluric_tags(source_file):
         rastile_tags = r.tags(ns='rastile')
         return_tags = {}
         if rastile_tags:
-            return_tags.update({k: v for k, v in rastile_tags.items() if k.startswith("telluric_")})
+            return_tags.update({k: v for k, v in rastile_tags.items()})
         tags = r.tags()
         if tags:
             return_tags.update({k: v for k, v in tags.items() if k.startswith("telluric_")})
