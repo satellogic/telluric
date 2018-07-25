@@ -463,5 +463,5 @@ def test_filter_group_by():
     def filter_func(fc):
         return sorted([b for b in fc.get_values('b')]) == [1, 2, 3]
 
-    filtered_group = groups.filter(filter_func)   
+    filtered_group = groups.filter(filter_func)
     assert list(filtered_group['b']) == expected_groups

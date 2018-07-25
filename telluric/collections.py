@@ -558,7 +558,7 @@ class _CollectionGroupBy:
 
         The function should get a FeatureCollection and return True to leave in the Group and False to take it out.
         """
-        results = OrderedDict()
+        results = OrderedDict()  # type: OrderedDict
         for name, group in self:
             if func(group):
                 results[name] = group
