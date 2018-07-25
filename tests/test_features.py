@@ -183,10 +183,10 @@ def test_geofeature_equality_checks_geometry_and_properties(geometry, properties
 def test_geofeature_correctly_serializes_non_simple_types():
     feature = GeoFeature(
         GeoVector(Point(0, 0)),
-        OrderedDict([('attr1', 1), ('attr2', '2'), ('attr3', datetime(2018, 4, 25, 11, 18))])
+        OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     )
     expected_properties = OrderedDict([
-        ('attr1', 1), ('attr2', '2'), ('attr3', '2018-04-25 11:18:00')
+        ('prop1', 1), ('prop2', '2'), ('prop3', '2018-04-25 11:18:00')
     ])
 
     assert mapping(feature)['properties'] == expected_properties
@@ -195,21 +195,21 @@ def test_geofeature_correctly_serializes_non_simple_types():
 def test_transform_properties():
     schema = {
         'properties': OrderedDict([
-            ('attr1', 'time'),
-            ('attr2', 'date'),
-            ('attr3', 'datetime'),
-            ('attr4', 'datetime')
+            ('prop1', 'time'),
+            ('prop2', 'date'),
+            ('prop3', 'datetime'),
+            ('prop4', 'datetime')
         ])
     }
     expected_properties = OrderedDict([
-        ('attr1', time(15, 0, 0)),
-        ('attr2', date(2018, 5, 19)),
-        ('attr3', datetime(2018, 5, 19, 15, 0)),
-        ('attr4', None)
+        ('prop1', time(15, 0, 0)),
+        ('prop2', date(2018, 5, 19)),
+        ('prop3', datetime(2018, 5, 19, 15, 0)),
+        ('prop4', None)
     ])
     assert transform_properties(OrderedDict([
-        ('attr1', '15:00:00'),
-        ('attr2', '2018-05-19'),
-        ('attr3', '2018-05-19T15:00:00'),
-        ('attr4', None)
+        ('prop1', '15:00:00'),
+        ('prop2', '2018-05-19'),
+        ('prop3', '2018-05-19T15:00:00'),
+        ('prop4', None)
     ]), schema) == expected_properties
