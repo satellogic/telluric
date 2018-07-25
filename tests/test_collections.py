@@ -241,31 +241,6 @@ def test_collection_slicing(fc):
     assert type(fc[:]) is FeatureCollection
 
 
-@mock.patch('telluric.collections.rasterize')
-def test_rasterize_without_bounds(mock_rasterize):
-    fc = fc_generator(num_features=1)
-    fc.rasterize(dest_resolution=0.1, crs=DEFAULT_CRS, fill_value=29)
-    f = next(iter(fc))
-    expected_shape = [f.geometry.get_shape(f.geometry.crs)]
-    expected_bounds = fc.envelope.get_shape(fc.crs)
-    mock_rasterize.assert_called_with(expected_shape, DEFAULT_CRS,
-                                      expected_bounds, 0.1,
-                                      fill_value=29, dtype=None)
-
-
-@mock.patch('telluric.collections.rasterize')
-def test_rasterize_with_geovector_bounds(mock_rasterize):
-    fc = fc_generator(num_features=1)
-    expected_bounds = Polygon.from_bounds(0, 0, 1, 1)
-    bounds = GeoVector(expected_bounds, crs=DEFAULT_CRS)
-    fc.rasterize(0.00001, crs=DEFAULT_CRS, bounds=bounds)
-    f = next(iter(fc))
-    expected_shape = [f.geometry.get_shape(f.geometry.crs)]
-    mock_rasterize.assert_called_with(expected_shape, DEFAULT_CRS,
-                                      expected_bounds, 0.00001,
-                                      fill_value=None, dtype=None)
-
-
 def test_file_collection_open():
     expected_len = 53
     expected_property_names = ['BARRIO', 'COMUNA', 'PERIMETRO', 'AREA']

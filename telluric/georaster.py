@@ -78,8 +78,14 @@ class MergeStrategy(Enum):
     UNION = 2
 
 
+class PixelStrategy(Enum):
+    INDEX = 0
+    FIRST = 1
+
+
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
-              shape=None, ul_corner=None, crs=None):
+              shape=None, ul_corner=None, crs=None,
+              pixel_strategy=PixelStrategy.FIRST):
     """Merge a list of rasters, cropping by a region of interest.
        There are cases that the roi is not precise enough for this cases one can use,
        the upper left corner the shape and crs to precisely define the roi.
@@ -95,18 +101,57 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
 
     # Create a list of single band rasters
     all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty)
+    assert len(projected_rasters) == len(rasters)
+
+    prepared_rasters = _apply_pixel_strategy(projected_rasters, pixel_strategy)
+
+    # Extend the rasters list with only those that have the requested bands
+    prepared_rasters = _explode_rasters(prepared_rasters, all_band_names)
 
     if all_band_names:
         # Merge common bands
-        projected_rasters = _merge_common_bands(projected_rasters)
+        prepared_rasters = _merge_common_bands(prepared_rasters)
 
         # Merge all bands
-        raster = reduce(_stack_bands, projected_rasters)
+        raster = reduce(_stack_bands, prepared_rasters)
 
         return empty.copy_with(image=raster.image, band_names=raster.band_names)
 
     else:
         raise ValueError("result contains no bands, use another merge strategy")
+
+
+def _apply_pixel_strategy(rasters, pixel_strategy):
+    # type: (List[Optional[_Raster]], PixelStrategy) -> List[_Raster]
+    if pixel_strategy == PixelStrategy.INDEX:
+        new_rasters = []
+        for ii, raster in enumerate(rasters):
+            if raster:
+                new_image = np.ma.masked_array(
+                    np.full_like(raster.image.data, ii, dtype=int),
+                    raster.image.mask
+                )
+                new_rasters.append(_Raster(image=new_image, band_names=raster.band_names))
+
+        return new_rasters
+
+    elif pixel_strategy == PixelStrategy.FIRST:
+        # The way merge_all is written now, this pixel strategy is the default one
+        # and all the steps in the chain are prepared for it, so no changes needed
+        # apart from taking out None values
+        return [raster for raster in rasters if raster]
+
+    else:
+        raise ValueError("Please use an allowed pixel_strategy")
+
+
+def _explode_rasters(projected_rasters, all_band_names):
+    # type: (List[_Raster], IndexedSet[str]) -> List[_Raster]
+    prepared_rasters = []
+    for projected_raster in projected_rasters:
+        prepared_rasters.extend(_explode_raster(projected_raster, all_band_names))
+
+    return prepared_rasters
 
 
 def _merge_common_bands(rasters):
@@ -128,7 +173,7 @@ def _merge_common_bands(rasters):
 
 
 def _prepare_rasters(rasters, merge_strategy, first):
-    # type: (List[GeoRaster2], MergeStrategy, GeoRaster2) -> Tuple[IndexedSet[str], List[_Raster]]
+    # type: (List[GeoRaster2], MergeStrategy, GeoRaster2) -> Tuple[IndexedSet[str], List[Optional[_Raster]]]
     """Prepares the rasters according to the baseline (first) raster and the merge strategy.
 
     The baseline (first) raster is used to crop and reproject the other rasters,
@@ -138,7 +183,7 @@ def _prepare_rasters(rasters, merge_strategy, first):
     """
     # Create list of prepared rasters
     all_band_names = IndexedSet(first.band_names)
-    projected_rasters = []  # type: List[GeoRaster2]
+    projected_rasters = []
     for raster in rasters:
         projected_raster = _prepare_other_raster(first, raster)
 
@@ -149,19 +194,15 @@ def _prepare_rasters(rasters, merge_strategy, first):
             elif merge_strategy is MergeStrategy.UNION:
                 all_band_names.update(projected_raster.band_names)
 
-            projected_rasters.append(projected_raster)
+        # Some rasters might be None. In this way, we still retain the original order
+        projected_rasters.append(projected_raster)
 
-    # Extend the rasters list with only those that have the requested bands
-    single_band_rasters = []
-    for projected_raster in projected_rasters:
-        single_band_rasters.extend(_explode_raster(projected_raster, all_band_names))
-
-    return all_band_names, single_band_rasters
+    return all_band_names, projected_rasters
 
 
 # noinspection PyDefaultArgument
 def _explode_raster(raster, band_names=[]):
-    # type: (GeoRaster2, Iterable[str]) -> List[_Raster]
+    # type: (_Raster, Iterable[str]) -> List[_Raster]
     """Splits a raster into multiband rasters.
 
     """
@@ -176,7 +217,7 @@ def _explode_raster(raster, band_names=[]):
 
 
 def _prepare_other_raster(one, other):
-    # type: (GeoRaster2, GeoRaster2) -> Union[GeoRaster2, None]
+    # type: (GeoRaster2, GeoRaster2) -> Union[_Raster, None]
     # Crop and reproject the second raster, if necessary
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
@@ -188,7 +229,7 @@ def _prepare_other_raster(one, other):
         else:
             return None
 
-    return other
+    return _Raster(image=other.image, band_names=other.band_names)
 
 
 def _fill_pixels(one, other):
@@ -270,8 +311,8 @@ def _stack_bands(one, other):
     return _Raster(image=new_image, band_names=new_bands)
 
 
-def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
-    # type: (GeoRaster2, GeoRaster2, MergeStrategy, bool) -> GeoRaster2
+def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False, pixel_strategy=PixelStrategy.FIRST):
+    # type: (GeoRaster2, GeoRaster2, MergeStrategy, bool, PixelStrategy) -> GeoRaster2
     """Merge two rasters into one.
 
     Parameters
@@ -280,10 +321,12 @@ def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
         Left raster to merge.
     other : GeoRaster2
         Right raster to merge.
-    merge_strategy : MergeStrategy
+    merge_strategy : MergeStrategy, optional
         Merge strategy, from :py:data:`telluric.georaster.MergeStrategy` (default to "union").
     silent : bool, optional
         Whether to raise errors or return some result, default to False (raise errors).
+    pixel_strategy: PixelStrategy, optional
+        Pixel strategy, from :py:data:`telluric.georaster.PixelStrategy` (default to "top").
 
     Returns
     -------
@@ -298,7 +341,7 @@ def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
             raise ValueError("rasters do not intersect")
 
     else:
-        other = other_res  # To make MyPy happy
+        other = other.copy_with(image=other_res.image, band_names=other_res.band_names)  # To make MyPy happy
 
     # Create a list of single band rasters
     # Cropping won't happen twice, since other was already cropped
@@ -307,11 +350,15 @@ def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False):
     if not all_band_names and not silent:
         raise ValueError("rasters have no bands in common, use another merge strategy")
 
+    prepared_rasters = _apply_pixel_strategy(projected_rasters, pixel_strategy)
+
+    prepared_rasters = _explode_rasters(prepared_rasters, all_band_names)
+
     # Merge common bands
-    projected_rasters = _merge_common_bands(_explode_raster(one, all_band_names) + projected_rasters)
+    prepared_rasters = _merge_common_bands(_explode_raster(one, all_band_names) + prepared_rasters)
 
     # Merge all bands
-    raster = reduce(_stack_bands, projected_rasters)
+    raster = reduce(_stack_bands, prepared_rasters)
 
     return one.copy_with(image=raster.image, band_names=raster.band_names)
 

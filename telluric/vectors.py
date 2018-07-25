@@ -434,7 +434,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         # otherwise the delegation won't happen
         return (
             self.crs == other.crs
-            and self._shape.__eq__(other.get_shape(self.crs))
+            and self._shape.equals(other.get_shape(self.crs))
         )
 
     def __str__(self):

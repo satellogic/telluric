@@ -207,6 +207,13 @@ def test_almost_equals():
     assert pt != different
 
 
+def test_equality_different_topology():
+    gv1 = GeoVector(Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]))
+    gv2 = GeoVector(Polygon([(0, 0), (0, 1), (1, 1), (1, 0)]))
+
+    assert gv1 == gv2
+
+
 def test_print():
     vector = GeoVector(Point(0.0, 0.0))
     assert '%s' % vector.crs in '%s' % vector

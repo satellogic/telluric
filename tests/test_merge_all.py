@@ -6,9 +6,10 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from affine import Affine
 
+from telluric import FeatureCollection, GeoFeature
 from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.vectors import GeoVector
-from telluric.georaster import GeoRaster2, MergeStrategy, merge_all, merge_two
+from telluric.georaster import GeoRaster2, MergeStrategy, PixelStrategy, merge_all, merge_two
 
 from common_for_tests import make_test_raster
 
@@ -405,3 +406,68 @@ def test_merge_all_non_overlapping_covers_all():
 
     assert_array_equal(result.image.data, expected_image.data)
     assert_array_equal(result.image.mask, expected_image.mask)
+
+
+def test_merge_all_non_overlapping_has_correct_metadata():
+    # See https://github.com/satellogic/telluric/issues/65
+    affine = Affine.translation(0, 2) * Affine.scale(1, -1)
+
+    rs1 = GeoRaster2(
+        image=np.array([[
+            [100, 0],
+            [100, 0]
+        ]], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['red'],
+    )
+
+    rs2 = GeoRaster2(
+        image=np.array([[
+            [110, 0],
+            [110, 0]
+        ]], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['green'],
+    )
+
+    rs3 = GeoRaster2(
+        image=np.array([[
+            [0, 200],
+            [0, 200]
+        ]], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['red'],
+    )
+
+    rs4 = GeoRaster2(
+        image=np.array([[
+            [0, 210],
+            [0, 210]
+        ]], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['green'],
+    )
+
+    expected_metadata = GeoRaster2(
+        image=np.ma.masked_array([
+            [
+                [0, 2],
+                [0, 2],
+            ],
+            [
+                [1, 3],
+                [1, 3],
+            ]
+        ], np.ma.nomask),
+        affine=affine,
+        crs=WGS84_CRS,
+        band_names=['red', 'green']
+    )
+
+    metadata = merge_all([rs1, rs2, rs3, rs4], rs1.footprint(), pixel_strategy=PixelStrategy.INDEX)
+
+    assert metadata == expected_metadata
