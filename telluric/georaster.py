@@ -79,13 +79,13 @@ class MergeStrategy(Enum):
 
 
 class PixelStrategy(Enum):
-    METADATA = 0
-    TOP = 1
+    INDEX = 0
+    FIRST = 1
 
 
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
               shape=None, ul_corner=None, crs=None,
-              pixel_strategy=PixelStrategy.TOP):
+              pixel_strategy=PixelStrategy.FIRST):
     """Merge a list of rasters, cropping by a region of interest.
        There are cases that the roi is not precise enough for this cases one can use,
        the upper left corner the shape and crs to precisely define the roi.
@@ -123,7 +123,7 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
 
 def _apply_pixel_strategy(rasters, pixel_strategy):
     # type: (List[Optional[_Raster]], PixelStrategy) -> List[_Raster]
-    if pixel_strategy == PixelStrategy.METADATA:
+    if pixel_strategy == PixelStrategy.INDEX:
         new_rasters = []
         for ii, raster in enumerate(rasters):
             if raster:
@@ -135,11 +135,14 @@ def _apply_pixel_strategy(rasters, pixel_strategy):
 
         return new_rasters
 
-    else:
+    elif pixel_strategy == PixelStrategy.FIRST:
         # The way merge_all is written now, this pixel strategy is the default one
         # and all the steps in the chain are prepared for it, so no changes needed
         # apart from taking out None values
         return [raster for raster in rasters if raster]
+
+    else:
+        raise ValueError("Please use an allowed pixel_strategy")
 
 
 def _explode_rasters(projected_rasters, all_band_names):
@@ -308,7 +311,7 @@ def _stack_bands(one, other):
     return _Raster(image=new_image, band_names=new_bands)
 
 
-def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False, pixel_strategy=PixelStrategy.TOP):
+def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False, pixel_strategy=PixelStrategy.FIRST):
     # type: (GeoRaster2, GeoRaster2, MergeStrategy, bool, PixelStrategy) -> GeoRaster2
     """Merge two rasters into one.
 

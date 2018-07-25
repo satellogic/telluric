@@ -468,6 +468,6 @@ def test_merge_all_non_overlapping_has_correct_metadata():
         band_names=['red', 'green']
     )
 
-    metadata = merge_all([rs1, rs2, rs3, rs4], rs1.footprint(), pixel_strategy=PixelStrategy.METADATA)
+    metadata = merge_all([rs1, rs2, rs3, rs4], rs1.footprint(), pixel_strategy=PixelStrategy.INDEX)
 
     assert metadata == expected_metadata
