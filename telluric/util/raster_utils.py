@@ -128,8 +128,6 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
     width, height: int
         Output dimensions
     """
-    l, b, r, t = src.bounds
-
     if resolution is not None:
         if isinstance(resolution, (float, int)):
             resolution = (float(resolution), float(resolution))
@@ -154,8 +152,9 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
             # Calculate resolution appropriate for dimensions
             # in target.
             dst_width, dst_height = dimensions
+            bounds = src_bounds or src.bounds
             xmin, ymin, xmax, ymax = transform_bounds(
-                src.crs, dst_crs, *src.bounds)
+                src.crs, dst_crs, *bounds)
             dst_transform = Affine(
                 (xmax - xmin) / float(dst_width),
                 0, xmin, 0,
@@ -192,6 +191,7 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
         # Same projection, different dimensions, calculate resolution.
         dst_crs = src.crs
         dst_width, dst_height = dimensions
+        l, b, r, t = src_bounds or src.bounds
         dst_transform = Affine(
             (r - l) / float(dst_width),
             0, l, 0,
@@ -214,6 +214,7 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
     elif resolution:
         # Same projection, different resolution.
         dst_crs = src.crs
+        l, b, r, t = src.bounds
         dst_transform = Affine(resolution[0], 0, l, 0, -resolution[1], t)
         dst_width = max(int(ceil((r - l) / resolution[0])), 1)
         dst_height = max(int(ceil((t - b) / resolution[1])), 1)
