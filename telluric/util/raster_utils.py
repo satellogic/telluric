@@ -9,6 +9,8 @@ from rasterio.warp import (
     calculate_default_transform as calcdt)
 from tempfile import TemporaryDirectory
 from math import ceil
+from telluric import constants
+import telluric as tl
 
 
 def _calc_overviews_factors(one, blocksize=256):
@@ -77,7 +79,8 @@ def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss, b
         create_option = {}
 
     with rasterio.open(source_file) as src:
-        create_option.update(src.profile)
+        # create_option overrides proile
+        creation_options = src.profile.update(create_option)
 
     create_option["blocksize"] = blocksize
 
@@ -86,7 +89,11 @@ def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss, b
     with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, GDAL_TIFF_OVR_BLOCKSIZE=overview_blocksize):
         with TemporaryDirectory() as temp_dir:
             temp_file = os.path.join(temp_dir, 'temp.tif')
-            rasterio_sh.copy(source_file, temp_file, **create_option)
+            #rasterio_sh.copy(source_file, temp_file, **create_option)
+            source_raster = tl.GeoRaster2.open(source_file)
+            warp(source_file, temp_file, creation_options=create_option, dst_crs=constants.WEB_MERCATOR_CRS,
+                 dst_bounds=source_raster.footprint().get_bounds(constants.WEB_MERCATOR_CRS),
+                 resolution=source_raster.resolution())
             with rasterio.open(temp_file, 'r+') as dest:
                 factors = _calc_overviews_factors(dest)
                 dest.build_overviews(factors, resampling=resampling)
