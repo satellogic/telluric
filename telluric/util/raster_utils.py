@@ -65,22 +65,25 @@ def _get_telluric_tags(source_file):
         return return_tags
 
 
-def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss):
+def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss, blocksize=256,
+                   overview_blocksize=256, create_option=None):
     """Convert source file to a Cloud Optimized GeoTiff new file.
 
     :param source_file: path to the original raster
     :param destination_file: path to the new raster
     :param resampling: which Resampling to use on reading, default Resampling.gauss
     """
-    with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
+
+    if not(create_option):
+        create_option = {}
+
+    create_option["blocksize"] = blocksize
+
+    with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, GDAL_TIFF_OVR_BLOCKSIZE=overview_blocksize):
         with TemporaryDirectory() as temp_dir:
             temp_file = os.path.join(temp_dir, 'temp.tif')
-            rasterio_sh.copy(source_file, temp_file, tiled=True, compress='DEFLATE', photometric='MINISBLACK')
+            rasterio_sh.copy(source_file, temp_file, tiled=True, **create_option)
             with rasterio.open(temp_file, 'r+') as dest:
-                if not _has_internal_perdataset_mask(dest):
-                    mask = dest.dataset_mask()
-                    dest.write_mask(mask)
-
                 factors = _calc_overviews_factors(dest)
                 dest.build_overviews(factors, resampling=resampling)
                 dest.update_tags(ns='rio_overview', resampling=resampling.name)
@@ -90,8 +93,7 @@ def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss):
                     dest.update_tags(**telluric_tags)
 
             rasterio_sh.copy(temp_file, destination_file,
-                             COPY_SRC_OVERVIEWS=True, tiled=True,
-                             compress='DEFLATE', photometric='MINISBLACK')
+                             COPY_SRC_OVERVIEWS=True, tiled=True, **create_option)
 
 
 def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
