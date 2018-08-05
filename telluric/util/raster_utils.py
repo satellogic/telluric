@@ -73,16 +73,20 @@ def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss, b
     :param destination_file: path to the new raster
     :param resampling: which Resampling to use on reading, default Resampling.gauss
     """
-
     if not(create_option):
         create_option = {}
 
+    with rasterio.open(source_file) as src:
+        create_option.update(src.profile)
+
     create_option["blocksize"] = blocksize
+
+    create_option["tiled"] = True
 
     with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, GDAL_TIFF_OVR_BLOCKSIZE=overview_blocksize):
         with TemporaryDirectory() as temp_dir:
             temp_file = os.path.join(temp_dir, 'temp.tif')
-            rasterio_sh.copy(source_file, temp_file, tiled=True, **create_option)
+            rasterio_sh.copy(source_file, temp_file, **create_option)
             with rasterio.open(temp_file, 'r+') as dest:
                 factors = _calc_overviews_factors(dest)
                 dest.build_overviews(factors, resampling=resampling)
@@ -93,7 +97,7 @@ def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss, b
                     dest.update_tags(**telluric_tags)
 
             rasterio_sh.copy(temp_file, destination_file,
-                             COPY_SRC_OVERVIEWS=True, tiled=True, **create_option)
+                             COPY_SRC_OVERVIEWS=True, **create_option)
 
 
 def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
