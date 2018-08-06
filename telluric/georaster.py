@@ -999,8 +999,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         else:
             window = window or rasterio.windows.Window(bounds[0],
                                                        bounds[1],
-                                                       bounds[2] - bounds[0] + 1,
-                                                       bounds[3] - bounds[1] + 1)
+                                                       bounds[2] - bounds[0],
+                                                       bounds[3] - bounds[1])
             return self.get_window(window, xsize=xsize, ysize=ysize)
 
     def _crop(self, bounds, xsize=None, ysize=None):
