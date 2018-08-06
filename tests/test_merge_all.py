@@ -145,20 +145,9 @@ def test_crop_for_merging(main_r, cropping_r):
     assert(rr.affine.almost_equals(cropping_r.affine))
 
 
-def test_pixel_crop():
-    rr = black_and_white_raster([1, 2, 3], height=1000, width=1000)
-    out = rr.pixel_crop((0, 0, 1000, 1000))
-    assert(rr == out)
-    out = rr.pixel_crop((0, 0, 100, 100), 100, 100, 1)
-    assert(out.shape == (3, 100, 100))
-    out = rr.pixel_crop((0, 0, 1000, 1000), 1000, 1000, 1)
-    assert(rr == out)
-    out = rr.pixel_crop((0, 0, 500, 500), 1000, 1000, 1)
-    assert(out.shape == (3, 1000, 1000))
-
-
-def test_pixel_crop_lazy():
-    rr = black_and_white_raster([1, 2, 3], height=1000, width=1000, lazy=True)
+@pytest.mark.parametrize("lazy", [False, True])
+def test_pixel_crop(lazy):
+    rr = black_and_white_raster([1, 2, 3], height=1000, width=1000, lazy=lazy)
     out = rr.pixel_crop((0, 0, 1000, 1000))
     assert(rr == out)
     out = rr.pixel_crop((0, 0, 100, 100), 100, 100, 1)
