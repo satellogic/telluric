@@ -917,6 +917,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             dst_array = self.image
 
         dst_array = dst_array.astype(dst_type)
+        dst_array.mask = self.image.mask
         return self.copy_with(image=dst_array)
 
     def crop(self, vector, resolution=None):
