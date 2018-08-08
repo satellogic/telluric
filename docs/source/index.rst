@@ -45,6 +45,7 @@ provided that you can install its dependencies. If you find any problem,
 
    User Guide.ipynb
    api
+   changelog
 
 
 Indices and tables

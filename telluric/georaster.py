@@ -846,8 +846,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             'image': use image min/max as the intensity range,
             'dtype': use min/max of the image's dtype as the intensity range,
             2-tuple: use explicit min/max intensities, it is possible to use
-                     'min' or 'max' as tuple values - in this case they will be
-                     replaced by min or max intensity of image respectively
+            'min' or 'max' as tuple values - in this case they will be
+            replaced by min or max intensity of image respectively
         :param out_range: str or 2-tuple, default 'dtype':
             'dtype': use min/max of the image's dtype as the intensity range,
             2-tuple: use explicit min/max intensities
