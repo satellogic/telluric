@@ -37,6 +37,9 @@ default_factors = [2, 4, 8, 16]
 some_float32_array = np.array([[[0.0, 0.2], [0.4, 0.6]], [[0.7, 0.8], [0.9, 1.0]]], dtype=np.float32)
 some_float32_raster = GeoRaster2(some_float32_array, band_names=[1, 2], affine=some_affine, crs=some_crs, nodata=None)
 
+some_raster_shrunk_mask = some_raster_multiband.copy_with(
+    image=np.ma.array(some_raster_multiband.image.data, mask=np.ma.nomask))
+
 
 def test_construction():
     # test image - different formats yield identical rasters:
@@ -176,6 +179,12 @@ def test_to_pillow_image():
 
     # with mask:
     img, mask = some_raster_multiband.to_pillow_image(return_mask=True)
+    assert mask.height == some_raster_multiband.height
+    assert mask.width == some_raster_multiband.width
+    assert len(mask.getbands()) == 1
+
+    # with shrunk mask:
+    img, mask = some_raster_shrunk_mask.to_pillow_image(return_mask=True)
     assert mask.height == some_raster_multiband.height
     assert mask.width == some_raster_multiband.width
     assert len(mask.getbands()) == 1
