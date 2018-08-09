@@ -915,11 +915,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             dst_array = np.clip(dst_array, omin, omax)
         else:
             dst_array = self.image
-
         dst_array = dst_array.astype(dst_type)
         return self.copy_with(image=dst_array)
 
-    def crop(self, vector, resolution=None):
+    def crop(self, vector, resolution=None, masked=True):
         """
         crops raster outside vector (convex hull)
         :param vector: GeoVector
@@ -932,7 +931,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         else:
             xsize, ysize = (None, None)
 
-        return self.pixel_crop(bounds, xsize, ysize, window=window)
+        return self.pixel_crop(bounds, xsize, ysize, window=window, masked=masked)
 
     def _window(self, bounds, to_round=True):
         # self.window expects to receive the arguments west, south, east, north,
@@ -985,7 +984,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         return xsize, ysize
 
-    def pixel_crop(self, bounds, xsize=None, ysize=None, window=None):
+    def pixel_crop(self, bounds, xsize=None, ysize=None, window=None, masked=True):
         """Crop raster outside vector (convex hull).
 
         :param bounds: bounds of requester portion of the image in image pixels
@@ -1001,7 +1000,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                                        bounds[1],
                                                        bounds[2] - bounds[0] + 1,
                                                        bounds[3] - bounds[1] + 1)
-            return self.get_window(window, xsize=xsize, ysize=ysize)
+            return self.get_window(window, xsize=xsize, ysize=ysize, masked=masked)
 
     def _crop(self, bounds, xsize=None, ysize=None):
         """Crop raster outside vector (convex hull).
@@ -1601,16 +1600,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_HttpResponseError) as e:
             raise GeoRaster2IOError(e)
 
-    def get_tile(self, x_tile, y_tile, zoom,
+    def _get_tile_when_web_mercator_crs(self, x_tile, y_tile, zoom,
                  bands=None, masked=False, resampling=Resampling.cubic):
-        """Convert mercator tile to raster window.
-
-        :param x_tile: x coordinate of tile
-        :param y_tile: y coordinate of tile
-        :param zoom: zoom level
-        :param bands: list of indices of requested bads, default None which returns all bands
-        :param blocksize: tile size  (x & y) default 256, for full resolution pass None
-        :return: GeoRaster2 of tile
+        """ The reason we want to treat this case in a special way
+            is that there are cases where the rater is aligned so you need to be precise
+            on which raster you want
         """
         roi = GeoVector.from_xyz(x_tile, y_tile, zoom)
         coordinates = roi.get_bounds(WEB_MERCATOR_CRS)
@@ -1626,6 +1620,29 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         affine = self.window_transform(window)
         affine = affine * Affine.scale(ratio, ratio)
         return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
+
+
+
+    def get_tile(self, x_tile, y_tile, zoom,
+                 bands=None, masked=False, resampling=Resampling.cubic):
+        """Convert mercator tile to raster window.
+
+        :param x_tile: x coordinate of tile
+        :param y_tile: y coordinate of tile
+        :param zoom: zoom level
+        :param bands: list of indices of requested bads, default None which returns all bands
+        :param blocksize: tile size  (x & y) default 256, for full resolution pass None
+        :return: GeoRaster2 of tile
+        """
+        if self.crs == WEB_MERCATOR_CRS:
+            return self._get_tile_when_web_mercator_crs(x_tile, y_tile, zoom, bands, masked, resampling)
+
+        roi = GeoVector.from_xyz(x_tile, y_tile, zoom)
+        raster = self.crop(roi, resolution=MERCATOR_RESOLUTION_MAPPING[zoom], masked=False)
+        ret_raster = raster.reproject(resolution=MERCATOR_RESOLUTION_MAPPING[zoom],
+                         dst_crs=WEB_MERCATOR_CRS, dst_bounds=roi.get_bounds(WEB_MERCATOR_CRS))
+        ret_raster = ret_raster.reproject(dimensions=(256,256), resampling=Resampling.nearest)
+        return ret_raster
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
         new_affine = self.window_transform(window)
