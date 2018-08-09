@@ -917,7 +917,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             dst_array = self.image
 
         dst_array = dst_array.astype(dst_type)
-        dst_array.mask = self.image.mask
         return self.copy_with(image=dst_array)
 
     def crop(self, vector, resolution=None):
@@ -1094,7 +1093,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         img = np.rollaxis(np.rollaxis(self.image.data, 2), 2)
         img = Image.fromarray(img[:, :, 0]) if img.shape[2] == 1 else Image.fromarray(img)
         if return_mask:
-            mask = Image.fromarray(np.rollaxis(np.rollaxis(self.image.mask, 2), 2).astype(np.uint8)[:, :, 0])
+            mask = np.ma.getmaskarray(self.image)
+            mask = Image.fromarray(np.rollaxis(np.rollaxis(mask, 2), 2).astype(np.uint8)[:, :, 0])
             return img, mask
         else:
             return img
