@@ -928,6 +928,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         bounds, window = self._vector_to_raster_bounds(vector, boundless=self._image is None)
         if resolution:
             xsize, ysize = self._resolution_to_output_shape(bounds, resolution)
+            print(xsize, ysize)
         else:
             xsize, ysize = (None, None)
 
@@ -976,9 +977,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             xscale = resolution[0] / base_resolution
             yscale = resolution[1] / base_resolution
 
+
         width = bounds[2] - bounds[0]
         height = bounds[3] - bounds[1]
-
         xsize = round(width / xscale)
         ysize = round(height / yscale)
 
@@ -993,6 +994,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param windows: the bounds representation window on image in image pixels, optional
         :return: GeoRaster
         """
+
         if self._image is not None:
             return self._crop(bounds, xsize=xsize, ysize=ysize)
         else:
@@ -1589,7 +1591,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 "masked": masked,
                 "out_shape": out_shape
             }
-
+            print(read_params)
             with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
                 array = raster.read(bands, **read_params)
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
@@ -1638,10 +1640,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             return self._get_tile_when_web_mercator_crs(x_tile, y_tile, zoom, bands, masked, resampling)
 
         roi = GeoVector.from_xyz(x_tile, y_tile, zoom)
-        raster = self.crop(roi, resolution=MERCATOR_RESOLUTION_MAPPING[zoom], masked=False)
-        ret_raster = raster.reproject(resolution=MERCATOR_RESOLUTION_MAPPING[zoom],
-                         dst_crs=WEB_MERCATOR_CRS, dst_bounds=roi.get_bounds(WEB_MERCATOR_CRS))
-        ret_raster = ret_raster.reproject(dimensions=(256,256), resampling=Resampling.nearest)
+        left, bottom, right, top = roi.get_bounds(WEB_MERCATOR_CRS)
+        new_affine = rasterio.warp.calculate_default_transform(WEB_MERCATOR_CRS, self.crs, 256, 256, left, bottom, right, top)[0]
+        new_resolution = new_affine[0]
+        raster = self.crop(roi, resolution=new_resolution, masked=False)
+        ret_raster = raster.reproject(dimensions=(256,256), dst_crs=WEB_MERCATOR_CRS)
         return ret_raster
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
