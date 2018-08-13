@@ -91,9 +91,11 @@ class GeoRaster2TestGetTile(TestCase):
         cls.small_read_only_vgr = GeoRaster2.open(path)
 
         path = os.path.join(cls.temp_dir.name, 'test_raster_wgs84.tif')
-        if not os.path.isfile(path):
-            cls.raster_for_test_wgs84().save(path)
-        cls.read_only_vgr_wgs84 = GeoRaster2.open(path)
+        # path = os.path.join("/tmp/tests/read_only_vgr_wgs84", 'test_raster_wgs84.tif')
+        # if not os.path.isfile(path):
+            # cls.raster_for_test_wgs84().save(path)
+        url = "https://publicsatellogic.blob.core.windows.net/telluric-test-data/test_raster_wgs84.tif"
+        cls.read_only_vgr_wgs84 = GeoRaster2.open(url)
 
     @classmethod
     def tearDownClass(cls):
