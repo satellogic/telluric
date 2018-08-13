@@ -15,7 +15,7 @@ from common_for_tests import make_test_raster
 
 
 def black_and_white_raster(band_names=[], height=10, width=10, dtype=np.uint16,
-                           crs=WEB_MERCATOR_CRS, affine=None):
+                           crs=WEB_MERCATOR_CRS, affine=None, lazy=False):
     if affine is None:
         eps = 1e-100
         affine = Affine.translation(10, 12) * Affine.scale(1, -1)
@@ -32,7 +32,12 @@ def black_and_white_raster(band_names=[], height=10, width=10, dtype=np.uint16,
 
     image = np.ma.array(data=array, mask=mask)
     raster = GeoRaster2(image=image, affine=affine, crs=crs, band_names=band_names)
-    return raster
+
+    if lazy:
+        raster.save('test_raster2.tif', overviews=False)
+        return GeoRaster2.open('test_raster2.tif')
+    else:
+        return raster
 
 
 def test_merge_single_band_single_raster_returns_itself_for_all_strategies():
@@ -140,8 +145,9 @@ def test_crop_for_merging(main_r, cropping_r):
     assert(rr.affine.almost_equals(cropping_r.affine))
 
 
-def test_pixel_crop():
-    rr = black_and_white_raster([1, 2, 3], height=1000, width=1000)
+@pytest.mark.parametrize("lazy", [False, True])
+def test_pixel_crop(lazy):
+    rr = black_and_white_raster([1, 2, 3], height=1000, width=1000, lazy=lazy)
     out = rr.pixel_crop((0, 0, 1000, 1000))
     assert(rr == out)
     out = rr.pixel_crop((0, 0, 100, 100), 100, 100, 1)
