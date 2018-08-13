@@ -8,7 +8,7 @@ setup(
     description='Interactive geospatial data manipulation in Python',
     license="MIT",
     long_description=open('README.md', encoding='utf-8').read(),
-    author='Juan Luis Cano, Guy Doulberg, Slava Kerner, Lucio Torre, Ariel Zerahia',
+    author='Juan Luis Cano, Guy Doulberg, Slava Kerner, Lucio Torre, Ariel Zerahia, Denis Rykov',
     maintainer_email='juanlu@satellogic.com',
     url='https://github.com/satellogic/telluric/',
     download_url=(
