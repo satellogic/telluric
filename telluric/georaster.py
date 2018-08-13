@@ -918,7 +918,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         dst_array = dst_array.astype(dst_type)
         return self.copy_with(image=dst_array)
 
-    def crop(self, vector, resolution=None, masked=True):
+    def crop(self, vector, resolution=None, masked=True, bands=None):
         """
         crops raster outside vector (convex hull)
         :param vector: GeoVector
@@ -928,11 +928,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         bounds, window = self._vector_to_raster_bounds(vector, boundless=self._image is None)
         if resolution:
             xsize, ysize = self._resolution_to_output_shape(bounds, resolution)
-            print(xsize, ysize)
         else:
             xsize, ysize = (None, None)
 
-        return self.pixel_crop(bounds, xsize, ysize, window=window, masked=masked)
+        return self.pixel_crop(bounds, xsize, ysize, window=window, masked=masked, bands=bands)
 
     def _window(self, bounds, to_round=True):
         # self.window expects to receive the arguments west, south, east, north,
@@ -985,24 +984,28 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         return xsize, ysize
 
-    def pixel_crop(self, bounds, xsize=None, ysize=None, window=None, masked=True):
+    def pixel_crop(self, bounds, xsize=None, ysize=None, window=None, masked=True, bands=None):
         """Crop raster outside vector (convex hull).
 
         :param bounds: bounds of requester portion of the image in image pixels
         :param xsize: output raster width, None for full resolution
         :param ysize: output raster height, None for full resolution
-        :param windows: the bounds representation window on image in image pixels, optional
+        :param windows: the bounds representation window on image in image pixels, Optional
+        :param bands: list of indices of requested bands, default None which returns all bands
         :return: GeoRaster
         """
 
         if self._image is not None:
-            return self._crop(bounds, xsize=xsize, ysize=ysize)
+            raster = self._crop(bounds, xsize=xsize, ysize=ysize)
+            if bands is not None:
+                raster = raster.limit_to_bands(bands)
+            return raster
         else:
             window = window or rasterio.windows.Window(bounds[0],
                                                        bounds[1],
                                                        bounds[2] - bounds[0] + 1,
                                                        bounds[3] - bounds[1] + 1)
-            return self.get_window(window, xsize=xsize, ysize=ysize, masked=masked)
+            return self.get_window(window, xsize=xsize, ysize=ysize, masked=masked, bands=bands)
 
     def _crop(self, bounds, xsize=None, ysize=None):
         """Crop raster outside vector (convex hull).
@@ -1591,7 +1594,6 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 "masked": masked,
                 "out_shape": out_shape
             }
-            print(read_params)
             with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
                 array = raster.read(bands, **read_params)
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
@@ -1632,9 +1634,13 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param x_tile: x coordinate of tile
         :param y_tile: y coordinate of tile
         :param zoom: zoom level
-        :param bands: list of indices of requested bads, default None which returns all bands
+        :param bands: list of indices of requested bands, default None which returns all bands
         :param blocksize: tile size  (x & y) default 256, for full resolution pass None
-        :return: GeoRaster2 of tile
+        :return: GeoRaster2 of tile in WEB_MERCATOR_CRS
+
+        You can use TELLURIC_GET_TILE_BUFFER env variable to control the number of pixels surrounding
+        the vector you should fetch when using this method on a raster that is not in WEB_MERCATOR_CRS
+        default to 10
         """
         if self.crs == WEB_MERCATOR_CRS:
             return self._get_tile_when_web_mercator_crs(x_tile, y_tile, zoom, bands, masked, resampling)
@@ -1643,9 +1649,12 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         left, bottom, right, top = roi.get_bounds(WEB_MERCATOR_CRS)
         new_affine = rasterio.warp.calculate_default_transform(WEB_MERCATOR_CRS, self.crs, 256, 256, left, bottom, right, top)[0]
         new_resolution = new_affine[0]
-        raster = self.crop(roi, resolution=new_resolution, masked=False)
-        ret_raster = raster.reproject(dimensions=(256,256), dst_crs=WEB_MERCATOR_CRS)
-        return ret_raster
+        roi_buffer = roi.buffer(int(os.environ.get("TELLURIC_GET_TILE_BUFFER", 10)))
+        raster = self.crop(roi_buffer, resolution=new_resolution, masked=masked, bands=bands)
+        raster = raster.reproject(dst_crs=WEB_MERCATOR_CRS, resolution=MERCATOR_RESOLUTION_MAPPING[zoom],
+                                  dst_bounds=roi_buffer.get_bounds(WEB_MERCATOR_CRS))
+        raster = raster.crop(roi).reproject(dimensions=(256,256))
+        return raster
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):
         new_affine = self.window_transform(window)
