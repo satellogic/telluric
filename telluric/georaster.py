@@ -1631,7 +1631,6 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param y_tile: y coordinate of tile
         :param zoom: zoom level
         :param bands: list of indices of requested bands, default None which returns all bands
-        :param blocksize: tile size  (x & y) default 256, for full resolution pass None
         :return: GeoRaster2 of tile in WEB_MERCATOR_CRS
 
         You can use TELLURIC_GET_TILE_BUFFER env variable to control the number of pixels surrounding
