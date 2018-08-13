@@ -529,9 +529,23 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             warnings.simplefilter('ignore', rasterio.errors.NotGeoreferencedWarning)
             warnings.simplefilter('ignore', UserWarning)
             try:
-                return rasterio.open(filename, *args, **kwargs)
+                memory_file = kwargs.pop("memory_file", None)
+                if memory_file is None:
+                    return rasterio.open(filename, *args, **kwargs)
+                else:
+                    kwargs.pop("mode")
+                    return memory_file.open(*args, **kwargs)
             except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_BaseError) as e:
                 raise GeoRaster2IOError(e)
+
+    def _raster_reader(self):
+        if self._image is not None:
+            mem_file = rasterio.MemoryFile()
+            self.save("dummy.tif", memory_file=mem_file, tiled=True)
+            return mem_file.open()
+
+        else:
+            return GeoRaster2._raster_opener(self._filename)
 
     @classmethod
     def open(cls, filename, band_names=None, lazy_load=True, **kwargs):
@@ -702,6 +716,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         nodata_value = kwargs.get('nodata', None)
         compression = kwargs.get('compression', Compression.lzw)
         rasterio_envs = {'GDAL_TIFF_INTERNAL_MASK': internal_mask}
+        memory_file = kwargs.get("memory_file", None)
         if os.environ.get('DEBUG', False):
             rasterio_envs['CPL_DEBUG'] = True
         with rasterio.Env(**rasterio_envs):
@@ -725,6 +740,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                     'blockysize': min(blockysize, size[1]),
                     'tiled': tiled,
                     'compress': compression.name if compression in Compression else compression,
+                    'memory_file': memory_file
                 }
 
                 # additional creation options
@@ -1591,7 +1607,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 "masked": masked,
                 "out_shape": out_shape
             }
-            with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
+            with self._raster_reader() as raster:  # type: rasterio.io.DatasetReader
                 array = raster.read(bands, **read_params)
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
 
