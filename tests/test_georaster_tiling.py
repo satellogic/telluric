@@ -81,17 +81,16 @@ class GeoRaster2TestGetTile(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temp_dir = tempfile.TemporaryDirectory()
-        cls.temp_dir_str = "/tmp/tests/"
-        path = os.path.join(cls.temp_dir_str, 'test_raster.tif')
+        path = os.path.join(cls.temp_dir.name, 'test_raster.tif')
         if not os.path.isfile(path):
             cls.raster_for_test().save(path)
         cls.read_only_vgr = GeoRaster2.open(path)
-        path = os.path.join(cls.temp_dir_str, 'small_test_raster.tif')
+        path = os.path.join(cls.temp_dir.name, 'small_test_raster.tif')
         if not os.path.isfile(path):
             cls.raster_small_for_test().save(path)
         cls.small_read_only_vgr = GeoRaster2.open(path)
 
-        path = os.path.join(cls.temp_dir_str, 'test_raster_wgs84.tif')
+        path = os.path.join(cls.temp_dir.name, 'test_raster_wgs84.tif')
         if not os.path.isfile(path):
             cls.raster_for_test_wgs84().save(path)
         cls.read_only_vgr_wgs84 = GeoRaster2.open(path)
