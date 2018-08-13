@@ -975,13 +975,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         else:
             xscale = resolution[0] / base_resolution
             yscale = resolution[1] / base_resolution
-
-
         width = bounds[2] - bounds[0]
         height = bounds[3] - bounds[1]
         xsize = round(width / xscale)
         ysize = round(height / yscale)
-
         return xsize, ysize
 
     def pixel_crop(self, bounds, xsize=None, ysize=None, window=None, masked=True, bands=None):
@@ -1605,7 +1602,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             raise GeoRaster2IOError(e)
 
     def _get_tile_when_web_mercator_crs(self, x_tile, y_tile, zoom,
-                 bands=None, masked=False, resampling=Resampling.cubic):
+                                        bands=None, masked=False,
+                                        resampling=Resampling.cubic):
         """ The reason we want to treat this case in a special way
             is that there are cases where the rater is aligned so you need to be precise
             on which raster you want
@@ -1624,8 +1622,6 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         affine = self.window_transform(window)
         affine = affine * Affine.scale(ratio, ratio)
         return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
-
-
 
     def get_tile(self, x_tile, y_tile, zoom,
                  bands=None, masked=False, resampling=Resampling.cubic):
@@ -1647,13 +1643,14 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         roi = GeoVector.from_xyz(x_tile, y_tile, zoom)
         left, bottom, right, top = roi.get_bounds(WEB_MERCATOR_CRS)
-        new_affine = rasterio.warp.calculate_default_transform(WEB_MERCATOR_CRS, self.crs, 256, 256, left, bottom, right, top)[0]
+        new_affine = rasterio.warp.calculate_default_transform(WEB_MERCATOR_CRS, self.crs,
+                                                               256, 256, left, bottom, right, top)[0]
         new_resolution = new_affine[0]
         roi_buffer = roi.buffer(int(os.environ.get("TELLURIC_GET_TILE_BUFFER", 10)))
         raster = self.crop(roi_buffer, resolution=new_resolution, masked=masked, bands=bands)
         raster = raster.reproject(dst_crs=WEB_MERCATOR_CRS, resolution=MERCATOR_RESOLUTION_MAPPING[zoom],
                                   dst_bounds=roi_buffer.get_bounds(WEB_MERCATOR_CRS))
-        raster = raster.crop(roi).reproject(dimensions=(256,256))
+        raster = raster.crop(roi).reproject(dimensions=(256, 256))
         return raster
 
     def _calculate_new_affine(self, window, blockxsize=256, blockysize=256):

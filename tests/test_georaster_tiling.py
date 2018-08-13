@@ -96,7 +96,6 @@ class GeoRaster2TestGetTile(TestCase):
             cls.raster_for_test_wgs84().save(path)
         cls.read_only_vgr_wgs84 = GeoRaster2.open(path)
 
-
     @classmethod
     def tearDownClass(cls):
         cls.temp_dir.cleanup()
@@ -111,7 +110,7 @@ class GeoRaster2TestGetTile(TestCase):
 
     @classmethod
     def raster_for_test_wgs84(cls):
-         return cls.raster_for_test().reproject(dst_crs=WGS84_CRS, resolution=1.0)
+        return cls.raster_for_test().reproject(dst_crs=WGS84_CRS, resolution=1.0)
 
     @classmethod
     def raster_small_for_test(cls):
@@ -146,12 +145,11 @@ class GeoRaster2TestGetTile(TestCase):
     def test_get_all_raster_in_a_single_tile(self):
         for raster in [self.read_only_virtual_geo_raster(), self.read_only_virtual_geo_raster_wgs84()]:
             p = raster.footprint().reproject(WGS84_CRS).centroid
-            r = raster.get_tile(*mercantile.tile(lng=p.x, lat=p.y,zoom=11))
+            r = raster.get_tile(*mercantile.tile(lng=p.x, lat=p.y, zoom=11))
             self.assertFalse((r.image.data == 0).all())
             self.assertFalse((r.image.mask).all())
             self.assertEqual(r.image.shape, (3, 256, 256))
             self.assertEqual(r.crs, WEB_MERCATOR_CRS)
-
 
     def test_get_tile_for_different_zoom_levels(self):
         for raster in [self.read_only_virtual_geo_raster(), self.read_only_virtual_geo_raster_wgs84()]:
@@ -172,7 +170,6 @@ class GeoRaster2TestGetTile(TestCase):
             r = raster.get_tile(*tiles[18])
             self.assertEqual(2, len(np.unique(r.image.mask)))
             del os.environ["TELLURIC_GET_TILE_BUFFER"]
-
 
     def test_get_entire_all_raster(self):
         vr = self.small_read_only_virtual_geo_raster()
