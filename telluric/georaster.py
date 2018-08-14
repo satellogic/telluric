@@ -685,9 +685,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         * nodata: if passed, will save with nodata value (e.g. useful for qgis)
 
         """
-
-        folder = os.path.abspath(os.path.join(filename, os.pardir))
-        os.makedirs(folder, exist_ok=True)
+        if "vsi" not in filename:
+            folder = os.path.abspath(os.path.join(filename, os.pardir))
+            os.makedirs(folder, exist_ok=True)
 
         if (
             (self._image is None and self._filename is not None) and
@@ -726,7 +726,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                     'tiled': tiled,
                     'compress': compression.name if compression in Compression else compression,
                 }
-
                 # additional creation options
                 # -co COPY_SRC_OVERVIEWS=YES  -co COMPRESS=DEFLATE -co PHOTOMETRIC=MINISBLACK
                 creation_options = kwargs.get('creation_options', {})

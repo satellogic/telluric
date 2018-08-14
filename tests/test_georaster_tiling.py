@@ -80,26 +80,15 @@ class GeoRaster2TestGetTile(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.temp_dir = tempfile.TemporaryDirectory()
-        path = os.path.join(cls.temp_dir.name, 'test_raster.tif')
-        if not os.path.isfile(path):
-            cls.raster_for_test().save(path)
+        path = "/vsimem/raster_for_test.tif"
+        cls.raster_for_test().save(path)
         cls.read_only_vgr = GeoRaster2.open(path)
-        path = os.path.join(cls.temp_dir.name, 'small_test_raster.tif')
-        if not os.path.isfile(path):
-            cls.raster_small_for_test().save(path)
+        path = "/vsimem/small_raster.tif"
+        cls.raster_small_for_test().save(path)
         cls.small_read_only_vgr = GeoRaster2.open(path)
-
-        path = os.path.join(cls.temp_dir.name, 'test_raster_wgs84.tif')
-        # path = os.path.join("/tmp/tests/read_only_vgr_wgs84", 'test_raster_wgs84.tif')
-        # if not os.path.isfile(path):
-        # cls.raster_for_test_wgs84().save(path)
-        url = "http://publicsatellogic.blob.core.windows.net/telluric-test-data/test_raster_wgs84.tif"
-        cls.read_only_vgr_wgs84 = GeoRaster2.open(url)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.temp_dir.cleanup()
+        path = "/vsimem/raster_wgs84.tif"
+        cls.raster_for_test_wgs84().save(path)
+        cls.read_only_vgr_wgs84 = GeoRaster2.open(path)
 
     @classmethod
     def raster_for_test(cls):
@@ -111,7 +100,7 @@ class GeoRaster2TestGetTile(TestCase):
 
     @classmethod
     def raster_for_test_wgs84(cls):
-        return cls.raster_for_test().reproject(dst_crs=WGS84_CRS, resolution=1.0)
+        return cls.raster_for_test().reproject(dst_crs=WGS84_CRS)
 
     @classmethod
     def raster_small_for_test(cls):
