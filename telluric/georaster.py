@@ -1427,7 +1427,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         op is currently limited to numpy.ma, e.g. 'mean', 'std' etc
         :returns list of per-band values
         """
-        per_band = [getattr(np.ma, op)(self.image.data[band, self.image.mask[band, :, :]==np.False_])
+        per_band = [getattr(np.ma, op)(self.image.data[band, self.image.mask[band, :, :] == np.False_])
                     for band in range(self.num_bands)]
         return per_band
 
