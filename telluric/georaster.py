@@ -1657,7 +1657,6 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         -------
         GeoRaster2
         """
-        # import pdb; pdb.set_trace()
         vmin = vmin or min(self.min())
         vmax = vmax or max(self.max())
 
