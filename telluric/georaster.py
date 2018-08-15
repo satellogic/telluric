@@ -1427,7 +1427,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         op is currently limited to numpy.ma, e.g. 'mean', 'std' etc
         :returns list of per-band values
         """
-        per_band = [getattr(np.ma, op)(self.image[band, :, :]) for band in range(self.num_bands)]
+        per_band = [getattr(np.ma, op)(self.image.data[band, self.image.mask[band, :, :] == np.False_])
+                    for band in range(self.num_bands)]
         return per_band
 
     def histogram(self):
@@ -1692,7 +1693,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         else:
             band_index = self.band_names.index(band_name)
 
-        normalized = (self.image.data[band_index, :, :] - vmin) / (vmax - vmin)
+        normalized = (self.image[band_index, :, :] - vmin) / (vmax - vmin)
 
         # Colormap instances are used to convert data values (floats)
         # to RGBA color that the respective Colormap
@@ -1703,14 +1704,14 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         # convert floats [0,1] to uint8 [0,255]
         image_data = image_data * 255
-        image_data = image_data.astype(self.dtype)
+        image_data = image_data.astype(np.uint8)
 
         image_data = np.rollaxis(image_data, 2)
 
         # force nodata where it was in original raster:
         mask = _join_masks_from_masked_array(self.image)
         mask = np.stack([mask[0, :, :]] * 3)
-        array = np.ma.array(image_data, mask=mask).filled(0)  # type: np.ndarray
+        array = np.ma.array(image_data.data, mask=mask).filled(0)  # type: np.ndarray
         array = np.ma.array(array, mask=mask)
 
         return self.copy_with(image=array, band_names=['red', 'green', 'blue'])

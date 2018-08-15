@@ -11,7 +11,7 @@ from common_for_tests import (multi_raster_16b, multi_raster_8b,
 
 
 def test_colorize_jet():
-    raster = tl.GeoRaster2(image=np.array(range(256), dtype=np.uint8).reshape((1, 16, 16)),
+    raster = tl.GeoRaster2(image=np.array([i / 256 for i in range(256)], dtype=np.float16).reshape((1, 16, 16)),
                            band_names=['red'],
                            crs=WGS84_CRS,
                            affine=affine.Affine(2, 0, 0, 0, 1, 0))
@@ -29,7 +29,7 @@ def test_colorize_jet():
 
 
 def test_colorize_jet_with_range():
-    raster = tl.GeoRaster2(image=np.array(range(256), dtype=np.uint8).reshape((1, 16, 16)),
+    raster = tl.GeoRaster2(image=np.array([i / 256 for i in range(256)], dtype=np.float16).reshape((1, 16, 16)),
                            band_names=['red'],
                            crs=WGS84_CRS,
                            affine=affine.Affine(2, 0, 0, 0, 1, 0))
@@ -38,11 +38,8 @@ def test_colorize_jet_with_range():
     assert(np.array_equal(heatmap.band_names, ['red', 'green', 'blue']))
     assert(np.array_equal(heatmap.image.data[:, 0, 0], [0, 0, 0]))  # nodata remains nodata
     assert(np.array_equal(heatmap.image.mask[:, 0, 0], [True, True, True]))  # nodata remains nodata
-    assert((heatmap.image.data[0, heatmap.image.data[0] > 0] == 127).all())
-    assert((heatmap.image.data[1, heatmap.image.data[1] > 0] == 0).all())
-    assert((heatmap.image.data[2, heatmap.image.data[2] > 0] == 0).all())
     mask = heatmap.image.mask
-    assert(len(mask[mask == np.True_]) == 3)
+    assert(len(mask[mask]) == 3)
 
 
 @pytest.mark.parametrize("raster", [multi_raster_16b(),
