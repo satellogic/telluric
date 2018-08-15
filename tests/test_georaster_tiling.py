@@ -159,7 +159,7 @@ class GeoRaster2TestGetTile(TestCase):
             os.environ["TELLURIC_GET_TILE_BUFFER"] = "0"
             try:
                 r = raster.get_tile(*tiles[18])
-            except:
+            except Exception:
                 del os.environ["TELLURIC_GET_TILE_BUFFER"]
             self.assertEqual(2, len(np.unique(r.image.mask)))
 
