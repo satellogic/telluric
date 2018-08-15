@@ -157,9 +157,11 @@ class GeoRaster2TestGetTile(TestCase):
     def test_get_tile_from_different_crs_tile_is_not_tilted_with_different_buffer(self):
         for raster in [self.read_only_virtual_geo_raster_wgs84()]:
             os.environ["TELLURIC_GET_TILE_BUFFER"] = "0"
-            r = raster.get_tile(*tiles[18])
+            try:
+                r = raster.get_tile(*tiles[18])
+            except:
+                del os.environ["TELLURIC_GET_TILE_BUFFER"]
             self.assertEqual(2, len(np.unique(r.image.mask)))
-            del os.environ["TELLURIC_GET_TILE_BUFFER"]
 
     def test_get_entire_all_raster(self):
         vr = self.small_read_only_virtual_geo_raster()
