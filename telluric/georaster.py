@@ -685,7 +685,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         * nodata: if passed, will save with nodata value (e.g. useful for qgis)
 
         """
-        if filename.startswith("/vsi"):
+        if not filename.startswith("/vsi"):
             folder = os.path.abspath(os.path.join(filename, os.pardir))
             os.makedirs(folder, exist_ok=True)
 
