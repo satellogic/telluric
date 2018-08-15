@@ -481,6 +481,10 @@ class _Raster:
         return self._image
 
 
+def resolution_from_affine(affine):
+    return float(np.sqrt(np.abs(affine.determinant)))
+
+
 class GeoRaster2(WindowMethodsMixin, _Raster):
     """
     Represents multiband georeferenced image, supporting nodata pixels.
@@ -1047,7 +1051,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def resolution(self):
         """Return resolution. if different in different axis - return geometric mean."""
-        return float(np.sqrt(np.abs(self.affine.determinant)))
+        return resolution_from_affine(self.affine)
 
     def res_xy(self):
         """Returns X and Y resolution."""
@@ -1644,7 +1648,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         left, bottom, right, top = roi.get_bounds(WEB_MERCATOR_CRS)
         new_affine = rasterio.warp.calculate_default_transform(WEB_MERCATOR_CRS, self.crs,
                                                                256, 256, left, bottom, right, top)[0]
-        new_resolution = new_affine[0]
+        new_resolution = resolution_from_affine(new_affine)
         buffer_ratio = int(os.environ.get("TELLURIC_GET_TILE_BUFFER", 1))
         roi_buffer = roi.buffer(math.sqrt(roi.area*buffer_ratio/100))
         raster = self.crop(roi_buffer, resolution=new_resolution, masked=masked, bands=bands)
