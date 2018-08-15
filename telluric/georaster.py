@@ -1645,7 +1645,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         new_affine = rasterio.warp.calculate_default_transform(WEB_MERCATOR_CRS, self.crs,
                                                                256, 256, left, bottom, right, top)[0]
         new_resolution = new_affine[0]
-        roi_buffer = roi.buffer(int(os.environ.get("TELLURIC_GET_TILE_BUFFER", 10)))
+        buffer_ratio = int(os.environ.get("TELLURIC_GET_TILE_BUFFER", 1))
+        roi_buffer = roi.buffer(math.sqrt(roi.area*buffer_ratio/100))
         raster = self.crop(roi_buffer, resolution=new_resolution, masked=masked, bands=bands)
         raster = raster.reproject(dst_crs=WEB_MERCATOR_CRS, resolution=MERCATOR_RESOLUTION_MAPPING[zoom],
                                   dst_bounds=roi_buffer.get_bounds(WEB_MERCATOR_CRS))
