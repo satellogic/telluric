@@ -80,19 +80,15 @@ class GeoRaster2TestGetTile(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.temp_dir = tempfile.TemporaryDirectory()
-        path = os.path.join(cls.temp_dir.name, 'test_raster.tif')
-        if not os.path.isfile(path):
-            cls.raster_for_test().save(path)
+        path = "/vsimem/raster_for_test.tif"
+        cls.raster_for_test().save(path)
         cls.read_only_vgr = GeoRaster2.open(path)
-        path = os.path.join(cls.temp_dir.name, 'small_test_raster.tif')
-        if not os.path.isfile(path):
-            cls.raster_small_for_test().save(path)
+        path = "/vsimem/small_raster.tif"
+        cls.raster_small_for_test().save(path)
         cls.small_read_only_vgr = GeoRaster2.open(path)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.temp_dir.cleanup()
+        path = "/vsimem/raster_wgs84.tif"
+        cls.raster_for_test_wgs84().save(path)
+        cls.read_only_vgr_wgs84 = GeoRaster2.open(path)
 
     @classmethod
     def raster_for_test(cls):
@@ -101,6 +97,10 @@ class GeoRaster2TestGetTile(TestCase):
                           affine=Affine(1.0000252884112817, 0.0, 2653750.345511198,
                                         0.0, -1.0000599330133702, 4594461.485763356),
                           crs={'init': 'epsg:3857'})
+
+    @classmethod
+    def raster_for_test_wgs84(cls):
+        return cls.raster_for_test().reproject(dst_crs=WGS84_CRS)
 
     @classmethod
     def raster_small_for_test(cls):
@@ -112,6 +112,9 @@ class GeoRaster2TestGetTile(TestCase):
     def read_only_virtual_geo_raster(self):
         return self.read_only_vgr
 
+    def read_only_virtual_geo_raster_wgs84(self):
+        return self.read_only_vgr_wgs84
+
     def small_read_only_virtual_geo_raster(self):
         return self.small_read_only_vgr
 
@@ -122,26 +125,43 @@ class GeoRaster2TestGetTile(TestCase):
         self.assertEqual(bounding_tile, (2319, 1578, 12))
 
     def test_fails_with_empty_raster_for_tile_out_of_raster_area(self):
-        vr = self.read_only_virtual_geo_raster()
-        r = vr.get_tile(16384, 16383, 15)
-        self.assertTrue((r.image.data == 0).all())
-        self.assertTrue((r.image.mask).all())
-        self.assertEqual(r.image.shape, (3, 256, 256))
+        for raster in [self.read_only_virtual_geo_raster(), self.read_only_virtual_geo_raster_wgs84()]:
+            r = raster.get_tile(16384, 16383, 15)
+            self.assertTrue((r.image.data == 0).all())
+            self.assertTrue((r.image.mask).all())
+            self.assertEqual(r.image.shape, (3, 256, 256))
+            self.assertEqual(r.crs, WEB_MERCATOR_CRS)
 
     def test_get_all_raster_in_a_single_tile(self):
-        vr = self.read_only_virtual_geo_raster()
-        r = vr.get_tile(1159, 789, 11)
-        self.assertFalse((r.image.data == 0).all())
-        self.assertFalse((r.image.mask).all())
-        self.assertEqual(r.image.shape, (3, 256, 256))
-
-    def test_get_tile_for_different_zoom_levels(self):
-        vr = self.read_only_virtual_geo_raster()
-        for zoom in tiles:
-            r = vr.get_tile(*tiles[zoom])
+        for raster in [self.read_only_virtual_geo_raster(), self.read_only_virtual_geo_raster_wgs84()]:
+            p = raster.footprint().reproject(WGS84_CRS).centroid
+            r = raster.get_tile(*mercantile.tile(lng=p.x, lat=p.y, zoom=11))
             self.assertFalse((r.image.data == 0).all())
             self.assertFalse((r.image.mask).all())
             self.assertEqual(r.image.shape, (3, 256, 256))
+            self.assertEqual(r.crs, WEB_MERCATOR_CRS)
+
+    def test_get_tile_for_different_zoom_levels(self):
+        for raster in [self.read_only_virtual_geo_raster(), self.read_only_virtual_geo_raster_wgs84()]:
+            for zoom in tiles:
+                r = raster.get_tile(*tiles[zoom])
+                self.assertFalse((r.image.data == 0).all())
+                self.assertFalse((r.image.mask).all())
+                self.assertEqual(r.image.shape, (3, 256, 256))
+
+    def test_get_tile_from_different_crs_tile_is_not_tilted(self):
+        for raster in [self.read_only_virtual_geo_raster_wgs84()]:
+            r = raster.get_tile(*tiles[18])
+            self.assertEqual(1, len(np.unique(r.image.mask)))
+
+    def test_get_tile_from_different_crs_tile_is_not_tilted_with_different_buffer(self):
+        for raster in [self.read_only_virtual_geo_raster_wgs84()]:
+            os.environ["TELLURIC_GET_TILE_BUFFER"] = "0"
+            try:
+                r = raster.get_tile(*tiles[18])
+            except Exception:
+                del os.environ["TELLURIC_GET_TILE_BUFFER"]
+            self.assertEqual(2, len(np.unique(r.image.mask)))
 
     def test_get_entire_all_raster(self):
         vr = self.small_read_only_virtual_geo_raster()
