@@ -387,10 +387,10 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
             new_shape = transform(self._shape, self._crs, new_crs)
             return self.__class__(new_shape, new_crs)
 
-    def rasterize(self, dest_resolution, *, fill_value=None, bounds=None, dtype=None, **kwargs):
+    def rasterize(self, dest_resolution, *, fill_value=None, bounds=None, dtype=None, crs=None, **kwargs):
         # Import here to avoid circular imports
         from telluric import rasterization  # noqa
-        crs = self.crs
+        crs = crs or self.crs
         shapes = [self.get_shape(crs)]
         if bounds is None:
             bounds = self.envelope.get_shape(crs)

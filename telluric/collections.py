@@ -295,10 +295,10 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             rasters = []
             for feature in self:
                 rasters.append(feature.geometry.rasterize(
-                    dest_resolution, fill_value=fill_value(feature), bounds=bounds, dtype=dtype)
+                    dest_resolution, fill_value=fill_value(feature), bounds=bounds, dtype=dtype, crs=crs)
                 )
 
-            return merge_all(rasters, bounds, dest_resolution, merge_strategy=MergeStrategy.INTERSECTION)
+            return merge_all(rasters, bounds.reproject(crs), dest_resolution, merge_strategy=MergeStrategy.INTERSECTION)
 
         else:
             return rasterize(shapes, crs, bounds.get_shape(crs), dest_resolution, fill_value=fill_value, dtype=dtype)
