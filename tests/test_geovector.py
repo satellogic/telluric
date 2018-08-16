@@ -545,3 +545,18 @@ def test_rasterize_with_polygon_bounds(mock_rasterize):
     mock_rasterize.assert_called_with(expected_shape, gv.crs,
                                       expected_bounds, 0.00001,
                                       fill_value=None, dtype=None)
+
+
+@mock.patch('telluric.rasterization.rasterize')
+def test_rasterize_with_crs(mock_rasterize):
+    gv = GeoVector(Polygon.from_bounds(0, 0, 1, 1))
+    expected_crs = WEB_MERCATOR_CRS
+    expected_bounds = Polygon.from_bounds(11132, 11132, 222639, 222684)
+    bounds = GeoVector(Polygon.from_bounds(0.1, 0.1, 2, 2))
+    gv.rasterize(1000, bounds=bounds, crs=WEB_MERCATOR_CRS)
+    expected_shape = [gv.get_shape(expected_crs)]
+
+    args, kwargs = mock_rasterize.call_args
+    assert args[0] == expected_shape
+    assert args[1] == expected_crs
+    assert args[2].almost_equals(expected_bounds, decimal=0)
