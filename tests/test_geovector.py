@@ -9,6 +9,7 @@ from pytest import approx
 from shapely.geometry import Point, Polygon, mapping, LineString, CAP_STYLE
 
 from rasterio.crs import CRS
+from rasterio.errors import CRSError
 
 from telluric.vectors import (
     GeoVector,
@@ -31,6 +32,16 @@ def test_geovector_has_given_crs():
     gv = GeoVector(None, crs)
 
     assert gv.crs == crs
+
+
+def test_geovector_respects_safe():
+    crs = CRS(init='EPSG:432600')
+
+    # no errors
+    gv = GeoVector(None, crs=crs)
+
+    with pytest.raises(CRSError):
+        GeoVector(None, crs=crs, safe=False)
 
 
 def test_geovector_representation():
