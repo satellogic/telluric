@@ -48,7 +48,7 @@ def test_geovector_representation():
     shape = Point(0.0, 0.0)
     gv = GeoVector(shape)
 
-    assert str(gv) == "GeoVector(shape=POINT (0 0), crs=+init=epsg:4326)"
+    assert str(gv) == "GeoVector(shape=POINT (0 0), crs=+init=epsg:4326 +no_defs)"
 
 
 def test_geovector_from_bounds_has_proper_shape():
