@@ -256,7 +256,7 @@ def _fill_pixels(one, other):
     # The values that I want to mask are the ones that:
     # * Were already masked in the other array, _or_
     # * Were already unmasked in the one array, so I don't overwrite them
-    other_values_mask = (other_image.mask[0] | (~one.image.mask[0]))
+    other_values_mask = (np.ma.getmaskarray(other_image)[0] | (~np.ma.getmaskarray(one.image)[0]))
 
     # Reshape the mask to fit the future array
     other_values_mask = other_values_mask[None, ...]
@@ -293,7 +293,7 @@ def _stack_bands(one, other):
     # https://mapbox.github.io/rasterio/topics/masks.html#dataset-masks
     # In other words, mask the values that are already masked in either
     # of the two rasters, since one mask per band is not supported
-    new_mask = one.image.mask[0] | other.image.mask[0]
+    new_mask = np.ma.getmaskarray(one.image)[0] | np.ma.getmaskarray(other.image)[0]
 
     # Concatenate the data along the band axis and apply the mask
     new_image = np.ma.masked_array(
@@ -523,7 +523,11 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         self._footprint = copy(footprint)
 
     def __del__(self):
-        self._cleanup()
+        try:
+            self._cleanup()
+
+        except Exception:
+            pass
 
     #  IO:
     @classmethod
@@ -1147,9 +1151,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
 
         # extract the mask, and un-shrink if necessary
-        mask = self.image.mask
-        if mask is np.ma.nomask:
-            mask = np.zeros_like(self.image.data, dtype=bool)
+        mask = np.ma.getmaskarray(self.image)
 
         # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
         # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
@@ -1334,10 +1336,10 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return self.width * self.height
 
     def num_pixels_nodata(self):
-        return np.sum(self.image.mask[0, :, :])
+        return np.sum(np.ma.getmaskarray(self.image)[0, :, :])
 
     def num_pixels_data(self):
-        return np.sum(~self.image.mask[0, :, :])
+        return np.sum(~np.ma.getmaskarray(self.image)[0, :, :])
 
     @classmethod
     def corner_types(cls):
@@ -1434,7 +1436,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         op is currently limited to numpy.ma, e.g. 'mean', 'std' etc
         :returns list of per-band values
         """
-        per_band = [getattr(np.ma, op)(self.image.data[band, self.image.mask[band, :, :] == np.False_])
+        per_band = [getattr(np.ma, op)(self.image.data[band, np.ma.getmaskarray(self.image)[band, :, :] == np.False_])
                     for band in range(self.num_bands)]
         return per_band
 
@@ -1451,7 +1453,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             raise GeoRaster2NotImplementedError('cant calculate histogram for type %s' % self.image.dtype)
 
         band_image = self.limit_to_bands(band).image
-        return np.histogram(band_image[~band_image.mask], range=(0, length), bins=length)[0]
+        return np.histogram(band_image[~np.ma.getmaskarray(band_image)], range=(0, length), bins=length)[0]
 
     #  image:
     # wrap, if required, some image processing functions, to deal with nodata pixels.
@@ -1483,7 +1485,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def __invert__(self):
         """Invert mask."""
-        return self.copy_with(image=np.ma.masked_array(self.image.data, np.logical_not(self.image.mask)))
+        return self.copy_with(image=np.ma.masked_array(self.image.data, np.logical_not(np.ma.getmaskarray(self.image))))
 
     def mask(self, vector, mask_shape_nodata=False):
         """
