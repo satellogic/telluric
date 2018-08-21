@@ -571,3 +571,8 @@ def test_rasterize_with_crs(mock_rasterize):
     assert args[0] == expected_shape
     assert args[1] == expected_crs
     assert args[2].almost_equals(expected_bounds, decimal=0)
+
+
+def test_geovector_empty_is_empty():
+    gv = GeoVector.empty()
+    assert gv.is_empty
