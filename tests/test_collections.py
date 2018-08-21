@@ -440,3 +440,9 @@ def test_filter_group_by():
 
     filtered_group = groups.filter(filter_func)
     assert list(filtered_group['b']) == expected_groups
+
+
+def test_property_names_on_empty_collection():
+    # See https://github.com/satellogic/telluric/issues/103
+    fc = FeatureCollection([])
+    assert fc.property_names == []

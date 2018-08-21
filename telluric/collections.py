@@ -71,7 +71,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
     @property
     def property_names(self):
-        return list(self.schema['properties'].keys())
+        return list(self.schema['properties'].keys()) if self else []
 
     @property
     def schema(self):
