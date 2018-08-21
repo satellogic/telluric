@@ -31,6 +31,9 @@ def simple_plot(feature, *, mp=None, **map_kwargs):
         Data to plot.
 
     """
+    # This import is here to avoid cyclic references
+    from telluric.collections import BaseCollection
+
     if mp is None:
         mp = folium.Map(tiles="Stamen Terrain", **map_kwargs)
 
@@ -38,6 +41,9 @@ def simple_plot(feature, *, mp=None, **map_kwargs):
         warnings.warn("The geometry is empty.")
 
     else:
+        if isinstance(feature, BaseCollection):
+            feature = feature[:SIMPLE_PLOT_MAX_ROWS]
+
         folium.GeoJson(mapping(feature), name='geojson', overlay=True).add_to(mp)
         shape = feature.envelope.get_shape(WGS84_CRS)
         mp.fit_bounds([shape.bounds[:1:-1], shape.bounds[1::-1]])
@@ -142,7 +148,7 @@ class NotebookPlottingMixin:
     def _repr_html_(self):
         warnings.warn(
             "Plotting a limited representation of the data, use the .plot() method for further customization")
-        return simple_plot(self[:SIMPLE_PLOT_MAX_ROWS])._repr_html_()
+        return simple_plot(self)._repr_html_()
 
     def plot(self, mp=None, **plot_kwargs):
         return plot(self, mp, **plot_kwargs)
