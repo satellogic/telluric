@@ -303,18 +303,6 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         else:
             return rasterize(shapes, crs, bounds.get_shape(crs), dest_resolution, fill_value=fill_value, dtype=dtype)
 
-    def plot(self, mp=None, max_plot_rows=200, **plot_kwargs):
-        if len(self) > max_plot_rows:
-            warnings.warn(
-                "Plotting only first {num_rows} rows to avoid browser freeze, "
-                "please use .filter to narrow your query."
-                .format(num_rows=max_plot_rows)
-            )
-            subset = self[:max_plot_rows]
-            return subset.plot(mp, **plot_kwargs)
-        else:
-            return super().plot(mp, **plot_kwargs)
-
     def _adapt_feature_before_write(self, feature):
         return feature
 
