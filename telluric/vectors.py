@@ -373,10 +373,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         to force the user to specify it.
 
         """
-        if crs == self.crs:
-            return self._shape
-        else:
-            return self.reproject(crs)._shape
+        return self.reproject(crs)._shape
 
     def get_bounds(self, crs):
         left, bottom, right, top = self.get_shape(crs).bounds
