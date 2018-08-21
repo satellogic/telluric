@@ -523,7 +523,11 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         self._footprint = copy(footprint)
 
     def __del__(self):
-        self._cleanup()
+        try:
+            self._cleanup()
+
+        except Exception:
+            pass
 
     #  IO:
     @classmethod
