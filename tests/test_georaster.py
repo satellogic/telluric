@@ -710,3 +710,35 @@ def test_georaster_save_unity_affine_emits_warning(recwarn):
 
     w = recwarn.pop(NotGeoreferencedWarning)
     assert "The given matrix is equal to Affine.identity or its flipped counterpart." in str(w.message)
+
+
+def test_georaster_save_emits_warning_if_uneven_mask(recwarn):
+    affine = Affine.translation(0, 2) * Affine.scale(1, -1)
+    raster = GeoRaster2(
+        image=np.array([
+            [
+                [100, 200],
+                [100, 200]
+            ],
+            [
+                [110, 0],
+                [110, 0]
+            ]
+        ], dtype=np.uint8),
+        affine=affine,
+        crs=WGS84_CRS,
+        nodata=0
+    )
+
+    orig_mask = raster.image.mask
+
+    assert not (orig_mask == orig_mask[0]).all()
+
+    with NamedTemporaryFile(suffix=".tif") as fp:
+        raster.save(fp.name)
+
+    w = recwarn.pop(GeoRaster2Warning)
+    assert (
+        "Saving different masks per band is not supported, the union of the masked values will be performed."
+        in str(w.message)
+    )

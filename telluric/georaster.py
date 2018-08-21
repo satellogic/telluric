@@ -747,6 +747,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                         r.write_band(1 + band, img[band, :, :])
 
                     # write mask:
+                    if not (self.image.mask == self.image.mask[0]).all():
+                        warnings.warn(
+                            "Saving different masks per band is not supported, "
+                            "the union of the masked values will be performed.", GeoRaster2Warning
+                        )
+
                     mask = _mask_from_masked_array(self.image)
                     r.write_mask(mask)
 
