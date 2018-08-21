@@ -48,7 +48,7 @@ def test_geovector_representation():
     shape = Point(0.0, 0.0)
     gv = GeoVector(shape)
 
-    assert str(gv) == "GeoVector(shape=POINT (0 0), crs=+init=epsg:4326)"
+    assert str(gv) == "GeoVector(shape=POINT (0 0), crs=+init=epsg:4326 +no_defs)"
 
 
 def test_geovector_from_bounds_has_proper_shape():
@@ -76,11 +76,6 @@ def test_geovector_has_proper_bounds():
     xmin, ymin, xmax, ymax = bounds
 
     assert (xmin, ymin, xmax, ymax) == (-1, -1, 1, 1)
-
-
-def test_geovector_from_bounds_no_keyword_arguments_raises_typeerror():
-    with pytest.raises(TypeError):
-        GeoVector.from_bounds(0, 0, 1, 1)
 
 
 def test_geovector_from_geojson():
@@ -571,3 +566,16 @@ def test_rasterize_with_crs(mock_rasterize):
     assert args[0] == expected_shape
     assert args[1] == expected_crs
     assert args[2].almost_equals(expected_bounds, decimal=0)
+
+
+def test_geovector_empty_is_empty():
+    gv = GeoVector.empty()
+    assert gv.is_empty
+
+
+def test_geovector_quick_operations():
+    gv1 = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1)
+    gv2 = GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=1)
+
+    assert (gv1 | gv2) == GeoVector.from_bounds(xmin=0, ymin=0, xmax=3, ymax=1)
+    assert (gv1 & gv2) == GeoVector.from_bounds(xmin=1, ymin=0, xmax=2, ymax=1)

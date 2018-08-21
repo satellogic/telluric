@@ -4,7 +4,7 @@ import warnings
 import contextlib
 from collections import Sequence, OrderedDict, defaultdict
 from functools import partial
-from itertools import islice
+from itertools import islice, chain
 from typing import Set, Iterator, Dict, Callable, Optional, Any, Union, DefaultDict
 
 import fiona
@@ -65,13 +65,22 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
     def __eq__(self, other):
         return all(feat == feat_other for feat, feat_other in zip(self, other))
 
+    def __add__(self, other):
+        if isinstance(other, GeoVector):
+            other = GeoFeature(other, {})
+
+        if isinstance(other, GeoFeature):
+            other = [other]
+
+        return FeatureCollection([feat for feat in chain(self, other)])
+
     @property
     def crs(self):
         raise NotImplementedError
 
     @property
     def property_names(self):
-        return list(self.schema['properties'].keys())
+        return list(self.schema['properties'].keys()) if self else []
 
     @property
     def schema(self):
@@ -302,18 +311,6 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
         else:
             return rasterize(shapes, crs, bounds.get_shape(crs), dest_resolution, fill_value=fill_value, dtype=dtype)
-
-    def plot(self, mp=None, max_plot_rows=200, **plot_kwargs):
-        if len(self) > max_plot_rows:
-            warnings.warn(
-                "Plotting only first {num_rows} rows to avoid browser freeze, "
-                "please use .filter to narrow your query."
-                .format(num_rows=max_plot_rows)
-            )
-            subset = self[:max_plot_rows]
-            return subset.plot(mp, **plot_kwargs)
-        else:
-            return super().plot(mp, **plot_kwargs)
 
     def _adapt_feature_before_write(self, feature):
         return feature

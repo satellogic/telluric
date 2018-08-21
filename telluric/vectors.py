@@ -6,7 +6,7 @@ import numpy as np
 import shapely.geometry
 from shapely.geometry import (
     shape as to_shape,
-    Point, MultiPoint, Polygon, LineString, MultiLineString,
+    Point, MultiPoint, Polygon, LineString, MultiLineString, GeometryCollection,
     CAP_STYLE,
     mapping)
 
@@ -302,23 +302,29 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
             json.dump(self.to_record(WGS84_CRS), fd)
 
     @classmethod
+    def empty(cls):
+        return cls(GeometryCollection(), DEFAULT_CRS)
+
+    @classmethod
     def point(cls, x, y, crs=DEFAULT_CRS):
-            return cls(Point((x, y)), crs)
+        return cls(Point((x, y)), crs)
 
     @classmethod
     def line(cls, points, crs=DEFAULT_CRS):
-            return cls(LineString(points), crs)
+        return cls(LineString(points), crs)
 
     @classmethod
-    def from_bounds(cls, *, xmin, ymin, xmax, ymax, crs=DEFAULT_CRS):
-        """Creates GeoVector object from bounds.
+    def polygon(cls, shell, holes=None, crs=DEFAULT_CRS):
+        return cls(Polygon(shell, holes), crs)
 
-        This function only accepts keyword arguments.
+    @classmethod
+    def from_bounds(cls, xmin, ymin, xmax, ymax, crs=DEFAULT_CRS):
+        """Creates GeoVector object from bounds.
 
         Parameters
         ----------
         xmin, ymin, xmax, ymax : float
-            Bounds of the GeoVector.
+            Bounds of the GeoVector. Also (east, south, north, west).
         crs : ~rasterio.crs.CRS, dict
             Projection, default to :py:data:`telluric.constants.DEFAULT_CRS`.
 
@@ -342,6 +348,17 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         return cls.from_bounds(xmin=bb.left, ymin=bb.bottom,
                                xmax=bb.right, ymax=bb.top,
                                crs=WEB_MERCATOR_CRS)
+
+    def __or__(self, other):
+        return self.union(other)
+
+    def __and__(self, other):
+        return self.intersection(other)
+
+    def __add__(self, other):
+        # Avoids circular imports
+        from telluric.collections import FeatureCollection
+        return FeatureCollection.from_geovectors([self, other])
 
     @property
     def __geo_interface__(self):

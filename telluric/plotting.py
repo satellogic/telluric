@@ -16,6 +16,8 @@ from ipyleaflet import (
 
 from telluric.constants import WGS84_CRS
 
+SIMPLE_PLOT_MAX_ROWS = 200
+
 
 def simple_plot(feature, *, mp=None, **map_kwargs):
     """Plots a GeoVector in a simple Folium map.
@@ -140,7 +142,7 @@ class NotebookPlottingMixin:
     def _repr_html_(self):
         warnings.warn(
             "Plotting a limited representation of the data, use the .plot() method for further customization")
-        return simple_plot(self)._repr_html_()
+        return simple_plot(self[:SIMPLE_PLOT_MAX_ROWS])._repr_html_()
 
     def plot(self, mp=None, **plot_kwargs):
         return plot(self, mp, **plot_kwargs)
