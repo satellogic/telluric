@@ -349,6 +349,12 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
                                xmax=bb.right, ymax=bb.top,
                                crs=WEB_MERCATOR_CRS)
 
+    def __or__(self, other):
+        return self.union(other)
+
+    def __and__(self, other):
+        return self.intersection(other)
+
     def __add__(self, other):
         # Avoids circular imports
         from telluric.collections import FeatureCollection

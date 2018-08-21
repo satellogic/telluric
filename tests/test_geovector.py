@@ -571,3 +571,11 @@ def test_rasterize_with_crs(mock_rasterize):
 def test_geovector_empty_is_empty():
     gv = GeoVector.empty()
     assert gv.is_empty
+
+
+def test_geovector_quick_operations():
+    gv1 = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1)
+    gv2 = GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=1)
+
+    assert (gv1 | gv2) == GeoVector.from_bounds(xmin=0, ymin=0, xmax=3, ymax=1)
+    assert (gv1 & gv2) == GeoVector.from_bounds(xmin=1, ymin=0, xmax=2, ymax=1)
