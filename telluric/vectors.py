@@ -318,15 +318,13 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         return cls(Polygon(shell, holes), crs)
 
     @classmethod
-    def from_bounds(cls, *, xmin, ymin, xmax, ymax, crs=DEFAULT_CRS):
+    def from_bounds(cls, xmin, ymin, xmax, ymax, crs=DEFAULT_CRS):
         """Creates GeoVector object from bounds.
-
-        This function only accepts keyword arguments.
 
         Parameters
         ----------
         xmin, ymin, xmax, ymax : float
-            Bounds of the GeoVector.
+            Bounds of the GeoVector. Also (east, south, north, west).
         crs : ~rasterio.crs.CRS, dict
             Projection, default to :py:data:`telluric.constants.DEFAULT_CRS`.
 

@@ -78,11 +78,6 @@ def test_geovector_has_proper_bounds():
     assert (xmin, ymin, xmax, ymax) == (-1, -1, 1, 1)
 
 
-def test_geovector_from_bounds_no_keyword_arguments_raises_typeerror():
-    with pytest.raises(TypeError):
-        GeoVector.from_bounds(0, 0, 1, 1)
-
-
 def test_geovector_from_geojson():
     gv = GeoVector.from_geojson("tests/data/vector/simple_vector.json")
 
