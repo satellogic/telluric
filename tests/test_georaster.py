@@ -10,6 +10,7 @@ from PIL import Image
 from shapely.geometry import Point, Polygon
 
 from rasterio.crs import CRS
+from rasterio.errors import NotGeoreferencedWarning
 
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning
@@ -696,3 +697,16 @@ def test_reproject_lazy():
     assert reprojected._image is None
     assert reprojected._filename is not None
     assert reprojected._temporary
+
+
+def test_georaster_save_unity_affine_emits_warning(recwarn):
+    shape = (1, 500, 500)
+    arr = np.ones(shape)
+    aff = Affine.scale(1, -1)
+    raster = GeoRaster2(image=arr, affine=aff, crs=WEB_MERCATOR_CRS)
+
+    with NamedTemporaryFile(suffix=".tif") as fp:
+        raster.save(fp.name)
+
+    w = recwarn.pop(NotGeoreferencedWarning)
+    assert "The given matrix is equal to Affine.identity or its flipped counterpart." in str(w.message)

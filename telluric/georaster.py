@@ -529,13 +529,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     @classmethod
     def _raster_opener(cls, filename, *args, **kwargs):
         """Return handler to open rasters (rasterio.open)."""
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', rasterio.errors.NotGeoreferencedWarning)
-            warnings.simplefilter('ignore', UserWarning)
-            try:
-                return rasterio.open(filename, *args, **kwargs)
-            except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_BaseError) as e:
-                raise GeoRaster2IOError(e)
+        try:
+            return rasterio.open(filename, *args, **kwargs)
+        except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_BaseError) as e:
+            raise GeoRaster2IOError(e)
 
     @classmethod
     def open(cls, filename, band_names=None, lazy_load=True, **kwargs):
