@@ -4,7 +4,7 @@ import warnings
 import contextlib
 from collections import Sequence, OrderedDict, defaultdict
 from functools import partial
-from itertools import islice
+from itertools import islice, chain
 from typing import Set, Iterator, Dict, Callable, Optional, Any, Union, DefaultDict
 
 import fiona
@@ -64,6 +64,15 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
     def __eq__(self, other):
         return all(feat == feat_other for feat, feat_other in zip(self, other))
+
+    def __add__(self, other):
+        if isinstance(other, GeoVector):
+            other = GeoFeature(other, {})
+
+        if isinstance(other, GeoFeature):
+            other = [other]
+
+        return FeatureCollection([feat for feat in chain(self, other)])
 
     @property
     def crs(self):

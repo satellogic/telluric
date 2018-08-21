@@ -446,3 +446,18 @@ def test_property_names_on_empty_collection():
     # See https://github.com/satellogic/telluric/issues/103
     fc = FeatureCollection([])
     assert fc.property_names == []
+
+
+def test_collection_add():
+    gv1 = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1)
+    gv2 = GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=1)
+    gv3 = GeoVector.from_bounds(xmin=2, ymin=0, xmax=4, ymax=1)
+    gv4 = GeoVector.from_bounds(xmin=3, ymin=0, xmax=5, ymax=1)
+
+    assert (gv1 + gv2) == FeatureCollection.from_geovectors([gv1, gv2])
+    assert (gv1 + gv2 + gv3) == FeatureCollection.from_geovectors([gv1, gv2, gv3])
+    assert (
+        ((gv1 + gv2) + (gv3 + gv4))
+        == (gv1 + gv2 + gv3 + gv4)
+        == FeatureCollection.from_geovectors([gv1, gv2, gv3, gv4])
+    )
