@@ -22,6 +22,13 @@ New features
   by pandas and GeoPandas (#77, #98)
 * Add a :py:data:`telluric.georaster.PixelStrategy` enum with a new mode that
   allows the user to produce the "metadata" of a merge process (#68, #91)
+* :py:meth:`telluric.vectors.GeoVector.rasterize` can now accept a custom output
+  CRS (#125)
+* A new argument was added to the :py:class:`~telluric.vectors.GeoVector` constructor
+  for disabling arguments validity checking (#126)
+* Unnecessary CRS equality checking in
+  :py:meth:`telluric.vectors.GeoVector.get_shape` was removed for performance
+  reasons (#127)
 
 Deprecations and removals
 -------------------------
@@ -33,6 +40,8 @@ Deprecations and removals
   instead of "attributes" for consistency (#84)
 * Non georeferenced raster data is no longer supported (although we are considering
   re adding it under some restrictions) (#64, #74)
+* It is not required for collections to be reprojected to output CRS for
+  rasterization with `fill_value` (#125)
 
 Bug fixes
 ---------
