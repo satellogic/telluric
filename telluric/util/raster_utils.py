@@ -65,41 +65,44 @@ def _get_telluric_tags(source_file):
         return return_tags
 
 
-def _create_options_for_cog(create_option, source_profile, blocksize):
+def _create_options_for_cog(create_options, source_profile, blocksize):
     """
-    it useses the profile of the source raster, override anything using the creation_options
-    and gerantees we will have tiled raster and blocksize
+    it uses the profile of the source raster, override anything using the creation_options
+    and grantees we will have tiled raster and blocksize
     """
-    if not(create_option):
-        create_option = {}
+    if not(create_options):
+        create_options = {}
 
-    create_option["blocksize"] = blocksize
-    create_option["tiled"] = True
+    create_options["blocksize"] = blocksize
+    create_options["tiled"] = True
     for key in ["nodata", "compress"]:
-        if key not in create_option:
-            create_option[key] = source_profile.get(key, None)
-    return create_option
+        if key not in create_options:
+            create_options[key] = source_profile.get(key, None)
+    return create_options
 
 
 def convert_to_cog(source_file, destination_file, resampling=rasterio.enums.Resampling.gauss, blocksize=256,
-                   overview_blocksize=256, create_option=None):
+                   overview_blocksize=256, create_options=None):
     """Convert source file to a Cloud Optimized GeoTiff new file.
 
     :param source_file: path to the original raster
     :param destination_file: path to the new raster
     :param resampling: which Resampling to use on reading, default Resampling.gauss
+    :param blocksize: the size of the blocks default 256
+    :param overview_blocksize: the block size of the overviews, default 256
+    :param create_options: <dictioanry>, options that can override the source raster profile,
+                          notice that you can't override tiled=True, and the blocksize
     """
 
     with rasterio.open(source_file) as src:
-        # create_option overrides proile
+        # create_options overrides proile
         source_profile = src.profile
-    create_option = _create_options_for_cog(create_option, source_profile, blocksize)
+    create_options = _create_options_for_cog(create_options, source_profile, blocksize)
 
     with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, GDAL_TIFF_OVR_BLOCKSIZE=overview_blocksize):
         with TemporaryDirectory() as temp_dir:
             temp_file = os.path.join(temp_dir, 'temp.tif')
-            # rasterio_sh.copy(source_file, temp_file, **create_option)
-            rasterio_sh.copy(source_file, temp_file, **create_option)
+            rasterio_sh.copy(source_file, temp_file, **create_options)
             with rasterio.open(temp_file, 'r+') as dest:
                 factors = _calc_overviews_factors(dest)
                 dest.build_overviews(factors, resampling=resampling)
@@ -110,7 +113,7 @@ def convert_to_cog(source_file, destination_file, resampling=rasterio.enums.Resa
                     dest.update_tags(**telluric_tags)
 
             rasterio_sh.copy(temp_file, destination_file,
-                             COPY_SRC_OVERVIEWS=True, **create_option)
+                             COPY_SRC_OVERVIEWS=True, **create_options)
 
 
 def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
