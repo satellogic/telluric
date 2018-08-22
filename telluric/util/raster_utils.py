@@ -68,7 +68,7 @@ def _get_telluric_tags(source_file):
 def _create_options_for_cog(create_options, source_profile, blocksize):
     """
     it uses the profile of the source raster, override anything using the creation_options
-    and grantees we will have tiled raster and blocksize
+    and guarantees we will have tiled raster and blocksize
     """
     if not(create_options):
         create_options = {}
