@@ -65,22 +65,45 @@ def _get_telluric_tags(source_file):
         return return_tags
 
 
-def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss):
+def _creation_options_for_cog(creation_options, source_profile, blocksize):
+    """
+    it uses the profile of the source raster, override anything using the creation_options
+    and guarantees we will have tiled raster and blocksize
+    """
+    if not(creation_options):
+        creation_options = {}
+
+    creation_options["blocksize"] = blocksize
+    creation_options["tiled"] = True
+    for key in ["nodata", "compress"]:
+        if key not in creation_options:
+            creation_options[key] = source_profile.get(key, None)
+    return creation_options
+
+
+def convert_to_cog(source_file, destination_file, resampling=rasterio.enums.Resampling.gauss, blocksize=256,
+                   overview_blocksize=256, creation_options=None):
     """Convert source file to a Cloud Optimized GeoTiff new file.
 
     :param source_file: path to the original raster
     :param destination_file: path to the new raster
     :param resampling: which Resampling to use on reading, default Resampling.gauss
+    :param blocksize: the size of the blocks default 256
+    :param overview_blocksize: the block size of the overviews, default 256
+    :param creation_options: <dictioanry>, options that can override the source raster profile,
+                          notice that you can't override tiled=True, and the blocksize
     """
-    with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
+
+    with rasterio.open(source_file) as src:
+        # creation_options overrides proile
+        source_profile = src.profile
+    creation_options = _creation_options_for_cog(creation_options, source_profile, blocksize)
+
+    with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True, GDAL_TIFF_OVR_BLOCKSIZE=overview_blocksize):
         with TemporaryDirectory() as temp_dir:
             temp_file = os.path.join(temp_dir, 'temp.tif')
-            rasterio_sh.copy(source_file, temp_file, tiled=True, compress='DEFLATE', photometric='MINISBLACK')
+            rasterio_sh.copy(source_file, temp_file, **creation_options)
             with rasterio.open(temp_file, 'r+') as dest:
-                if not _has_internal_perdataset_mask(dest):
-                    mask = dest.dataset_mask()
-                    dest.write_mask(mask)
-
                 factors = _calc_overviews_factors(dest)
                 dest.build_overviews(factors, resampling=resampling)
                 dest.update_tags(ns='rio_overview', resampling=resampling.name)
@@ -90,8 +113,7 @@ def convert_to_cog(source_file, destination_file, resampling=Resampling.gauss):
                     dest.update_tags(**telluric_tags)
 
             rasterio_sh.copy(temp_file, destination_file,
-                             COPY_SRC_OVERVIEWS=True, tiled=True,
-                             compress='DEFLATE', photometric='MINISBLACK')
+                             COPY_SRC_OVERVIEWS=True, **creation_options)
 
 
 def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
