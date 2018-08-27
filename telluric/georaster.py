@@ -1620,16 +1620,19 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         roi = GeoVector.from_xyz(x_tile, y_tile, zoom)
         coordinates = roi.get_bounds(WEB_MERCATOR_CRS)
         window = self._window(coordinates, to_round=False)
+        bands = bands or list(range(1, self.num_bands + 1))
+        # we know the affine the result should produce becuase we know where
+        # it is located by the xyz, therefore we calculate it here
+        ratio = MERCATOR_RESOLUTION_MAPPING[zoom] / self.resolution()
+        
+        # the affine should be calculated before rounding the window values
+        affine = self.window_transform(window)
+        affine = affine * Affine.scale(ratio, ratio)
+
         window.col_off = round(window.col_off)
         window.row_off = round(window.row_off)
         window.width = round(window.width)
         window.height = round(window.height)
-        bands = bands or list(range(1, self.num_bands + 1))
-        # we know the affine the result should produce becuase we know where
-        # it is located by the xyz, therefore we calculate it here
-        ratio = MERCATOR_RESOLUTION_MAPPING[zoom]/self.resolution()
-        affine = self.window_transform(window)
-        affine = affine * Affine.scale(ratio, ratio)
         return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
 
     def get_tile(self, x_tile, y_tile, zoom,
@@ -1654,11 +1657,12 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         new_affine = rasterio.warp.calculate_default_transform(WEB_MERCATOR_CRS, self.crs,
                                                                256, 256, left, bottom, right, top)[0]
         new_resolution = resolution_from_affine(new_affine)
-        buffer_ratio = int(os.environ.get("TELLURIC_GET_TILE_BUFFER", 1))
-        roi_buffer = roi.buffer(math.sqrt(roi.area*buffer_ratio/100))
+        buffer_ratio = int(os.environ.get("TELLURIC_GET_TILE_BUFFER", 10))
+        roi_buffer = roi.buffer(math.sqrt(roi.area * buffer_ratio / 100))
         raster = self.crop(roi_buffer, resolution=new_resolution, masked=masked, bands=bands)
         raster = raster.reproject(dst_crs=WEB_MERCATOR_CRS, resolution=MERCATOR_RESOLUTION_MAPPING[zoom],
                                   dst_bounds=roi_buffer.get_bounds(WEB_MERCATOR_CRS))
+        # raster = raster.get_tile(x_tile, y_tile, zoom, bands, masked, resampling)
         raster = raster.crop(roi).resize(dest_width=256, dest_height=256)
         return raster
 
