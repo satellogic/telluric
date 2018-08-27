@@ -1624,7 +1624,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         # we know the affine the result should produce becuase we know where
         # it is located by the xyz, therefore we calculate it here
         ratio = MERCATOR_RESOLUTION_MAPPING[zoom] / self.resolution()
-        
+
         # the affine should be calculated before rounding the window values
         affine = self.window_transform(window)
         affine = affine * Affine.scale(ratio, ratio)
