@@ -742,3 +742,12 @@ def test_georaster_save_emits_warning_if_uneven_mask(recwarn):
         "Saving different masks per band is not supported, the union of the masked values will be performed."
         in str(w.message)
     )
+
+
+def test_georaster_crop_jp2():
+    # https://github.com/mapbox/rasterio/issues/1449
+    raster = GeoRaster2.open("tests/data/raster/nomask.jp2")
+    bounds = [-6530057, -3574558, -6492196, -3639376]
+    roi = GeoVector(Polygon.from_bounds(*bounds), crs=WEB_MERCATOR_CRS)
+    cropped = raster.crop(roi)
+    assert(cropped.image.mask[0, -1, -1])
