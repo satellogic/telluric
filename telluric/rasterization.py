@@ -62,8 +62,8 @@ def rasterize(shapes, crs, bounds=None, dest_resolution=None, *, fill_value=None
         # Compute size from scale
         dx = maxx - minx
         dy = maxy - miny
-        sx = round(dx / rx)
-        sy = round(dy / ry)
+        sx = int(round(dx / rx))
+        sy = int(round(dy / ry))
     elif shape and ul_corner:
         minx, maxy = ul_corner
         sx, sy = shape
