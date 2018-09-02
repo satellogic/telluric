@@ -1591,6 +1591,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param masked: boolean, if `True` the return value will be a masked array. Default is True
         :return: GeoRaster2 of tile
         """
+
+        # HACK: We have to overcome https://github.com/mapbox/rasterio/issues/1449 here
+        if self._filename.endswith('.jp2'):
+            masked = False
+
         bands = bands or list(range(1, self.num_bands + 1))
 
         # requested_out_shape and out_shape are different for out of bounds window
