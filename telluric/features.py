@@ -58,6 +58,34 @@ def serialize_properties(properties):
     return new_properties
 
 
+class GeoFeatureRaster():
+
+    def __init__(self, raster, properties):
+        self.properties = properties
+        self.raster = raster
+
+    @property
+    def crs(self):
+        return self.raster.crs
+
+    def to_record(self, crs=None):
+        if crs is None:
+            crs = self.crs
+
+        if self.raster._image is None:
+            raise NotImplementedError("to_recod on in memory raster is not implemeted yet")
+        if crs != self.crs:
+            raise NotImplementedError("to_record when reproject is required not implemeted yet")
+
+        self.properties["raster_url"] = self.raster._filename
+
+        return {
+            'type': 'Feature',
+            'properties': serialize_properties(self.properties),
+            'geometry': None,
+        }
+
+
 class GeoFeature(Mapping, NotebookPlottingMixin):
     """GeoFeature object.
 
@@ -102,6 +130,20 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             'properties': serialize_properties(self.properties),
             'geometry': self.geometry.to_record(crs),
         }
+
+    @classmethod
+    def from_raster(cls, raster, properties):
+        """Initialize a GeoFeature object with a GeoRaster
+
+        Parameters
+        ----------
+        raster : GeoRaster
+            Geometry.
+        properties : dict
+            Properties.
+
+        """
+        return GeoFeatureRaster(raster, properties)
 
     @classmethod
     def from_record(cls, record, crs, schema=None):
