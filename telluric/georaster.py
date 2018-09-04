@@ -1606,8 +1606,15 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
                 array = raster.read(bands, **read_params)
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
-
             raster = self.copy_with(image=array, affine=affine)
+
+            if masked and (raster.image.mask is np.ma.nomask):
+                intersection = self.footprint().envelope.intersection(raster.footprint().envelope)
+                if not intersection.is_empty:
+                    raster = raster.mask(intersection)
+                else:
+                    raster.image.mask = True
+
             return raster
 
         except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_HttpResponseError) as e:
