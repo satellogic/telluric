@@ -11,6 +11,9 @@ from telluric.vectors import (
     GEOM_PROPERTIES, GEOM_NONVECTOR_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
 from telluric.plotting import NotebookPlottingMixin
+from telluric import GeoRaster2
+from datetime import _datetime
+
 
 
 def transform_properties(properties, schema):
@@ -58,39 +61,11 @@ def serialize_properties(properties):
     return new_properties
 
 
-class GeoFeatureRaster():
-
-    def __init__(self, raster, properties):
-        self.properties = properties
-        self.raster = raster
-
-    @property
-    def crs(self):
-        return self.raster.crs
-
-    def to_record(self, crs=None):
-        if crs is None:
-            crs = self.crs
-
-        if self.raster._image is None:
-            raise NotImplementedError("to_recod on in memory raster is not implemeted yet")
-        if crs != self.crs:
-            raise NotImplementedError("to_record when reproject is required not implemeted yet")
-
-        self.properties["raster_url"] = self.raster._filename
-
-        return {
-            'type': 'Feature',
-            'properties': serialize_properties(self.properties),
-            'geometry': None,
-        }
-
-
 class GeoFeature(Mapping, NotebookPlottingMixin):
     """GeoFeature object.
 
     """
-    def __init__(self, geovector, properties):
+    def __init__(self, geovector, properties, assets=None, datetime=None):
         """Initialize a GeoFeature object.
 
         Parameters
@@ -99,9 +74,19 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             Geometry.
         properties : dict
             Properties.
-
+        assets : dict
+            Assets that are related to the feature,
+        datetime : Datetime or str
+            The datetime closest to the time the feature was generated, if not provided assume now
         """
+
         self.geometry = geovector  # type: GeoVector
+        if datetime is None:
+            datetime = _datetime.now()
+        elif isinstance(datetime, str):
+            datetime = parse_date(datetime)
+        self.datetime = datetime
+        self._assets = assets
         self._properties = properties
 
     @property
@@ -111,6 +96,10 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     @property
     def properties(self):
         return self._properties
+
+    @property
+    def assets(self):
+        return self._assets
 
     @property
     def attributes(self):
@@ -124,15 +113,31 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def __geo_interface__(self):
         return self.to_record(WGS84_CRS)
 
+    def raster(self, key="raster"):
+        ret_value = None
+        if self.assets is not None:
+            ret_value = self.assets.get(key, None)
+            if not isinstance(ret_value, GeoRaster2):
+                raise ValueError("the asset is not a GeoRaster")
+        return ret_value
+
     def to_record(self, crs):
-        return {
+        ret_val = {
             'type': 'Feature',
             'properties': serialize_properties(self.properties),
             'geometry': self.geometry.to_record(crs),
+            'datetime': self.datetime.isoformat()
         }
+        valid_assets = {}
+        for key, asset in self.assets.items():
+            if isinstance(asset, GeoRaster2) and asset._filename is None:
+                valid_assets[key] = {"href": asset._filename}
+            else:
+                warnings.warn("currenly we support only serilzation of GeoRaster objects that came from urls")
+        return ret_val
 
     @classmethod
-    def from_raster(cls, raster, properties):
+    def from_raster(cls, raster, properties, raster_key="raster"):
         """Initialize a GeoFeature object with a GeoRaster
 
         Parameters
@@ -141,9 +146,13 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             Geometry.
         properties : dict
             Properties.
+        raster_key : string
+            A key that is used to use the raster, the default key is raster.
+            Using this field make sense when you want the feature have more rasters
 
         """
-        return GeoFeatureRaster(raster, properties)
+
+        return GeoFeature(raster.footprint(), properties, assets={raster_key: raster} )
 
     @classmethod
     def from_record(cls, record, crs, schema=None):
