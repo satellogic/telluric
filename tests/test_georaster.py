@@ -742,3 +742,20 @@ def test_georaster_save_emits_warning_if_uneven_mask(recwarn):
         "Saving different masks per band is not supported, the union of the masked values will be performed."
         in str(w.message)
     )
+
+
+@pytest.mark.parametrize("bounds", (
+    (-6572853, -4072334, -6569253, -4068359),  # roi intersects raster's bounds
+    (-6572853, -4075105, -6569253, -4071131),  # roi lies inside raster's bounds
+    (-6565154, -4075105, -6561555, -4071131),  # roi doesn't intersect raster's bounds
+))
+def test_crop_boundless_masked(bounds):
+    raster_w_mask = GeoRaster2.open("tests/data/raster/rgb.tif")
+    raster_wo_mask = GeoRaster2.open("tests/data/raster/rgb.jp2")
+
+    roi = GeoVector(
+        Polygon.from_bounds(*bounds),
+        WEB_MERCATOR_CRS
+    )
+    assert(np.array_equal(raster_w_mask.crop(roi).image.mask,
+                          raster_wo_mask.crop(roi).image.mask))
