@@ -68,7 +68,8 @@ def serialize_properties(properties):
             valid_assets[key] = {"href": asset._filename}
         else:
             warnings.warn("currenly we support only serilzation of GeoRaster objects that came from urls")
-    new_properties[telluric_key("assets")] = valid_assets
+    if len(valid_assets) > 0:
+        new_properties[telluric_key("assets")] = valid_assets
     return new_properties
 
 
