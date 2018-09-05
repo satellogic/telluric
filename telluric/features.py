@@ -12,7 +12,6 @@ from telluric.vectors import (
 )
 from telluric.plotting import NotebookPlottingMixin
 from telluric import GeoRaster2
-from datetime import datetime as _datetime
 
 
 def telluric_key(key):
