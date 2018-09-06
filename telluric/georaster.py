@@ -221,11 +221,17 @@ def _prepare_other_raster(one, other):
     # Crop and reproject the second raster, if necessary
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
-            other = other.crop(one.footprint(), resolution=one.resolution())
-            other = other._reproject(new_width=one.width, new_height=one.height,
-                                     dest_affine=one.affine, dst_crs=one.crs,
-                                     resampling=Resampling.nearest)
-
+            if one.crs != other.crs:
+                dst_bounds = one.footprint().get_bounds(one.crs)
+                other = other.reproject(dst_crs=one.crs,
+                                        dst_bounds=dst_bounds,
+                                        resolution=one.resolution(),
+                                        resampling=Resampling.nearest)
+            else:
+                other = other.crop(one.footprint(), resolution=one.resolution())
+                other = other._reproject(new_width=one.width, new_height=one.height,
+                                         dest_affine=one.affine, dst_crs=one.crs,
+                                         resampling=Resampling.nearest)
         else:
             return None
 
