@@ -65,7 +65,9 @@ def serialize_properties(properties):
     valid_assets = {}
     for key, asset in assets.items():
         if isinstance(asset, GeoRaster2) and asset._filename is not None:
-            valid_assets[key] = {"href": asset._filename}
+            valid_assets[key] = {"href": asset._filename,
+                                 "bands": asset.band_names
+                                 }
         else:
             warnings.warn("currenly we support only serilzation of GeoRaster objects that came from urls")
     if len(valid_assets) > 0:
