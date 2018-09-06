@@ -221,11 +221,12 @@ def _prepare_other_raster(one, other):
     # Crop and reproject the second raster, if necessary
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
-            other = other.crop(one.footprint(), resolution=one.resolution())
-            other = other._reproject(new_width=one.width, new_height=one.height,
-                                     dest_affine=one.affine, dst_crs=one.crs,
-                                     resampling=Resampling.nearest)
-
+            src_bounds = one.footprint().get_bounds(other.crs)
+            dimensions = one.shape[2], one.shape[1]
+            other = other.reproject(dst_crs=one.crs,
+                                    dimensions=dimensions,
+                                    src_bounds=src_bounds,
+                                    resampling=Resampling.nearest)
         else:
             return None
 
@@ -1209,7 +1210,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                      target_aligned_pixels=target_aligned_pixels,
                      resampling=resampling, **kwargs)
 
-            new_raster = GeoRaster2(filename=tf.name, temporary=True)
+            new_raster = self.__class__(filename=tf.name, temporary=True,
+                                        band_names=self.band_names)
         else:
             # image is loaded already
             # SimpleNamespace is handy to hold the properties that calc_transform expects, see

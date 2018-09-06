@@ -5,6 +5,7 @@ import copy
 import numpy as np
 from numpy.testing import assert_array_equal
 from affine import Affine
+from shapely.geometry import Polygon
 
 from telluric import FeatureCollection, GeoFeature
 from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
@@ -471,3 +472,28 @@ def test_merge_all_non_overlapping_has_correct_metadata():
     metadata = merge_all([rs1, rs2, rs3, rs4], rs1.footprint(), pixel_strategy=PixelStrategy.INDEX)
 
     assert metadata == expected_metadata
+
+
+def test_merge_all_different_crs():
+    roi = GeoVector(Polygon.from_bounds(-6321833, -3092272, -6319273, -3089712), WEB_MERCATOR_CRS)
+    affine = Affine.translation(-57, -26) * Affine.scale(0.00083, -0.00083)
+    expected_resolution = 10
+    expected_crs = WEB_MERCATOR_CRS
+
+    # from memory
+    raster_0 = make_test_raster(1, [1], height=1200, width=1200, affine=affine, crs=WGS84_CRS)
+    result_0 = merge_all([raster_0], roi=roi, dest_resolution=expected_resolution, crs=expected_crs)
+    assert(result_0.resolution() == expected_resolution)
+    assert(result_0.crs == expected_crs)
+    assert(result_0.footprint().envelope.almost_equals(roi.envelope, decimal=3))
+
+    # from file
+    path = "/vsimem/raster_for_test.tif"
+    result_0.save(path)
+    raster_1 = GeoRaster2.open(path)
+    result_1 = merge_all([raster_1], roi=roi, dest_resolution=expected_resolution, crs=expected_crs)
+
+    assert(result_1.resolution() == expected_resolution)
+    assert(result_1.crs == expected_crs)
+    assert(result_1.footprint().envelope.almost_equals(roi.envelope, decimal=3))
+    assert(result_0 == result_1)
