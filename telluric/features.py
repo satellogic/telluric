@@ -14,10 +14,6 @@ from telluric.plotting import NotebookPlottingMixin
 from telluric import GeoRaster2
 
 
-def telluric_key(key):
-    return "tl:%s" % key
-
-
 def transform_properties(properties, schema):
     """Transform properties types according to a schema.
 
