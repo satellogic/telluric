@@ -59,19 +59,6 @@ def serialize_properties(properties):
             # https://docs.python.org/3.4/library/json.html#json.JSONEncoder
             # so we convert to string
             new_properties[attr_name] = str(attr_value)
-
-    # ###HACK####
-    assets = new_properties.pop(telluric_key("assets"), {})
-    valid_assets = {}
-    for key, asset in assets.items():
-        if isinstance(asset, GeoRaster2) and asset._filename is not None:
-            valid_assets[key] = {"href": asset._filename,
-                                 "bands": asset.band_names
-                                 }
-        else:
-            warnings.warn("currenly we support only serilzation of GeoRaster objects that came from urls")
-    if len(valid_assets) > 0:
-        new_properties[telluric_key("assets")] = valid_assets
     return new_properties
 
 def from_assets(assets):
@@ -96,7 +83,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     """GeoFeature object.
 
     """
-    def __init__(self, geovector, properties, extension=None):
+    def __init__(self, geovector, properties):
         """Initialize a GeoFeature object.
 
         Parameters
@@ -105,10 +92,6 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             Geometry.
         properties : dict
             Properties.
-        assets : dict
-            Assets that are related to the feature,
-        datetime : Datetime or str
-            The datetime closest to the time the feature was generated, if not provided assume now
         """
 
         self.geometry = geovector  # type: GeoVector
