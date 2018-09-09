@@ -74,6 +74,23 @@ def serialize_properties(properties):
         new_properties[telluric_key("assets")] = valid_assets
     return new_properties
 
+def from_assets(assets):
+    """ create a raster from assets, assets is a dictonary of links like described
+        in the stacs inteface https://github.com/radiantearth/stac-spec/tree/master/json-spec/examples
+
+        * currently we support a single raster asset, in the feature we could support more
+    """
+    raster = None
+    for key, val in assets.items():
+        href = val.get("href", None)
+        bands = val.get("bands", None)
+        if href:
+            raster = GeoRaster2.open(href, band_names=bands)
+            break
+    return raster
+
+def to_assets(raster):
+    return {"0": {"href": raster._filename, "bands": raster.band_names}}
 
 class GeoFeature(Mapping, NotebookPlottingMixin):
     """GeoFeature object.
@@ -131,14 +148,13 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             properties = transform_properties(record["properties"], schema)
         else:
             properties = record["properties"]
-        telluric_type = properties.get(telluric_key("type"), None)
+        raster = from_assets(record.get("raster", {}))
+        if raster is not None:
+            return GeoFeatureWithRaster(raster, properties)
         vector = GeoVector(
                 shape(record['geometry']),
                 crs
             )
-
-        if telluric_type == "AssetsGeoFeature":
-            return AssetsGeoFeature(vector, properties)
         return cls(vector, properties)
 
     def __len__(self):
@@ -161,7 +177,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         return cls(GeoVector(shape, DEFAULT_CRS), {})
 
     @classmethod
-    def from_raster(cls, raster, properties, raster_key="raster"):
+    def from_raster(cls, raster, properties):
         """Initialize a GeoFeature object with a GeoRaster
 
         Parameters
@@ -170,13 +186,9 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             Geometry.
         properties : dict
             Properties.
-        raster_key : string
-            A key that is used to use the raster, the default key is raster.
-            Using this field make sense when you want the feature have more rasters
-
         """
 
-        return AssetsGeoFeature(raster.footprint(), properties, assets={raster_key: raster})
+        return GeoFeatureWithRaster(raster, properties)
 
     def __getattr__(self, item):
         if item in GEOM_PROPERTIES:
@@ -282,41 +294,40 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         return str(self)
 
 
-class AssetsGeoFeature(GeoFeature):
+class GeoFeatureWithRaster(GeoFeature):
 
-    def __init__(self, geovector, properties, assets=None):
-        """Initialize a GeoFeature object.
+    def __init__(self, raster, properties):
+        """Initialize a GeoFeature object with a raster,
+           When a GeoFeature has a raster the default behviour is the same as GeoFeature where the geometry
+           is the union of all rasters footprint.
+
+           we will override some methods to work differetnly like:
+           1. reproject (TBD)
+           2. rasterize (from feature collection, TBD)
+           3. to_record
 
         Parameters
         ----------
-        geovector : GeoVector
-            Geometry.
+        raster[s]: array or single GeoRaster
         properties : dict
             Properties.
-        assets : dict
-            Assets that are related to the feature,
-        datetime : Datetime or str
-            The datetime closest to the time the feature was generated, if not provided assume now
         """
-        super().__init__(geovector, properties)
-        if not telluric_key("assets") in properties:
-            self.assets = assets
-        self.properties[telluric_key("type")] = "AssetsGeoFeature"
+        super().__init__(raster.footprint(), properties)
+        self.raster = raster
 
-    @property
-    def assets(self):
-        return self.properties.get(telluric_key("assets"), {})
+    def to_record(self, crs):
+        if self.raster._filename is None:
+            raise NotImplementedError("Supporting raster that are stored on disk or network")
+        if self.raster.crs != crs:
+            raise NotImplementedError("Supporting serialzation of rasters without reprojection")
+        ret_val = {
+            'type': 'Feature',
+            'properties': serialize_properties(self.properties),
+            'geometry': self.geometry.to_record(crs),
+            'raster' : to_assets(self.raster)
+        }
+        return ret_val
 
-    @assets.setter
-    def assets(self, val):
-        self.properties[telluric_key("assets")] = val
+    def reproject(self, *args, **kwargs):
+        raise NotImplementedError()
 
-    def raster(self, key="raster"):
-        ret_value = None
-        if self.assets is not None:
-            ret_value = self.assets.get(key, None)
-            if isinstance(ret_value, dict) and "href" in ret_value:
-                ret_value = GeoRaster2.open(ret_value.get("href"))
-            if not isinstance(ret_value, GeoRaster2):
-                raise ValueError("the asset is not a GeoRaster")
-        return ret_value
