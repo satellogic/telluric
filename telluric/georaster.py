@@ -221,12 +221,22 @@ def _prepare_other_raster(one, other):
     # Crop and reproject the second raster, if necessary
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
-            src_bounds = one.footprint().get_bounds(other.crs)
-            dimensions = one.shape[2], one.shape[1]
-            other = other.reproject(dst_crs=one.crs,
-                                    dimensions=dimensions,
-                                    src_bounds=src_bounds,
-                                    resampling=Resampling.nearest)
+            if one.crs != other.crs:
+                src_bounds = one.footprint().get_bounds(other.crs)
+                src_vector = GeoVector(Polygon.from_bounds(*src_bounds), other.crs)
+                src_width, src_height = (
+                    src_bounds.right - src_bounds.left,
+                    src_bounds.top - src_bounds.bottom)
+                buffer_ratio = int(os.environ.get("TELLURIC_MERGE_CROP_BUFFER", 10))
+                buffer_size = max(src_width, src_height) * (buffer_ratio / 100)
+                other = other.crop(src_vector.buffer(buffer_size))
+            else:
+                other = other.crop(one.footprint(), resolution=one.resolution())
+
+            other = other._reproject(new_width=one.width, new_height=one.height,
+                                     dest_affine=one.affine, dst_crs=one.crs,
+                                     resampling=Resampling.nearest)
+
         else:
             return None
 
