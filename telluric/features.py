@@ -58,7 +58,7 @@ def serialize_properties(properties):
     return new_properties
 
 
-def from_assets(assets):
+def raster_from_assets(assets):
     """ create a raster from assets, assets is a dictonary of links like described
         in the stacs inteface https://github.com/radiantearth/stac-spec/tree/master/json-spec/examples
 
@@ -74,7 +74,7 @@ def from_assets(assets):
     return raster
 
 
-def to_assets(raster):
+def raster_to_assets(raster):
     return {"0": {"href": raster._filename, "bands": raster.band_names}}
 
 
@@ -130,7 +130,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             properties = transform_properties(record["properties"], schema)
         else:
             properties = record["properties"]
-        raster = from_assets(record.get("raster", {}))
+        raster = raster_from_assets(record.get("raster", {}))
         if raster is not None:
             return GeoFeatureWithRaster(raster, properties)
         vector = GeoVector(
@@ -306,7 +306,7 @@ class GeoFeatureWithRaster(GeoFeature):
             'type': 'Feature',
             'properties': serialize_properties(self.properties),
             'geometry': self.geometry.to_record(crs),
-            'raster': to_assets(self.raster)
+            'raster': raster_to_assets(self.raster)
         }
         return ret_val
 
