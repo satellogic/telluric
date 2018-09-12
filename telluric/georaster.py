@@ -221,7 +221,18 @@ def _prepare_other_raster(one, other):
     # Crop and reproject the second raster, if necessary
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
-            other = other.crop(one.footprint(), resolution=one.resolution())
+            if one.crs != other.crs:
+                src_bounds = one.footprint().get_bounds(other.crs)
+                src_vector = GeoVector(Polygon.from_bounds(*src_bounds), other.crs)
+                src_width, src_height = (
+                    src_bounds.right - src_bounds.left,
+                    src_bounds.top - src_bounds.bottom)
+                buffer_ratio = int(os.environ.get("TELLURIC_MERGE_CROP_BUFFER", 10))
+                buffer_size = max(src_width, src_height) * (buffer_ratio / 100)
+                other = other.crop(src_vector.buffer(buffer_size))
+            else:
+                other = other.crop(one.footprint(), resolution=one.resolution())
+
             other = other._reproject(new_width=one.width, new_height=one.height,
                                      dest_affine=one.affine, dst_crs=one.crs,
                                      resampling=Resampling.nearest)
@@ -1209,7 +1220,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                      target_aligned_pixels=target_aligned_pixels,
                      resampling=resampling, **kwargs)
 
-            new_raster = GeoRaster2(filename=tf.name, temporary=True)
+            new_raster = self.__class__(filename=tf.name, temporary=True,
+                                        band_names=self.band_names)
         else:
             # image is loaded already
             # SimpleNamespace is handy to hold the properties that calc_transform expects, see

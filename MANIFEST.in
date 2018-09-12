@@ -1,2 +1,3 @@
 include versioneer.py
 include telluric/_version.py
+include LICENSE
