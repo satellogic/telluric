@@ -1,4 +1,4 @@
-telluric 0.2.1 (Unreleased)
+telluric 0.2.1 (2018-09-12)
 ===========================
 
 Bug fixes
