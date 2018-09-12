@@ -298,7 +298,7 @@ class GeoFeatureWithRaster(GeoFeature):
         if self.raster._filename is None:
             raise NotImplementedError("Supporting raster that are stored on disk or network")
         if self.raster.crs != crs:
-            raise NotImplementedError("Supporting serialzation of rasters without reprojection")
+            warnings.warn("Raster is not being reprojected to the crs")
         ret_val = {
             'type': 'Feature',
             'properties': serialize_properties(self.properties),
