@@ -191,6 +191,7 @@ def test_geofeature_correctly_serializes_non_simple_types():
 
     assert mapping(feature)['properties'] == expected_properties
 
+
 @pytest.mark.parametrize("raster", [
     "test_raster_with_url", "test_raster_with_no_url"
 ])
@@ -201,6 +202,7 @@ def test_geofeature_from_raster_returns_a_valid_feature(raster, request):
     assert feature.properties == properties
     assert feature.raster == raster
     assert feature.raster.footprint() == feature.geometry
+
 
 @pytest.mark.parametrize("raster", [
     "test_raster_with_url"

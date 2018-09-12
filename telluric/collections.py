@@ -431,7 +431,7 @@ class FeatureCollection(BaseCollection):
 
     @classmethod
     def from_record(cls, record, crs):
-        features = record.get("features",[])
+        features = record.get("features", [])
         features = [GeoFeature.from_record(f, crs) for f in features]
         return FeatureCollection(features)
 
