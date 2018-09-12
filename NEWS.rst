@@ -1,3 +1,19 @@
+telluric 0.2.1 (Unreleased)
+===========================
+
+Bug fixes
+---------
+
+* Retrieve mask in a safer way in :py:meth:`telluric.georaster.GeoRaster2.save` (#136)
+* Fix affine calculation in :py:meth:`telluric.georaster.GeoRaster2.get_tile` (#137)
+* Convert dimensions to ints (#140)
+* Masking areas outside the window in
+  :py:meth:`telluric.georaster.GeoRaster2.get_window` (#141)
+* :py:func:`telluric.georaster.merge_all` does not crash for resolution
+  in ROI units (#143, #146)
+* Limit rasterio version to <1.0.3
+* Add LICENSE into the MANIFEST (#147)
+
 telluric 0.2.0 (2018-08-22)
 ===========================
 
