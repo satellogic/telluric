@@ -461,3 +461,16 @@ def test_collection_add():
         == (gv1 + gv2 + gv3 + gv4)
         == FeatureCollection.from_geovectors([gv1, gv2, gv3, gv4])
     )
+
+
+def test_feature_collection_to_record_from_record():
+    num_features = 3
+    gen_features = (
+        GeoFeature.from_shape(
+            Polygon([(0 + d_x, 0), (0 + d_x, 1), (1 + d_x, 1), (1 + d_x, 0)])
+        )
+        for d_x in range(num_features)
+    )
+    fc = FeatureCollection(gen_features)
+
+    assert mapping(fc) == mapping(FeatureCollection.from_record(fc.to_record(WGS84_CRS), WGS84_CRS))

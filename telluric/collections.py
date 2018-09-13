@@ -429,6 +429,12 @@ class FeatureCollection(BaseCollection):
         """Builds new FeatureCollection from a sequence of :py:class:`~telluric.vectors.GeoVector` objects."""
         return cls([GeoFeature(vector, {}) for vector in geovectors])
 
+    @classmethod
+    def from_record(cls, record, crs):
+        features = record.get("features", [])
+        features = [GeoFeature.from_record(f, crs) for f in features]
+        return cls(features)
+
     def _adapt_feature_before_write(self, feature):
         new_properties = feature.properties.copy()
         for key in self.property_names:

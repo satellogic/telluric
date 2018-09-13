@@ -11,6 +11,7 @@ from telluric.vectors import (
     GEOM_PROPERTIES, GEOM_NONVECTOR_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
 from telluric.plotting import NotebookPlottingMixin
+from telluric import GeoRaster2
 
 
 def transform_properties(properties, schema):
@@ -54,8 +55,27 @@ def serialize_properties(properties):
             # https://docs.python.org/3.4/library/json.html#json.JSONEncoder
             # so we convert to string
             new_properties[attr_name] = str(attr_value)
-
     return new_properties
+
+
+def raster_from_assets(assets):
+    """ create a raster from assets, assets is a dictonary of links like described
+        in the stacs inteface https://github.com/radiantearth/stac-spec/tree/master/json-spec/examples
+
+        * currently we support a single raster asset, in the feature we could support more
+    """
+    raster = None
+    for key, val in assets.items():
+        href = val.get("href")
+        bands = val.get("bands")
+        if href:
+            raster = GeoRaster2.open(href, band_names=bands)
+            break
+    return raster
+
+
+def raster_to_assets(raster):
+    return {"0": {"href": raster._filename, "bands": raster.band_names}}
 
 
 class GeoFeature(Mapping, NotebookPlottingMixin):
@@ -71,8 +91,8 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             Geometry.
         properties : dict
             Properties.
-
         """
+
         self.geometry = geovector  # type: GeoVector
         self._properties = properties
 
@@ -97,26 +117,41 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         return self.to_record(WGS84_CRS)
 
     def to_record(self, crs):
-        return {
+        ret_val = {
             'type': 'Feature',
             'properties': serialize_properties(self.properties),
             'geometry': self.geometry.to_record(crs),
         }
+        return ret_val
+
+    @staticmethod
+    def _get_class_from_record(record):
+        if "raster" in record:
+            return GeoFeatureWithRaster
+        else:
+            return GeoFeature
 
     @classmethod
     def from_record(cls, record, crs, schema=None):
+        _cls = cls._get_class_from_record(record)
+        return _cls._from_record(record, crs, schema)
+
+    @staticmethod
+    def _to_properties(record, schema):
         if schema is not None:
             properties = transform_properties(record["properties"], schema)
         else:
             properties = record["properties"]
+        return properties
 
-        return cls(
-            GeoVector(
+    @classmethod
+    def _from_record(cls, record, crs, schema=None):
+        properties = cls._to_properties(record, schema)
+        vector = GeoVector(
                 shape(record['geometry']),
                 crs
-            ),
-            properties
-        )
+            )
+        return cls(vector, properties)
 
     def __len__(self):
         return len(self.properties)
@@ -136,6 +171,20 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     @classmethod
     def from_shape(cls, shape):
         return cls(GeoVector(shape, DEFAULT_CRS), {})
+
+    @classmethod
+    def from_raster(cls, raster, properties):
+        """Initialize a GeoFeature object with a GeoRaster
+
+        Parameters
+        ----------
+        raster : GeoRaster
+            the raster in the feature
+        properties : dict
+            Properties.
+        """
+
+        return GeoFeatureWithRaster(raster, properties)
 
     def __getattr__(self, item):
         if item in GEOM_PROPERTIES:
@@ -239,3 +288,47 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
     def __repr__(self):
         return str(self)
+
+
+class GeoFeatureWithRaster(GeoFeature):
+
+    def __init__(self, raster, properties):
+        """Initialize a GeoFeature object with a raster,
+           When a GeoFeature has a raster the default behviour is the same as GeoFeature where the geometry
+           is the union of all rasters footprint.
+
+           we will override some methods to work differetnly like:
+           1. reproject (TBD)
+           2. rasterize (from feature collection, TBD)
+           3. to_record
+
+        Parameters
+        ----------
+        raster[s]: array or single GeoRaster
+        properties : dict
+            Properties.
+        """
+        super().__init__(raster.footprint(), properties)
+        self.raster = raster
+
+    def to_record(self, crs):
+        if self.raster._filename is None:
+            raise NotImplementedError("Supporting raster that are stored on disk or network")
+        if self.raster.crs != crs:
+            warnings.warn("Raster is not being reprojected to the crs")
+        ret_val = {
+            'type': 'Feature',
+            'properties': serialize_properties(self.properties),
+            'geometry': self.geometry.to_record(crs),
+            'raster': raster_to_assets(self.raster)
+        }
+        return ret_val
+
+    def reproject(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    @classmethod
+    def _from_record(cls, record, crs, schema=None):
+        properties = cls._to_properties(record, schema)
+        raster = raster_from_assets(record.get("raster", {}))
+        return GeoFeatureWithRaster(raster, properties)
