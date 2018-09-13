@@ -124,8 +124,8 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         }
         return ret_val
 
-    @classmethod
-    def _get_class_from_record(cls, record):
+    @staticmethod
+    def _get_class_from_record(record):
         if "raster" in record:
             return GeoFeatureWithRaster
         else:
@@ -136,8 +136,8 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         _cls = cls._get_class_from_record(record)
         return _cls._from_record(record, crs, schema)
 
-    @classmethod
-    def _to_properties(cls, record, schema):
+    @staticmethod
+    def _to_properties(record, schema):
         if schema is not None:
             properties = transform_properties(record["properties"], schema)
         else:
