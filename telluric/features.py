@@ -165,7 +165,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         Parameters
         ----------
         raster : GeoRaster
-            Geometry.
+            the raster in the feature
         properties : dict
             Properties.
         """
