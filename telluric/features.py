@@ -66,8 +66,8 @@ def raster_from_assets(assets):
     """
     raster = None
     for key, val in assets.items():
-        href = val.get("href", None)
-        bands = val.get("bands", None)
+        href = val.get("href")
+        bands = val.get("bands")
         if href:
             raster = GeoRaster2.open(href, band_names=bands)
             break
