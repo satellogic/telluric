@@ -125,14 +125,28 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         return ret_val
 
     @classmethod
+    def get_class_from_record(cls, record):
+        if "raster" in record:
+            return GeoFeatureWithRaster
+        else:
+            return GeoFeature
+
+    @classmethod
     def from_record(cls, record, crs, schema=None):
+        _cls = cls.get_class_from_record(record)
+        return _cls._from_record(record, crs, schema)
+
+    @classmethod
+    def _to_properties(cls, record, schema):
         if schema is not None:
             properties = transform_properties(record["properties"], schema)
         else:
             properties = record["properties"]
-        raster = raster_from_assets(record.get("raster", {}))
-        if raster is not None:
-            return GeoFeatureWithRaster(raster, properties)
+        return properties
+
+    @classmethod
+    def _from_record(cls, record, crs, schema=None):
+        properties = cls._to_properties(record, schema)
         vector = GeoVector(
                 shape(record['geometry']),
                 crs
@@ -312,3 +326,9 @@ class GeoFeatureWithRaster(GeoFeature):
 
     def reproject(self, *args, **kwargs):
         raise NotImplementedError()
+
+    @classmethod
+    def _from_record(cls, record, crs, schema=None):
+        properties = cls._to_properties(record, schema)
+        raster = raster_from_assets(record.get("raster", {}))
+        return GeoFeatureWithRaster(raster, properties)
