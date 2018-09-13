@@ -433,7 +433,7 @@ class FeatureCollection(BaseCollection):
     def from_record(cls, record, crs):
         features = record.get("features", [])
         features = [GeoFeature.from_record(f, crs) for f in features]
-        return FeatureCollection(features)
+        return cls(features)
 
     def _adapt_feature_before_write(self, feature):
         new_properties = feature.properties.copy()
