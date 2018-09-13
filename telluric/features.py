@@ -125,7 +125,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         return ret_val
 
     @classmethod
-    def get_class_from_record(cls, record):
+    def _get_class_from_record(cls, record):
         if "raster" in record:
             return GeoFeatureWithRaster
         else:
@@ -133,7 +133,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
     @classmethod
     def from_record(cls, record, crs, schema=None):
-        _cls = cls.get_class_from_record(record)
+        _cls = cls._get_class_from_record(record)
         return _cls._from_record(record, crs, schema)
 
     @classmethod
