@@ -1683,7 +1683,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         roi_buffer = roi.buffer(math.sqrt(roi.area * buffer_ratio / 100))
         raster = self.crop(roi_buffer, resolution=new_resolution, masked=masked, bands=bands)
         raster = raster.reproject(dst_crs=WEB_MERCATOR_CRS, resolution=MERCATOR_RESOLUTION_MAPPING[zoom],
-                                  dst_bounds=roi_buffer.get_bounds(WEB_MERCATOR_CRS))
+                                  dst_bounds=roi_buffer.get_bounds(WEB_MERCATOR_CRS),
+                                  resampling=Resampling.cubic_spline)
         # raster = raster.get_tile(x_tile, y_tile, zoom, bands, masked, resampling)
         raster = raster.crop(roi).resize(dest_width=256, dest_height=256)
         return raster
