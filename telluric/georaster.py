@@ -540,14 +540,23 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         except Exception:
             pass
 
+    @staticmethod
+    def get_gdal_env(url):
+        ret = {}
+        proxy = os.environ.get("TELLURIC_HTTP_PROXY")
+        if url.startswith("http://") and proxy:
+            ret["GDAL_HTTP_PROXY"] = proxy
+        return ret
+
     #  IO:
     @classmethod
     def _raster_opener(cls, filename, *args, **kwargs):
         """Return handler to open rasters (rasterio.open)."""
-        try:
-            return rasterio.open(filename, *args, **kwargs)
-        except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_BaseError) as e:
-            raise GeoRaster2IOError(e)
+        with rasterio.Env(**cls.get_gdal_env(filename)):
+            try:
+                return rasterio.open(filename, *args, **kwargs)
+            except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_BaseError) as e:
+                raise GeoRaster2IOError(e)
 
     @classmethod
     def open(cls, filename, band_names=None, lazy_load=True, **kwargs):

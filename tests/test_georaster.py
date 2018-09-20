@@ -759,3 +759,29 @@ def test_crop_boundless_masked(bounds):
     )
     assert(np.array_equal(raster_w_mask.crop(roi).image.mask,
                           raster_wo_mask.crop(roi).image.mask))
+
+
+def test_gdal_open_env_when_proxy_is_not_set_and_url_not_with_http():
+    url = "https://bla.com"
+    envs = GeoRaster2.get_gdal_env(url)
+    assert envs == {}
+
+
+def test_gdal_open_env_when_proxy_is_not_set_and_url_with_http():
+    url = "http://bla.com"
+    envs = GeoRaster2.get_gdal_env(url)
+    assert envs == {}
+
+
+def test_gdal_open_env_when_proxy_is_set_and_url_with_http(monkeypatch):
+    monkeypatch.setitem(os.environ, "TELLURIC_HTTP_PROXY", "http://proxy")
+    url = "http://bla.com"
+    envs = GeoRaster2.get_gdal_env(url)
+    assert envs == {'GDAL_HTTP_PROXY': 'http://proxy'}
+
+
+def test_gdal_open_env_when_proxy_is_set_and_url_with_https(monkeypatch):
+    monkeypatch.setitem(os.environ, "TELLURIC_HTTP_PROXY", "http://proxy")
+    url = "https://bla.com"
+    envs = GeoRaster2.get_gdal_env(url)
+    assert envs == {}
