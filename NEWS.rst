@@ -1,3 +1,12 @@
+telluric 0.3.0 (2018-09-20)
+===========================
+
+New features
+------------
+
+* New class :py:class:`~telluric.features.GeoFeatureWithRaster` that extends
+  :py:class:`~telluric.features.GeoFeature`.
+
 telluric 0.2.1 (2018-09-12)
 ===========================
 
