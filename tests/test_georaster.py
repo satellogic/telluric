@@ -100,6 +100,15 @@ def test_read_write():
             assert read == some_raster_multiband
 
 
+def test_read_non_georeferenced():
+    crs = CRS(init='epsg:3857')
+    affine = Affine(10.0, 0.0, -6425941.63996855,
+                    0.0, -10.0, -3169315.69478084)
+    raster = GeoRaster2.open('tests/data/raster/no_georef.png', crs=crs, affine=affine, lazy_load=False)
+    assert raster.crs == crs
+    assert raster.affine == affine
+
+
 def test_read_write_internal_external_mask():
     with TemporaryDirectory() as folder:
         # internal mask (default) leaves no .msk file:
