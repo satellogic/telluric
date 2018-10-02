@@ -595,10 +595,15 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def _populate_from_rasterio_object(self, read_image):
         with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
-            self._affine = copy(raster.transform)
-            self._crs = copy(raster.crs)
-            assert self._crs.is_valid
             self._dtype = np.dtype(raster.dtypes[0])
+
+            if self._affine is None:
+                self._affine = copy(raster.transform)
+
+            if self._crs is None:
+                self._crs = copy(raster.crs)
+
+            assert self._crs.is_valid
 
             # if band_names not provided, try read them from raster tags.
             # if not - leave empty, for default:
