@@ -29,7 +29,7 @@ import rasterio.shutil
 from rasterio.coords import BoundingBox
 from rasterio.enums import Resampling, Compression
 from rasterio.features import geometry_mask
-from rasterio.io import WindowMethodsMixin
+from rasterio.windows import Window, WindowMethodsMixin
 from affine import Affine
 
 from shapely.geometry import Point, Polygon
@@ -1634,7 +1634,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
             raster = self.copy_with(image=array, affine=affine)
 
-            if masked and (raster.image.mask is np.ma.nomask):
+            if masked and not raster.image.mask.any():
                 intersection = self.footprint().envelope.intersection(raster.footprint().envelope)
                 if not intersection.is_empty:
                     raster = raster.mask(intersection)
@@ -1665,10 +1665,10 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         affine = self.window_transform(window)
         affine = affine * Affine.scale(ratio, ratio)
 
-        window.col_off = round(window.col_off)
-        window.row_off = round(window.row_off)
-        window.width = round(window.width)
-        window.height = round(window.height)
+        window = Window(round(window.col_off),
+                        round(window.row_off),
+                        round(window.width),
+                        round(window.height))
         return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
 
     def get_tile(self, x_tile, y_tile, zoom,
