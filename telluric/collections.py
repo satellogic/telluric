@@ -470,21 +470,24 @@ class FileCollection(BaseCollection):
         )
 
     @classmethod
-    def open(cls, filename):
+    def open(cls, filename, crs=None):
         """Creates a FileCollection from a file in disk.
 
         Parameters
         ----------
         filename : str
             Path of the file to read.
+        crs : CRS
+            overrides the crs of the collection, this funtion will not reprojects
 
         """
         with fiona.open(filename, 'r') as source:
-            crs = CRS(source.crs)
+            original_crs = CRS(source.crs)
             schema = source.schema
             length = len(source)
-
-        return cls(filename, crs, schema, length)
+        crs = crs or original_crs
+        ret_val = cls(filename, crs, schema, length)
+        return ret_val
 
     @property
     def crs(self):
@@ -500,7 +503,7 @@ class FileCollection(BaseCollection):
     def __iter__(self):
         with fiona.open(self._filename, 'r') as source:
             for record in source:
-                yield GeoFeature.from_record(record, source.crs, source.schema)
+                yield GeoFeature.from_record(record, self.crs, source.schema)
 
     def __getitem__(self, index):
         # See https://github.com/Toblerity/Fiona/issues/327 for discussion
