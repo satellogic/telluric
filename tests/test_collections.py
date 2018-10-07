@@ -296,6 +296,13 @@ def test_file_collection_open_save_shapefile():
         assert fcol == fcol_res.reproject(fcol.crs)
 
 
+def test_file_collection_open_shapefile_with_no_proj():
+    fcol = FileCollection.open("tests/data/vector/creaf/42112_noprj/42112.shp", crs=WGS84_CRS)[:10]
+    assert fcol.crs == WGS84_CRS
+    for feature in fcol:
+        assert feature.crs == WGS84_CRS
+
+
 def test_feature_collection_with_dates_serializes_correctly():
     # "For Shapefiles, however, the only possible field type is 'date' as 'datetime' and 'time' are not available."
     # https://github.com/Toblerity/Fiona/pull/130
