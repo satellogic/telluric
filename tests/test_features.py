@@ -248,3 +248,9 @@ def test_transform_properties():
         ('prop3', '2018-05-19T15:00:00'),
         ('prop4', None)
     ]), schema) == expected_properties
+
+def test_save_open_feature():
+    feature = GeoFeature(GeoVector.from_xyz(12,123,12), properties={"bla":"bla"})
+    feature.save("feature.geojson")
+    feature2 = GeoFeature.open("feature.geojson")
+    assert feature == feature2

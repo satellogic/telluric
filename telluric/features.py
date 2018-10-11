@@ -1,4 +1,6 @@
 import warnings
+import geojson
+
 from collections import Mapping
 
 from dateutil.parser import parse as parse_date
@@ -12,6 +14,7 @@ from telluric.vectors import (
 )
 from telluric.plotting import NotebookPlottingMixin
 from telluric import GeoRaster2
+from rasterio.crs import CRS
 
 
 def transform_properties(properties, schema):
@@ -114,7 +117,10 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
     @property
     def __geo_interface__(self):
-        return self.to_record(WGS84_CRS)
+        return_val = self.to_record(WGS84_CRS)
+        if self.crs.is_epsg_code:
+            return_val["crs"] = {"type": "name", "properties": {"name": "EPSG:%s" % (self.crs.to_epsg())}}
+        return return_val
 
     def to_record(self, crs):
         ret_val = {
@@ -123,6 +129,21 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             'geometry': self.geometry.to_record(crs),
         }
         return ret_val
+
+    def save(self, filename):
+        """ This will save the feature as a geojson
+        """
+        geojson.dump(self, open(filename, 'w'))
+
+    @classmethod
+    def open(cls, filename, crs=None):
+        record = geojson.load(open(filename))
+        crs = crs or CRS.from_string(record["crs"]["properties"]["name"])
+        feature = cls.from_record(record, crs=WGS84_CRS )
+        if crs:
+            feature = feature.reproject(new_crs=crs)
+        return feature
+
 
     @staticmethod
     def _get_class_from_record(record):
