@@ -297,6 +297,9 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         if bounds.area == 0.0:
             raise ValueError("Specify non-empty ROI")
 
+        if not len(self):
+            fill_value = None
+
         if callable(fill_value):
             if dtype is None:
                 raise ValueError("dtype must be specified for multivalue rasterization")
