@@ -189,6 +189,32 @@ def test_rasterization_function():
     assert_array_equal(result.image.data, expected_image.data)
 
 
+def test_rasterization_function_with_empty_collection():
+    fc = FeatureCollection([])
+
+    def func(feat):
+        return feat['value']
+
+    expected_image = np.ma.masked_array(
+        [[
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0]
+        ]],
+        [
+            [True, True, True],
+            [True, True, True],
+            [True, True, True],
+        ]
+    )
+
+    bounds = GeoVector.from_bounds(0.0, 0.0, 3.0, 3.0)
+    result = fc.rasterize(1.0, bounds=bounds, fill_value=func, crs=WGS84_CRS, dtype=np.float32)
+
+    assert_array_equal(result.image.mask, expected_image.mask)
+    assert_array_equal(result.image.data, expected_image.data)
+
+
 def test_rasterization_function_raises_error_if_no_dtype_is_given():
     sq1 = GeoFeature(
         GeoVector.from_bounds(xmin=0, ymin=2, xmax=1, ymax=3, crs=WGS84_CRS),
