@@ -8,6 +8,7 @@ from rasterio.warp import (
     transform_bounds, reproject, aligned_target,
     calculate_default_transform as calcdt)
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from math import ceil
 
 
@@ -355,3 +356,54 @@ def warp(source_file, destination_file, dst_crs=None, resolution=None, dimension
                     dst_nodata=dst_nodata,
                     resampling=resampling,
                     **kwargs)
+
+
+def build_overviews(source_file, factors=None, minsize=256, external=False,
+                    blocksize=256, interleave='pixel', compress='lzw',
+                    resampling=Resampling.gauss, **kwargs):
+    """Build overviews at one or more decimation factors for all
+    bands of the dataset.
+
+    Parameters
+    ------------
+    source_file : str, file object or pathlib.Path object
+        Source file.
+    factors : list, optional
+        A list of integral overview levels to build.
+    minsize : int, optional
+        Maximum width or height of the smallest overview level. Only taken into account
+        if explicit factors are not specified. Defaults to `256`.
+    external : bool, optional
+        Can be set to `True` to force external overviews in the GeoTIFF (.ovr) format.
+        Default is False.
+    blocksize : int, optional
+        The block size (tile width and height) used for overviews. Should be a
+        power-of-two value between 64 and 4096. Default value is `256`.
+    interleave : str, optional
+        Interleaving. Default value is `pixel`.
+    compress : str, optional
+        Set the compression to use. Default is `lzw`.
+    resampling : rasterio.enums.Resampling
+        Resampling method. Default is `gauss`.
+    kwargs : optional
+        Additional arguments passed to rasterio.Env.
+
+    Returns
+    ---------
+    out: None
+        Original file is altered or external .ovr can be created.
+    """
+
+    with rasterio.open(source_file, 'r+') as dst:
+        if factors is None:
+            factors = _calc_overviews_factors(
+                SimpleNamespace(width=dst.width, height=dst.height), minsize)
+
+        with rasterio.Env(
+            GDAL_TIFF_OVR_BLOCKSIZE=blocksize,
+            INTERLEAVE_OVERVIEW=interleave,
+            COMPRESS_OVERVIEW=compress,
+            TIFF_USE_OVR=external,
+            **kwargs
+        ):
+            dst.build_overviews(factors, resampling)
