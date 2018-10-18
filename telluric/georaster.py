@@ -1732,8 +1732,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         -------
         GeoRaster2
         """
-        vmin = vmin or min(self.min())
-        vmax = vmax or max(self.max())
+        vmin = vmin if vmin is not None else min(self.min())
+        vmax = vmax if vmax is not None else max(self.max())
 
         cmap = plt.get_cmap(colormap)  # type: matplotlib.colors.Colormap
 
