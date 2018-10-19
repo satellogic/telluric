@@ -5,9 +5,9 @@ New features
 ------------
 
 * Rasterio 1.0.3 and higher compatibility (#152)
-* Non-georeferenced images may be opened by providing `affine` and `crs` parameters
+* Non-georeferenced images may be opened by providing :code:`affine` and :code:`crs` parameters
   to :py:meth:`telluric.georaster.GeoRaster2.open` (#153)
-* A new argument `crs` was added to :py:meth:`telluric.collections.FileCollection.open`
+* A new argument :code:`crs` was added to :py:meth:`telluric.collections.FileCollection.open`
   for opening vector files that dont't contain information about CRS (#156)
 * A new :py:func:`telluric.util.raster_utils.build_overviews` utility was added (#158)
 
