@@ -40,3 +40,10 @@ telluric.plotting module
 
 .. automodule:: telluric.plotting
    :members:
+
+
+telluric.util package
+---------------------
+
+.. automodule:: telluric.util.raster_utils
+   :members:
