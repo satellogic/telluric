@@ -1,3 +1,22 @@
+telluric 0.4.0 (2018-11-19)
+===========================
+
+New features
+------------
+
+* Rasterio 1.0.3 and higher compatibility (#152)
+* Non-georeferenced images may be opened by providing `affine` and `crs` parameters
+  to :py:meth:`telluric.georaster.GeoRaster2.open` (#153)
+* A new argument `crs` was added to :py:meth:`telluric.collections.FileCollection.open`
+  for opening vector files that dont't contain information about CRS (#156)
+* A new :py:func:`telluric.util.raster_utils.build_overviews` utility was added (#158)
+
+Bug fixes
+---------
+
+* Treat 0 as legitimate value in :py:meth:`telluric.georaster.GeoRaster2.colorize` (#160)
+* Fix rasterization of an empty collection with callable `fill_value` (#161)
+
 telluric 0.3.0 (2018-09-20)
 ===========================
 
