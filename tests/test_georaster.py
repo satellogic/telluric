@@ -5,7 +5,8 @@ from copy import deepcopy
 
 import numpy as np
 from affine import Affine
-from rasterio.enums import Resampling
+from rasterio.enums import Resampling, MaskFlags
+from unittest.mock import Mock
 from PIL import Image
 from shapely.geometry import Point, Polygon
 
@@ -794,3 +795,21 @@ def test_gdal_open_env_when_proxy_is_set_and_url_with_https(monkeypatch):
     url = "https://bla.com"
     envs = GeoRaster2.get_gdal_env(url)
     assert envs == {}
+
+
+def test_useses_mask_when_there_is_mask():
+    raster = Mock()
+    raster.mask_flag_enums = ([MaskFlags.per_dataset], [MaskFlags.per_dataset])
+    assert GeoRaster2._read_with_mask(raster, masked=None)
+
+
+def test_doesnt_use_mask_when_override_mask():
+    raster = Mock()
+    raster.mask_flag_enums = ([MaskFlags.per_dataset], [MaskFlags.per_dataset])
+    assert not GeoRaster2._read_with_mask(raster, masked=False)
+
+
+def test_doesnt_use_mask_when_no_mask():
+    raster = Mock()
+    raster.mask_flag_enums = ([MaskFlags.nodata], [MaskFlags.per_dataset])
+    assert not GeoRaster2._read_with_mask(raster, masked=None)
