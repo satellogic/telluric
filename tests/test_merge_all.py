@@ -497,3 +497,8 @@ def test_merge_all_different_crs():
     assert(result_1.crs == expected_crs)
     assert(result_1.footprint().envelope.almost_equals(roi.envelope, decimal=3))
     assert(result_0 == result_1)
+
+    # preserve the original resolution if dest_resolution is not provided
+    raster_2 = make_test_raster(1, [1], height=1200, width=1200, affine=affine, crs=WGS84_CRS)
+    result_2 = merge_all([raster_2], roi=roi, crs=expected_crs)
+    assert pytest.approx(result_2.resolution()) == 97.9691
