@@ -91,13 +91,22 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
        the upper left corner the shape and crs to precisely define the roi.
        When roi is provided the ul_corner, shape and crs are ignored
     """
+
+    first_raster = rasters[0]
+
+    if roi:
+        crs = crs or roi.crs
+
     if dest_resolution is None:
-        dest_resolution = rasters[0].res_xy()
+        transform, _, _ = rasterio.warp.calculate_default_transform(
+            first_raster.crs, crs, first_raster.width, first_raster.height,
+            *first_raster.footprint().get_bounds(first_raster.crs))
+        dest_resolution = abs(transform.a), abs(transform.e)
 
     # Create empty raster
     empty = GeoRaster2.empty_from_roi(
-        roi, resolution=dest_resolution, band_names=rasters[0].band_names,
-        dtype=rasters[0].dtype, shape=shape, ul_corner=ul_corner, crs=crs)
+        roi, resolution=dest_resolution, band_names=first_raster.band_names,
+        dtype=first_raster.dtype, shape=shape, ul_corner=ul_corner, crs=crs)
 
     # Create a list of single band rasters
     all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty)
