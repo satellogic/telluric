@@ -1,3 +1,13 @@
+telluric 0.4.1 (2018-11-23)
+===========================
+
+Bug fixes
+---------
+
+* The right way to calculate :code:`dest_resolution` in :py:func:`telluric.georaster.merge_all`
+  if one is not provided (#163)
+* Read mask only if it exists (#164)
+
 telluric 0.4.0 (2018-11-19)
 ===========================
 
@@ -15,7 +25,7 @@ Bug fixes
 ---------
 
 * Treat 0 as legitimate value in :py:meth:`telluric.georaster.GeoRaster2.colorize` (#160)
-* Fix rasterization of an empty collection with callable `fill_value` (#161)
+* Fix rasterization of an empty collection with callable :code:`fill_value` (#161)
 
 telluric 0.3.0 (2018-09-20)
 ===========================
