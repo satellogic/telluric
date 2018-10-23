@@ -965,7 +965,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         dst_array = dst_array.astype(dst_type)
         return self.copy_with(image=dst_array)
 
-    def crop(self, vector, resolution=None, masked=True, bands=None):
+    def crop(self, vector, resolution=None, masked=None, bands=None):
         """
         crops raster outside vector (convex hull)
         :param vector: GeoVector
@@ -1028,7 +1028,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         ysize = round(height / yscale)
         return xsize, ysize
 
-    def pixel_crop(self, bounds, xsize=None, ysize=None, window=None, masked=True, bands=None):
+    def pixel_crop(self, bounds, xsize=None, ysize=None, window=None, masked=None, bands=None):
         """Crop raster outside vector (convex hull).
 
         :param bounds: bounds of requester portion of the image in image pixels
@@ -1612,9 +1612,19 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             xsize = math.ceil(window.width)
         return (len(bands), ysize, xsize)
 
+    @staticmethod
+    def _read_with_mask(raster, masked):
+        """ returns if we should read from rasterio using the masked
+        """
+        if masked is None:
+            mask_flags = raster.mask_flag_enums
+            per_dataset_mask = all([rasterio.enums.MaskFlags.per_dataset in flags for flags in mask_flags])
+            masked = per_dataset_mask
+        return masked
+
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
-                   resampling=Resampling.cubic, masked=True, affine=None
+                   resampling=Resampling.cubic, masked=None, affine=None
                    ):
         """Get window from raster.
 
@@ -1623,7 +1633,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param xsize: tile x size default None, for full resolution pass None
         :param ysize: tile y size default None, for full resolution pass None
         :param resampling: which Resampling to use on reading, default Resampling.cubic
-        :param masked: boolean, if `True` the return value will be a masked array. Default is True
+        :param masked: if True uses the maks, if False doesn't use the mask, if None looks to see if there is a mask,
+                       if mask exists using it, the default None
         :return: GeoRaster2 of tile
         """
         bands = bands or list(range(1, self.num_bands + 1))
@@ -1635,10 +1646,10 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 "window": window,
                 "resampling": resampling,
                 "boundless": True,
-                "masked": masked,
-                "out_shape": out_shape
+                "out_shape": out_shape,
             }
             with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
+                read_params["masked"] = self._read_with_mask(raster, masked)
                 array = raster.read(bands, **read_params)
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
             raster = self.copy_with(image=array, affine=affine)
@@ -1656,7 +1667,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             raise GeoRaster2IOError(e)
 
     def _get_tile_when_web_mercator_crs(self, x_tile, y_tile, zoom,
-                                        bands=None, masked=False,
+                                        bands=None, masked=None,
                                         resampling=Resampling.cubic):
         """ The reason we want to treat this case in a special way
             is that there are cases where the rater is aligned so you need to be precise
@@ -1681,7 +1692,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
 
     def get_tile(self, x_tile, y_tile, zoom,
-                 bands=None, masked=False, resampling=Resampling.cubic):
+                 bands=None, masked=None, resampling=Resampling.cubic):
         """Convert mercator tile to raster window.
 
         :param x_tile: x coordinate of tile
