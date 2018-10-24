@@ -1798,6 +1798,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         return self.copy_with(image=array, band_names=['red', 'green', 'blue'])
 
+
 class MutableGeoRaster(GeoRaster2):
 
     _image_readonly = False
