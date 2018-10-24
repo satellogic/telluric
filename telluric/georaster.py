@@ -1422,10 +1422,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         corners = [self.image_corner(corner) for corner in self.corner_types()]
         return Polygon([[corner.x, corner.y] for corner in corners])
 
-    def footprint(self):
+    def _calc_footprint(self):
         """Return rectangle in world coordinates, as GeoVector."""
-        if self._footprint is not None:
-            return self._footprint
         corners = [self.corner(corner) for corner in self.corner_types()]
         coords = []
         for corner in corners:
@@ -1436,6 +1434,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         #  TODO use GeoVector.from_bounds
         self._footprint = GeoVector(shp, self.crs)
         return self._footprint
+
+    def footprint(self):
+        if self._footprint is not None:
+            return self._footprint
+        return self._calc_footprint()
 
     def area(self):
         return self.footprint().area
@@ -1839,8 +1842,8 @@ class MutableGeoRaster(GeoRaster2):
     def affine(self, value):
         self._affine = value
 
-
-
+    def footprint(self):
+        return super()._calc_footprint()
 
 
 class Histogram:
