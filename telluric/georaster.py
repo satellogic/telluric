@@ -409,6 +409,8 @@ class _Raster:
     """ A class that has image, band_names and shape
     """
 
+    _image_readonly = True
+
     def __init__(self, image=None, band_names=None, shape=None, nodata=0):
         """Create a GeoRaster object
 
@@ -456,8 +458,8 @@ class _Raster:
             self._set_shape(self._image.shape)
 
         self._image_after_load_validations()
-
-        self._image.setflags(write=0)
+        if self._image_readonly:
+            self._image.setflags(write=0)
 
     def _set_shape(self, shape):
         self._shape = shape
@@ -465,15 +467,18 @@ class _Raster:
         if self._band_names is None:
             self._set_bandnames(list(range(self._shape[0])))
 
+    @staticmethod
+    def _validate_shape_and_band_consitency(shape, band_names):
+        if shape[0] != len(band_names):
+            raise GeoRaster2Error("Expected %s bands, found %s." % (len(band_names), shape[0]))
+
     def _image_after_load_validations(self):
         if self._image is None:
             return
         if self._shape != self._image.shape:
             raise GeoRaster2Error('image.shape and self.shape are not equal, image.shape=%s, self.shape=%s' %
                                   (self._image.shape, self._shape))
-
-        if self._shape[0] != len(self._band_names):
-            raise GeoRaster2Error("Expected %s bands, found %s." % (len(self._band_names), self.image.shape[0]))
+        self._validate_shape_and_band_consitency(self._shape, self.band_names)
 
     def _set_bandnames(self, band_names=None):
         if isinstance(band_names, str):  # single band:
@@ -568,7 +573,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 raise GeoRaster2IOError(e)
 
     @classmethod
-    def open(cls, filename, band_names=None, lazy_load=True, **kwargs):
+    def open(cls, filename, band_names=None, lazy_load=True, mutable=False, **kwargs):
         """
         Read a georaster from a file.
 
@@ -578,7 +583,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param lazy_load: if True - do not load anything
         :return: GeoRaster2
         """
-        geo_raster = cls(filename=filename, band_names=band_names, **kwargs)
+        if mutable:
+            geo_raster = MutableGeoRaster(filename=filename, band_names=band_names, **kwargs)
+        else:
+            geo_raster = cls(filename=filename, band_names=band_names, **kwargs)
         if not lazy_load:
             geo_raster._populate_from_rasterio_object(read_image=True)
         return geo_raster
@@ -1786,6 +1794,53 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         array = np.ma.array(array, mask=mask)
 
         return self.copy_with(image=array, band_names=['red', 'green', 'blue'])
+
+class MutableGeoRaster(GeoRaster2):
+
+    _image_readonly = False
+
+    @property
+    def image(self):
+        return super().image
+
+    @image.setter
+    def image(self, value):
+        self.set_image(value)
+
+    def set_image(self, image, band_names=None):
+        self._validate_shape_and_band_consitency(image.shape, band_names or self.band_names)
+        self._image = image
+        if band_names is not None:
+            self._set_bandnames
+        self._set_shape(image.shape)
+
+    @property
+    def band_names(self):
+        return super().band_names
+
+    @band_names.setter
+    def band_names(self, value):
+        self._validate_shape_and_band_consitency(self.shape, value)
+        self._set_bandnames(value)
+
+    @property
+    def crs(self):
+        return super().crs
+
+    @crs.setter
+    def crs(self, value):
+        self._crs = value
+
+    @property
+    def affine(self):
+        return super().affine
+
+    @affine.setter
+    def affine(self, value):
+        self._affine = value
+
+
+
 
 
 class Histogram:
