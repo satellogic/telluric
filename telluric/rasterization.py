@@ -22,7 +22,7 @@ class ScaleError(ValueError):
 
 
 def rasterize(shapes, crs, bounds=None, dest_resolution=None, *, fill_value=None,
-              band_names=None, dtype=None, shape=None, ul_corner=None, **kwargs):
+              band_names=None, dtype=None, shape=None, ul_corner=None, raster_cls=GeoRaster2, **kwargs):
     if fill_value is None:
         fill_value = FILL_VALUE
 
@@ -92,4 +92,4 @@ def rasterize(shapes, crs, bounds=None, dest_resolution=None, *, fill_value=None
         raise ScaleError("Scale is too fine, increase it for a smaller image")
 
     else:
-        return GeoRaster2(image, affine, crs, nodata=nodata_value, band_names=band_names)
+        return raster_cls(image, affine, crs, nodata=nodata_value, band_names=band_names)

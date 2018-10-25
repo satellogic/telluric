@@ -601,7 +601,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             roi = roi.get_shape(crs)
 
         return rasterization.rasterize([], crs, roi, resolution, band_names=band_names,
-                                       dtype=dtype, shape=shape, ul_corner=ul_corner)
+                                       dtype=dtype, shape=shape, ul_corner=ul_corner, raster_cls=cls)
 
     def _cleanup(self):
         if self._filename is not None and self._temporary:
@@ -1081,7 +1081,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Without opening image, return size/bitness/bands/geography/...."""
         raise NotImplementedError
 
-    def copy_with(self, **kwargs):
+    def copy_with(self, mutable=False, **kwargs):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
         init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names}
         init_args.update(kwargs)
@@ -1090,8 +1090,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         # unless totally necessary
         if 'image' not in init_args:
             init_args['image'] = self.image
+        _cls = self.__class__
+        if mutable:
+            _cls = MutableGeoRaster
+        return _cls(**init_args)
 
-        return self.__class__(**init_args)
+    def as_mutable(self):
+        return self.copy_with(mutable=True)
 
     deepcopy_with = copy_with
 
