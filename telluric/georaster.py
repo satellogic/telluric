@@ -409,6 +409,8 @@ class _Raster:
     """ A class that has image, band_names and shape
     """
 
+    _image_readonly = True
+
     def __init__(self, image=None, band_names=None, shape=None, nodata=0):
         """Create a GeoRaster object
 
@@ -456,8 +458,8 @@ class _Raster:
             self._set_shape(self._image.shape)
 
         self._image_after_load_validations()
-
-        self._image.setflags(write=0)
+        if self._image_readonly:
+            self._image.setflags(write=0)
 
     def _set_shape(self, shape):
         self._shape = shape
@@ -465,15 +467,18 @@ class _Raster:
         if self._band_names is None:
             self._set_bandnames(list(range(self._shape[0])))
 
+    @staticmethod
+    def _validate_shape_and_band_consitency(shape, band_names):
+        if shape[0] != len(band_names):
+            raise GeoRaster2Error("Expected %s bands, found %s." % (len(band_names), shape[0]))
+
     def _image_after_load_validations(self):
         if self._image is None:
             return
         if self._shape != self._image.shape:
             raise GeoRaster2Error('image.shape and self.shape are not equal, image.shape=%s, self.shape=%s' %
                                   (self._image.shape, self._shape))
-
-        if self._shape[0] != len(self._band_names):
-            raise GeoRaster2Error("Expected %s bands, found %s." % (len(self._band_names), self.image.shape[0]))
+        self._validate_shape_and_band_consitency(self._shape, self.band_names)
 
     def _set_bandnames(self, band_names=None):
         if isinstance(band_names, str):  # single band:
@@ -568,7 +573,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 raise GeoRaster2IOError(e)
 
     @classmethod
-    def open(cls, filename, band_names=None, lazy_load=True, **kwargs):
+    def open(cls, filename, band_names=None, lazy_load=True, mutable=False, **kwargs):
         """
         Read a georaster from a file.
 
@@ -578,7 +583,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param lazy_load: if True - do not load anything
         :return: GeoRaster2
         """
-        geo_raster = cls(filename=filename, band_names=band_names, **kwargs)
+        if mutable:
+            geo_raster = MutableGeoRaster(filename=filename, band_names=band_names, **kwargs)
+        else:
+            geo_raster = cls(filename=filename, band_names=band_names, **kwargs)
         if not lazy_load:
             geo_raster._populate_from_rasterio_object(read_image=True)
         return geo_raster
@@ -593,7 +601,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             roi = roi.get_shape(crs)
 
         return rasterization.rasterize([], crs, roi, resolution, band_names=band_names,
-                                       dtype=dtype, shape=shape, ul_corner=ul_corner)
+                                       dtype=dtype, shape=shape, ul_corner=ul_corner, raster_cls=cls)
 
     def _cleanup(self):
         if self._filename is not None and self._temporary:
@@ -1073,7 +1081,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Without opening image, return size/bitness/bands/geography/...."""
         raise NotImplementedError
 
-    def copy_with(self, **kwargs):
+    def copy_with(self, mutable=False, **kwargs):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
         init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names}
         init_args.update(kwargs)
@@ -1082,8 +1090,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         # unless totally necessary
         if 'image' not in init_args:
             init_args['image'] = self.image
+        _cls = self.__class__
+        if mutable:
+            _cls = MutableGeoRaster
+        return _cls(**init_args)
 
-        return self.__class__(**init_args)
+    def as_mutable(self):
+        return self.copy_with(mutable=True)
 
     deepcopy_with = copy_with
 
@@ -1414,10 +1427,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         corners = [self.image_corner(corner) for corner in self.corner_types()]
         return Polygon([[corner.x, corner.y] for corner in corners])
 
-    def footprint(self):
+    def _calc_footprint(self):
         """Return rectangle in world coordinates, as GeoVector."""
-        if self._footprint is not None:
-            return self._footprint
         corners = [self.corner(corner) for corner in self.corner_types()]
         coords = []
         for corner in corners:
@@ -1428,6 +1439,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         #  TODO use GeoVector.from_bounds
         self._footprint = GeoVector(shp, self.crs)
         return self._footprint
+
+    def footprint(self):
+        if self._footprint is not None:
+            return self._footprint
+        return self._calc_footprint()
 
     def area(self):
         return self.footprint().area
@@ -1786,6 +1802,68 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         array = np.ma.array(array, mask=mask)
 
         return self.copy_with(image=array, band_names=['red', 'green', 'blue'])
+
+
+class MutableGeoRaster(GeoRaster2):
+    """
+    There are cases where you want to change the state of a *GeoRaster*, for these case conisder using
+    *MutableGeoRaster*
+
+    This class allows you to change the following attributes:
+       * image - the entire image or the pixel in it
+       * band_names - the band_names count and the shape of the image must be consistent
+       * affine
+       * crs - we don't validate consistentency between affine and crs
+
+    When mutable raster make sense:
+       * When you need to alter the the image and copying the image doesn't make sense
+       * When changing the affine or crs make sense without reprojecting
+    """
+
+    _image_readonly = False
+
+    @property
+    def image(self):
+        return super().image
+
+    @image.setter
+    def image(self, value):
+        self.set_image(value)
+
+    def set_image(self, image, band_names=None):
+        self._validate_shape_and_band_consitency(image.shape, band_names or self.band_names)
+        self._image = image
+        if band_names is not None:
+            self._set_bandnames(band_names)
+        self._set_shape(image.shape)
+
+    @property
+    def band_names(self):
+        return super().band_names
+
+    @band_names.setter
+    def band_names(self, value):
+        self._validate_shape_and_band_consitency(self.shape, value)
+        self._set_bandnames(value)
+
+    @property
+    def crs(self):
+        return super().crs
+
+    @crs.setter
+    def crs(self, value):
+        self._crs = value
+
+    @property
+    def affine(self):
+        return super().affine
+
+    @affine.setter
+    def affine(self, value):
+        self._affine = value
+
+    def footprint(self):
+        return super()._calc_footprint()
 
 
 class Histogram:
