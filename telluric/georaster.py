@@ -1834,7 +1834,7 @@ class MutableGeoRaster(GeoRaster2):
         self._validate_shape_and_band_consitency(image.shape, band_names or self.band_names)
         self._image = image
         if band_names is not None:
-            self._set_bandnames
+            self._set_bandnames(band_names)
         self._set_shape(image.shape)
 
     @property

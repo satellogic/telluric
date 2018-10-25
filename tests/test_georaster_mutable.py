@@ -93,6 +93,7 @@ def test_changing_bandnames_and_image():
     (indeces, width, height) = raster.shape
     raster.set_image(raster.image[0:1, 50:, 50:], new_band_names)
     assert (1, width-50, height-50) == raster.shape
+    assert raster.band_names == new_band_names
 
 
 def test_set_crs():
