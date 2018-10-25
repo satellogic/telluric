@@ -10,7 +10,17 @@ def test_as_mutable():
 
 def test_construction_mutable_raster():
     raster = MutableGeoRaster.empty_from_roi(GeoVector.from_xyz(300,300,13), resolution=MERCATOR_RESOLUTION_MAPPING[13])
-    print(type(raster))
     assert isinstance(raster, MutableGeoRaster)
 
+def test_open_mutable_raster():
+    raster = MutableGeoRaster.open("tests/data/raster/overlap2.tif")
+    assert isinstance(raster, MutableGeoRaster)
+
+def test_open_mutable_raster_from_georaster():
+    raster = GeoRaster2.open("tests/data/raster/overlap2.tif", mutable=True)
+    assert isinstance(raster, MutableGeoRaster)
+
+def test_open_imutable_raster_from_georaster():
+    raster = GeoRaster2.open("tests/data/raster/overlap2.tif")
+    assert isinstance(raster, GeoRaster2)
 
