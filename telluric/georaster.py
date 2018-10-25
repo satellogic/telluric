@@ -1806,8 +1806,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
 class MutableGeoRaster(GeoRaster2):
     """
-    ## Mutable Raster
-    There are cases where you want to change the state of a GeoRaster, for these case conisder using
+    There are cases where you want to change the state of a *GeoRaster*, for these case conisder using
     *MutableGeoRaster*
 
     This class allows you to change the following attributes:
