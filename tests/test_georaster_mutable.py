@@ -124,3 +124,8 @@ def test_set_affine_immutable():
     with pytest.raises(AttributeError):
         raster.affine = affine
     assert raster.affine == old_affine
+
+
+def test_reporject_of_mutable():
+    raster = GeoRaster2.open("tests/data/raster/overlap2.tif", mutable=True).reproject(dst_crs=WGS84_CRS)
+    assert isinstance(raster, MutableGeoRaster)
