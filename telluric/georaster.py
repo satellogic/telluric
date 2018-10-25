@@ -1805,6 +1805,21 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
 
 class MutableGeoRaster(GeoRaster2):
+    """
+    ## Mutable Raster
+    There are cases where you want to change the state of a GeoRaster, for these case conisder using
+    *MutableGeoRaster*
+
+    This class allows you to change the following attributes:
+       * image - the entire image or the pixel in it
+       * band_names - the band_names count and the shape of the image must be consistent
+       * affine
+       * crs - we don't validate consistentency between affine and crs
+
+    When mutable raster make sense:
+       * When you need to alter the the image and copying the image doesn't make sense
+       * When changing the affine or crs make sense without reprojecting
+    """
 
     _image_readonly = False
 
