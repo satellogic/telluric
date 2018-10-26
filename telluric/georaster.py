@@ -84,8 +84,8 @@ class PixelStrategy(Enum):
 
 
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
-              shape=None, ul_corner=None, crs=None,
-              pixel_strategy=PixelStrategy.FIRST):
+              shape=None, ul_corner=None, crs=None, pixel_strategy=PixelStrategy.FIRST,
+              resampling=Resampling.nearest):
     """Merge a list of rasters, cropping by a region of interest.
        There are cases that the roi is not precise enough for this cases one can use,
        the upper left corner the shape and crs to precisely define the roi.
@@ -109,7 +109,8 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
         dtype=first_raster.dtype, shape=shape, ul_corner=ul_corner, crs=crs)
 
     # Create a list of single band rasters
-    all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty)
+    all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty,
+                                                         resampling=resampling)
     assert len(projected_rasters) == len(rasters)
 
     prepared_rasters = _apply_pixel_strategy(projected_rasters, pixel_strategy)
@@ -181,8 +182,8 @@ def _merge_common_bands(rasters):
     return rasters_final
 
 
-def _prepare_rasters(rasters, merge_strategy, first):
-    # type: (List[GeoRaster2], MergeStrategy, GeoRaster2) -> Tuple[IndexedSet[str], List[Optional[_Raster]]]
+def _prepare_rasters(rasters, merge_strategy, first, resampling=Resampling.nearest):
+    # type: (List[GeoRaster2], MergeStrategy, GeoRaster2, Resampling) -> Tuple[IndexedSet[str], List[Optional[_Raster]]]
     """Prepares the rasters according to the baseline (first) raster and the merge strategy.
 
     The baseline (first) raster is used to crop and reproject the other rasters,
@@ -194,7 +195,7 @@ def _prepare_rasters(rasters, merge_strategy, first):
     all_band_names = IndexedSet(first.band_names)
     projected_rasters = []
     for raster in rasters:
-        projected_raster = _prepare_other_raster(first, raster)
+        projected_raster = _prepare_other_raster(first, raster, resampling=resampling)
 
         # Modify the bands only if an intersecting raster was returned
         if projected_raster:
@@ -225,8 +226,8 @@ def _explode_raster(raster, band_names=[]):
     return [_Raster(image=raster.bands_data([band_name]), band_names=[band_name]) for band_name in band_names]
 
 
-def _prepare_other_raster(one, other):
-    # type: (GeoRaster2, GeoRaster2) -> Union[_Raster, None]
+def _prepare_other_raster(one, other, resampling=Resampling.nearest):
+    # type: (GeoRaster2, GeoRaster2, Resampling) -> Union[_Raster, None]
     # Crop and reproject the second raster, if necessary
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
@@ -244,7 +245,7 @@ def _prepare_other_raster(one, other):
 
             other = other._reproject(new_width=one.width, new_height=one.height,
                                      dest_affine=one.affine, dst_crs=one.crs,
-                                     resampling=Resampling.nearest)
+                                     resampling=resampling)
 
         else:
             return None
