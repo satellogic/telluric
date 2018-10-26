@@ -1,4 +1,12 @@
-telluric 0.4.1 (2018-11-23)
+telluric 0.5.0 (2018-10-26)
+===========================
+
+New features
+------------
+
+* A new class :py:class:`~telluric.georaster.MutableGeoRaster` was added (#165)
+
+telluric 0.4.1 (2018-10-23)
 ===========================
 
 Bug fixes
@@ -8,7 +16,7 @@ Bug fixes
   if one is not provided (#163)
 * Read mask only if it exists (#164)
 
-telluric 0.4.0 (2018-11-19)
+telluric 0.4.0 (2018-10-19)
 ===========================
 
 New features
