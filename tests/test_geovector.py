@@ -518,6 +518,24 @@ def test_polygonize_point():
     assert result_shape.area == approx(expected_area, rel=1e-2)
 
 
+def test_tiles():
+    aoi = GeoVector(
+        Polygon([
+            [109.612458654485849, 40.867336965196827],
+            [109.619116438865731, 40.867336965196827],
+            [109.61872894876953, 40.864459877761597],
+            [109.612599559975365, 40.864326676241866],
+            [109.612458654485849, 40.867336965196827]
+        ]),
+        WGS84_CRS
+    )
+    tiles = list(aoi.tiles(15))
+    assert tiles == [(26361, 12301, 15)]
+    # multiple resolutions, multiple tiles
+    tiles = list(aoi.tiles([15, 16]))
+    assert tiles == [(26361, 12301, 15), (52722, 24603, 16), (52723, 24603, 16)]
+
+
 @mock.patch('telluric.rasterization.rasterize')
 def test_rasterize_without_bounds(mock_rasterize):
     gv = GeoVector(Polygon.from_bounds(0, 0, 1, 1))
