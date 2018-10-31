@@ -10,7 +10,7 @@ from shapely.geometry import (
     CAP_STYLE,
     mapping)
 
-from mercantile import Bbox, xy_bounds
+from mercantile import Bbox, xy_bounds, tiles
 
 from rasterio.crs import CRS
 from typing import Tuple, Iterator
@@ -446,6 +446,24 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
             )
         else:
             return self
+
+    def tiles(self, zooms, truncate=False):
+        """
+        Iterator over the tiles intersecting the bounding box of the vector
+
+        Parameters
+        ----------
+         zooms : int or sequence of int
+               One or more zoom levels.
+         truncate : bool, optional
+               Whether or not to truncate inputs to web mercator limits.
+
+        Yields
+        ------
+        mercantile.Tile object (`namedtuple` with x, y, z)
+        """
+        west, south, east, north = self.get_bounds(WGS84_CRS)
+        return tiles(west, south, east, north, zooms, truncate)
 
     def __eq__(self, other):
         """ invariant to crs and topology."""
