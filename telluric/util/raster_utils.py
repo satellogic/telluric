@@ -407,3 +407,27 @@ def build_overviews(source_file, factors=None, minsize=256, external=False,
             **kwargs
         ):
             dst.build_overviews(factors, resampling)
+
+
+def build_vrt(source_file, destination_file, **kwargs):
+    """Make a VRT XML document and write it in file.
+
+    Parameters
+    ----------
+    source_file : str, file object or pathlib.Path object
+        Source file.
+    destination_file : str
+        Destination file.
+    kwargs : optional
+        Additional arguments passed to rasterio.vrt._boundless_vrt_doc
+
+    Returns
+    -------
+    out : None
+        VRT XML is stored to destination file.
+    """
+    with rasterio.open(source_file) as src:
+        vrt_doc = rasterio.vrt._boundless_vrt_doc(src, **kwargs)
+
+        with open(destination_file, 'wb') as dst:
+            dst.write(vrt_doc)
