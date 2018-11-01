@@ -12,9 +12,9 @@ from shapely.geometry import Point, Polygon
 
 from rasterio.crs import CRS
 from rasterio.errors import NotGeoreferencedWarning
-
+from rasterio.windows import Window
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
-from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning
+from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning, merge_all
 from telluric.vectors import GeoVector
 
 from common_for_tests import make_test_raster
@@ -813,3 +813,21 @@ def test_doesnt_use_mask_when_no_mask():
     raster = Mock()
     raster.mask_flag_enums = ([MaskFlags.nodata], [MaskFlags.per_dataset])
     assert not GeoRaster2._read_with_mask(raster, masked=None)
+
+
+def test_chunks():
+    raster = GeoRaster2.open("tests/data/raster/overlap2.tif")
+    shape = (256, 256)
+
+    # validate that each chunk is in the right offsets
+    for r, offsets in raster.chunks(shape):
+        expected_raster = raster.get_window(Window(col_off=offsets[0], row_off=offsets[
+                                            1], width=shape[0], height=shape[1]))
+        assert r == expected_raster
+
+    # validate we can construct the original raster from the chunks
+    chunks = [r for r, _ in raster.chunks()]
+    merged_raster = merge_all(chunks, roi=raster.footprint())
+    assert merged_raster.crs == raster.crs
+    assert merged_raster.affine.almost_equals(raster.affine, precision=1e-3)
+    assert np.array_equal(merged_raster.image, raster.image)

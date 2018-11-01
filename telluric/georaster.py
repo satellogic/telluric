@@ -6,6 +6,7 @@ from functools import reduce, partial
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 from types import SimpleNamespace
 from enum import Enum
+from collections import namedtuple
 
 import tempfile
 from copy import copy, deepcopy
@@ -525,6 +526,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     * .band_names is list of strings, order corresponding to order in .array
 
     """
+
     def __init__(self, image=None, affine=None, crs=None,
                  filename=None, band_names=None, nodata=0, shape=None, footprint=None,
                  temporary=False):
@@ -1804,6 +1806,30 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         return self.copy_with(image=array, band_names=['red', 'green', 'blue'])
 
+    def chunks(self, shape=256):
+        """
+        This method returns GeoRaster chunks out of the original raster,
+        The chunck is evaluated only when fetched from the iterator
+
+        Usefult when you want to iterate over a big rasters
+        params:
+
+        shape - int or tuple, the shape of the chunk
+
+        """
+        if isinstance(shape, int):
+            shape = (shape, shape)
+
+        (width, height) = shape
+        for col_off in range(0, self.width, width):
+            for row_off in range(0, self.height, height):
+                window = Window(col_off=col_off, row_off=row_off, width=width, height=height)
+                cur_raster = self.get_window(window)
+                yield RasterChunk(raster=cur_raster, offsets=(col_off, row_off))
+
+
+RasterChunk = namedtuple('RasterChunk', ["raster", "offsets"])
+
 
 class MutableGeoRaster(GeoRaster2):
     """
@@ -1868,6 +1894,7 @@ class MutableGeoRaster(GeoRaster2):
 
 
 class Histogram:
+
     def __init__(self, hist=None):
         """
         :param hist: {band -> ndarray}
