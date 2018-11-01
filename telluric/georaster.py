@@ -89,7 +89,7 @@ def join(rasters):
     This method takes a list of rasters and a raster that is consturcted of all of them
     """
     bounds = [raster.footprint() for raster in rasters]
-    bounds = reduce((lambda x, y: x.union(y)), bounds)
+    bounds = reduce((lambda x, y: x+y), bounds).cascaded_union
     return merge_all(rasters, roi=bounds)
 
 
