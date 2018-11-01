@@ -1816,6 +1816,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         shape - int or tuple, the shape of the chunk
 
+        This iterator is over a RasterChucnk namedtuple that has the raster and the offsets in it
+
         """
         if isinstance(shape, int):
             shape = (shape, shape)
