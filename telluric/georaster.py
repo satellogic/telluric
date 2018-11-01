@@ -84,6 +84,15 @@ class PixelStrategy(Enum):
     FIRST = 1
 
 
+def join(rasters):
+    """
+    This method takes a list of rasters and a raster that is consturcted of all of them
+    """
+    bounds = [raster.footprint() for raster in rasters]
+    bounds = reduce((lambda x, y: x.union(y)), bounds)
+    return merge_all(rasters, roi=bounds)
+
+
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
               shape=None, ul_corner=None, crs=None, pixel_strategy=PixelStrategy.FIRST,
               resampling=Resampling.nearest):

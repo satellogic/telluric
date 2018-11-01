@@ -14,7 +14,7 @@ from rasterio.crs import CRS
 from rasterio.errors import NotGeoreferencedWarning
 from rasterio.windows import Window
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
-from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning, merge_all
+from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning, join
 from telluric.vectors import GeoVector
 
 from common_for_tests import make_test_raster
@@ -827,7 +827,10 @@ def test_chunks():
 
     # validate we can construct the original raster from the chunks
     chunks = [r for r, _ in raster.chunks()]
-    merged_raster = merge_all(chunks, roi=raster.footprint())
+    merged_raster = join(chunks)
     assert merged_raster.crs == raster.crs
     assert merged_raster.affine.almost_equals(raster.affine, precision=1e-3)
-    assert np.array_equal(merged_raster.image, raster.image)
+    # raster created has bigger shape cause of the edges
+    assert np.array_equal(merged_raster.image[:, :raster.height, :raster.width], raster.image)
+    # validating the rest is masked
+    assert np.array_equal(merged_raster.image.mask[:, raster.height:, raster.width:].all(), True)
