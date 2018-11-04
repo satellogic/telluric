@@ -8,6 +8,7 @@ from itertools import islice, chain
 from typing import Set, Iterator, Dict, Callable, Optional, Any, Union, DefaultDict
 
 import fiona
+from fiona.schema import FIELD_TYPES_MAP_REV
 from shapely.geometry import CAP_STYLE
 from rasterio.crs import CRS
 from shapely.ops import cascaded_union
@@ -399,10 +400,8 @@ class FeatureCollection(BaseCollection):
                             "Please convert all the appropriate properties to the same type."
                         )
 
-        fiona_field_types_map = dict([
-            (v, k) for k, v in fiona.FIELD_TYPES_MAP.items()])
         properties = {
-            k: fiona_field_types_map.get(v) or 'str'
+            k: FIELD_TYPES_MAP_REV.get(v) or 'str'
             for k, v in prop_types_map.items()
         }
 
