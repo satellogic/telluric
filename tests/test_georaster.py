@@ -815,18 +815,18 @@ def test_doesnt_use_mask_when_no_mask():
     assert not GeoRaster2._read_with_mask(raster, masked=None)
 
 
-def test_chunks():
+def test_chunks_with_pad():
     raster = GeoRaster2.open("tests/data/raster/overlap2.tif")
     shape = (256, 256)
 
     # validate that each chunk is in the right offsets
-    for r, offsets in raster.chunks(shape):
+    for r, offsets in raster.chunks(shape, pad=True):
         expected_raster = raster.get_window(Window(col_off=offsets[0], row_off=offsets[
                                             1], width=shape[0], height=shape[1]))
         assert r == expected_raster
 
     # validate we can construct the original raster from the chunks
-    chunks = [r for r, _ in raster.chunks()]
+    chunks = [r for r, _ in raster.chunks(pad=True)]
     merged_raster = join(chunks)
     assert merged_raster.crs == raster.crs
     assert merged_raster.affine.almost_equals(raster.affine, precision=1e-3)
@@ -834,3 +834,16 @@ def test_chunks():
     assert np.array_equal(merged_raster.image[:, :raster.height, :raster.width], raster.image)
     # validating the rest is masked
     assert np.array_equal(merged_raster.image.mask[:, raster.height:, raster.width:].all(), True)
+
+
+def test_chunks_without_pad():
+    raster = GeoRaster2.open("tests/data/raster/overlap2.tif")
+    shape = (256, 256)
+
+    # validate we can construct the original raster from the chunks
+    chunks = [r for r, _ in raster.chunks()]
+    merged_raster = join(chunks)
+    assert merged_raster.crs == raster.crs
+    assert merged_raster.affine.almost_equals(raster.affine, precision=1e-3)
+    # raster created has bigger shape cause of the edges
+    assert np.array_equal(merged_raster.image, raster.image)

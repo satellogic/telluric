@@ -1815,7 +1815,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         return self.copy_with(image=array, band_names=['red', 'green', 'blue'])
 
-    def chunks(self, shape=256):
+    def chunks(self, shape=256, pad=False):
         """
         This method returns GeoRaster chunks out of the original raster,
         The chunck is evaluated only when fetched from the iterator
@@ -1824,6 +1824,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         params:
 
         shape - int or tuple, the shape of the chunk
+        pad - when set to True all rasters will have the same shape, when False the edge rasters
+              will have a shape less than the requested shape, according to what the raster actually had
 
         This iterator is over a RasterChucnk namedtuple that has the raster and the offsets in it
 
@@ -1832,9 +1834,23 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             shape = (shape, shape)
 
         (width, height) = shape
-        for col_off in range(0, self.width, width):
-            for row_off in range(0, self.height, height):
-                window = Window(col_off=col_off, row_off=row_off, width=width, height=height)
+
+        col_steps = int(self.width/width)
+        row_steps = int(self.height/height)
+        for col_step in range(0, col_steps + 1):
+            col_off = col_step*width
+            if not pad and col_step == col_steps:
+                window_width = self.width % width
+            else:
+                window_width = width
+
+            for row_step in range(0, row_steps + 1):
+                row_off = row_step*height
+                if not pad and row_step == row_steps:
+                    window_height = self.height % height
+                else:
+                    window_height = height
+                window = Window(col_off=col_off, row_off=row_off, width=window_width, height=window_height)
                 cur_raster = self.get_window(window)
                 yield RasterChunk(raster=cur_raster, offsets=(col_off, row_off))
 
