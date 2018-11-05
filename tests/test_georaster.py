@@ -834,6 +834,10 @@ def test_chunks_with_pad():
     assert np.array_equal(merged_raster.image[:, :raster.height, :raster.width], raster.image)
     # validating the rest is masked
     assert np.array_equal(merged_raster.image.mask[:, raster.height:, raster.width:].all(), True)
+    merged_raster.save("/vsimem/test_chunks_with_pad.tif")
+    merged_raster = GeoRaster2.open("/vsimem/test_chunks_with_pad.tif")
+    joined_raster_from_256_mult_size = join([r for r, _ in merged_raster.chunks()])
+    assert joined_raster_from_256_mult_size.shape == merged_raster.shape
 
 
 def test_chunks_without_pad():
