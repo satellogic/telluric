@@ -88,8 +88,8 @@ def join(rasters):
     """
     This method takes a list of rasters and a raster that is consturcted of all of them
     """
-    bounds = [raster.footprint() for raster in rasters]
-    bounds = reduce((lambda x, y: x+y), bounds).cascaded_union
+    from telluric.collections import FeatureCollection
+    bounds = FeatureCollection.from_geovectors([raster.footprint() for raster in rasters]).cascaded_union
     return merge_all(rasters, roi=bounds)
 
 
@@ -1835,24 +1835,24 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         (width, height) = shape
 
-        col_steps = int(self.width/width)
-        row_steps = int(self.height/height)
+        col_steps = int(self.width / width)
+        row_steps = int(self.height / height)
 
-	# when we the raster has an axis in which the shape is multipication
-	# of the requested shape we don't need an extra step with window equal zero
-	# in other cases we do need the extra step to get the reminder of the content
+        # when we the raster has an axis in which the shape is multipication
+        # of the requested shape we don't need an extra step with window equal zero
+        # in other cases we do need the extra step to get the reminder of the content
         col_extra_step = 1 if self.width % width > 0 else 0
         row_extra_step = 1 if self.height % height > 0 else 0
 
         for col_step in range(0, col_steps + col_extra_step):
-            col_off = col_step*width
+            col_off = col_step * width
             if not pad and col_step == col_steps:
                 window_width = self.width % width
             else:
                 window_width = width
 
             for row_step in range(0, row_steps + row_extra_step):
-                row_off = row_step*height
+                row_off = row_step * height
                 if not pad and row_step == row_steps:
                     window_height = self.height % height
                 else:
