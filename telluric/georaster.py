@@ -40,7 +40,7 @@ from PIL import Image
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
-
+import time
 from telluric.util.raster_utils import (
     convert_to_cog, _calc_overviews_factors,
     _mask_from_masked_array, _join_masks_from_masked_array,
@@ -1815,6 +1815,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         return self.copy_with(image=array, band_names=['red', 'green', 'blue'])
 
+    def _as_in_memory_geotiff(self):
+        temp_path = "/vsimem/%s.tif" % (int(time.time()))
+        self.save(temp_path)
+        return GeoRaster2.open(temp_path)
+
     def chunks(self, shape=256, pad=False):
         """
         This method returns GeoRaster chunks out of the original raster,
@@ -1830,35 +1835,38 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         This iterator is over a RasterChucnk namedtuple that has the raster and the offsets in it
 
         """
+        _self = self
+        if self._image is not None:
+            _self = self._as_in_memory_geotiff()
         if isinstance(shape, int):
             shape = (shape, shape)
 
         (width, height) = shape
 
-        col_steps = int(self.width / width)
-        row_steps = int(self.height / height)
+        col_steps = int(_self.width / width)
+        row_steps = int(_self.height / height)
 
         # when we the raster has an axis in which the shape is multipication
         # of the requested shape we don't need an extra step with window equal zero
         # in other cases we do need the extra step to get the reminder of the content
-        col_extra_step = 1 if self.width % width > 0 else 0
-        row_extra_step = 1 if self.height % height > 0 else 0
+        col_extra_step = 1 if _self.width % width > 0 else 0
+        row_extra_step = 1 if _self.height % height > 0 else 0
 
         for col_step in range(0, col_steps + col_extra_step):
             col_off = col_step * width
             if not pad and col_step == col_steps:
-                window_width = self.width % width
+                window_width = _self.width % width
             else:
                 window_width = width
 
             for row_step in range(0, row_steps + row_extra_step):
                 row_off = row_step * height
                 if not pad and row_step == row_steps:
-                    window_height = self.height % height
+                    window_height = _self.height % height
                 else:
                     window_height = height
                 window = Window(col_off=col_off, row_off=row_off, width=window_width, height=window_height)
-                cur_raster = self.get_window(window)
+                cur_raster = _self.get_window(window)
                 yield RasterChunk(raster=cur_raster, offsets=(col_off, row_off))
 
 
