@@ -1,3 +1,20 @@
+telluric 0.6.0 (2018-11-05)
+===========================
+
+New features
+------------
+
+* Added :code:`resampling` parameter to  :py:func:`telluric.georaster.merge_all`
+  function (#166)
+* New :py:meth:`telluric.vectors.GeoVector.tiles` method for iterating
+  over the tiles intersecting the bounding box of the vector (#167)
+* Fiona 1.8.0 compatibility (#171)
+
+Bug fixes
+---------
+
+* Workaround to overcome rasterio's GDAL environment issue (#174)
+
 telluric 0.5.0 (2018-10-26)
 ===========================
 
