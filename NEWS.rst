@@ -1,3 +1,17 @@
+telluric 0.7.0 (2018-11-06)
+===========================
+
+New features
+------------
+
+* Added new method :py:meth:`telluric.georaster.GeoRaster2.chunks` for
+  iterating over the chunks of the raster (#169)
+
+Bug fixes
+---------
+
+* Workaround to overcome fiona's GDAL environment issue (#175)
+
 telluric 0.6.0 (2018-11-05)
 ===========================
 
