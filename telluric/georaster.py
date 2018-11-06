@@ -6,6 +6,7 @@ from functools import reduce, partial
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 from types import SimpleNamespace
 from enum import Enum
+from collections import namedtuple
 
 import tempfile
 from copy import copy, deepcopy
@@ -39,7 +40,7 @@ from PIL import Image
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
-
+import uuid
 from telluric.util.raster_utils import (
     convert_to_cog, _calc_overviews_factors,
     _mask_from_masked_array, _join_masks_from_masked_array,
@@ -81,6 +82,15 @@ class MergeStrategy(Enum):
 class PixelStrategy(Enum):
     INDEX = 0
     FIRST = 1
+
+
+def join(rasters):
+    """
+    This method takes a list of rasters and a raster that is consturcted of all of them
+    """
+    from telluric.collections import FeatureCollection
+    bounds = FeatureCollection.from_geovectors([raster.footprint() for raster in rasters]).cascaded_union
+    return merge_all(rasters, roi=bounds)
 
 
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
@@ -525,6 +535,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     * .band_names is list of strings, order corresponding to order in .array
 
     """
+
     def __init__(self, image=None, affine=None, crs=None,
                  filename=None, band_names=None, nodata=0, shape=None, footprint=None,
                  temporary=False):
@@ -1804,6 +1815,66 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         return self.copy_with(image=array, band_names=['red', 'green', 'blue'])
 
+    def _as_in_memory_geotiff(self):
+        temp_path = "/vsimem/%s.tif" % (uuid.uuid4())
+        self.save(temp_path)
+        return GeoRaster2.open(temp_path)
+
+    def _raster_backed_by_a_file(self):
+        if self._filename is None:
+            return self._as_in_memory_geotiff()
+        return self
+
+    def chunks(self, shape=256, pad=False):
+        """
+        This method returns GeoRaster chunks out of the original raster,
+        The chunck is evaluated only when fetched from the iterator
+
+        Usefult when you want to iterate over a big rasters
+        params:
+
+        shape - int or tuple, the shape of the chunk
+        pad - when set to True all rasters will have the same shape, when False the edge rasters
+              will have a shape less than the requested shape, according to what the raster actually had
+
+        This iterator is over a RasterChucnk namedtuple that has the raster and the offsets in it
+
+        """
+        _self = self._raster_backed_by_a_file()
+        if isinstance(shape, int):
+            shape = (shape, shape)
+
+        (width, height) = shape
+
+        col_steps = int(_self.width / width)
+        row_steps = int(_self.height / height)
+
+        # when we the raster has an axis in which the shape is multipication
+        # of the requested shape we don't need an extra step with window equal zero
+        # in other cases we do need the extra step to get the reminder of the content
+        col_extra_step = 1 if _self.width % width > 0 else 0
+        row_extra_step = 1 if _self.height % height > 0 else 0
+
+        for col_step in range(0, col_steps + col_extra_step):
+            col_off = col_step * width
+            if not pad and col_step == col_steps:
+                window_width = _self.width % width
+            else:
+                window_width = width
+
+            for row_step in range(0, row_steps + row_extra_step):
+                row_off = row_step * height
+                if not pad and row_step == row_steps:
+                    window_height = _self.height % height
+                else:
+                    window_height = height
+                window = Window(col_off=col_off, row_off=row_off, width=window_width, height=window_height)
+                cur_raster = _self.get_window(window)
+                yield RasterChunk(raster=cur_raster, offsets=(col_off, row_off))
+
+
+RasterChunk = namedtuple('RasterChunk', ["raster", "offsets"])
+
 
 class MutableGeoRaster(GeoRaster2):
     """
@@ -1866,8 +1937,12 @@ class MutableGeoRaster(GeoRaster2):
     def footprint(self):
         return super()._calc_footprint()
 
+    def _raster_backed_by_a_file(self):
+        return self._as_in_memory_geotiff()
+
 
 class Histogram:
+
     def __init__(self, hist=None):
         """
         :param hist: {band -> ndarray}

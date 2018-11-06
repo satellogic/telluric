@@ -12,9 +12,9 @@ from shapely.geometry import Point, Polygon
 
 from rasterio.crs import CRS
 from rasterio.errors import NotGeoreferencedWarning
-
+from rasterio.windows import Window
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
-from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning
+from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning, join
 from telluric.vectors import GeoVector
 
 from common_for_tests import make_test_raster
@@ -813,3 +813,50 @@ def test_doesnt_use_mask_when_no_mask():
     raster = Mock()
     raster.mask_flag_enums = ([MaskFlags.nodata], [MaskFlags.per_dataset])
     assert not GeoRaster2._read_with_mask(raster, masked=None)
+
+
+def rasters_for_testing_chunks():
+    rasters = [GeoRaster2.open("tests/data/raster/overlap2.tif"),  GeoRaster2.open("tests/data/raster/overlap2.tif")]
+    rasters[0].image
+    return rasters
+
+
+@pytest.mark.parametrize("raster", rasters_for_testing_chunks())
+def test_chunks_with_pad(raster):
+    shape = (256, 256)
+
+    # validate that each chunk is in the right offsets
+    for r, offsets in raster.chunks(shape, pad=True):
+        expected_raster = raster.get_window(Window(col_off=offsets[0], row_off=offsets[
+                                            1], width=shape[0], height=shape[1]))
+        assert r == expected_raster
+
+    # validate we can construct the original raster from the chunks
+    chunks = [r for r, _ in raster.chunks(pad=True)]
+    merged_raster = join(chunks)
+    assert merged_raster.crs == raster.crs
+    assert merged_raster.affine.almost_equals(raster.affine, precision=1e-3)
+    # raster created has bigger shape cause of the edges
+    assert np.array_equal(merged_raster.image[:, :raster.height, :raster.width], raster.image)
+    # validating the rest is masked
+    assert np.array_equal(merged_raster.image.mask[:, raster.height:, raster.width:].all(), True)
+
+
+@pytest.mark.parametrize("raster", rasters_for_testing_chunks())
+def test_chunks_for_full_raster(raster):
+    chunks = [r for r, _ in raster.chunks(pad=True)]
+    merged_raster = join(chunks)
+    joined_raster_from_256_mult_size = join([r for r, _ in merged_raster.chunks()])
+    assert joined_raster_from_256_mult_size.shape == merged_raster.shape
+
+
+@pytest.mark.parametrize("raster", rasters_for_testing_chunks())
+def test_chunks_without_pad(raster):
+    shape = (256, 256)
+
+    # validate we can construct the original raster from the chunks
+    chunks = [r for r, _ in raster.chunks()]
+    merged_raster = join(chunks)
+    assert merged_raster.crs == raster.crs
+    assert merged_raster.affine.almost_equals(raster.affine, precision=1e-3)
+    assert np.array_equal(merged_raster.image, raster.image)
