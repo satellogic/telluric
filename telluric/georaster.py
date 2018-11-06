@@ -1826,19 +1826,24 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return self
 
     def chunks(self, shape=256, pad=False):
-        """
-        This method returns GeoRaster chunks out of the original raster,
-        The chunck is evaluated only when fetched from the iterator
+        """This method returns GeoRaster chunks out of the original raster.
 
-        Usefult when you want to iterate over a big rasters
-        params:
+        The chunck is evaluated only when fetched from the iterator.
+        Useful when you want to iterate over a big rasters.
 
-        shape - int or tuple, the shape of the chunk
-        pad - when set to True all rasters will have the same shape, when False the edge rasters
-              will have a shape less than the requested shape, according to what the raster actually had
+        Parameters
+        ----------
+        shape : int or tuple, optional
+            The shape of the chunk. Default: 256.
+        pad : bool, optional
+            When set to True all rasters will have the same shape, when False
+            the edge rasters will have a shape less than the requested shape,
+            according to what the raster actually had. Defaults to False.
 
-        This iterator is over a RasterChucnk namedtuple that has the raster and the offsets in it
-
+        Returns
+        -------
+        out: RasterChunk
+            The iterator that has the raster and the offsets in it.
         """
         _self = self._raster_backed_by_a_file()
         if isinstance(shape, int):
