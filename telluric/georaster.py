@@ -40,7 +40,7 @@ from PIL import Image
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
-import time
+import uuid
 from telluric.util.raster_utils import (
     convert_to_cog, _calc_overviews_factors,
     _mask_from_masked_array, _join_masks_from_masked_array,
@@ -1816,7 +1816,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return self.copy_with(image=array, band_names=['red', 'green', 'blue'])
 
     def _as_in_memory_geotiff(self):
-        temp_path = "/vsimem/%s.tif" % (int(time.time()))
+        temp_path = "/vsimem/%s.tif" % (uuid.uuid4())
         self.save(temp_path)
         return GeoRaster2.open(temp_path)
 

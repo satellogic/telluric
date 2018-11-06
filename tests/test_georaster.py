@@ -840,6 +840,12 @@ def test_chunks_with_pad(raster):
     assert np.array_equal(merged_raster.image[:, :raster.height, :raster.width], raster.image)
     # validating the rest is masked
     assert np.array_equal(merged_raster.image.mask[:, raster.height:, raster.width:].all(), True)
+
+
+@pytest.mark.parametrize("raster", rasters_for_testing_chunks())
+def test_chunks_for_full_raster(raster):
+    chunks = [r for r, _ in raster.chunks(pad=True)]
+    merged_raster = join(chunks)
     joined_raster_from_256_mult_size = join([r for r, _ in merged_raster.chunks()])
     assert joined_raster_from_256_mult_size.shape == merged_raster.shape
 
