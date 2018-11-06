@@ -8,6 +8,7 @@ from itertools import islice, chain
 from typing import Set, Iterator, Dict, Callable, Optional, Any, Union, DefaultDict
 
 import fiona
+from fiona.env import ensure_env_with_credentials
 from fiona.schema import FIELD_TYPES_MAP_REV
 from shapely.geometry import CAP_STYLE
 from rasterio.crs import CRS
@@ -319,6 +320,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
     def _adapt_feature_before_write(self, feature):
         return feature
 
+    @ensure_env_with_credentials
     def save(self, filename, driver=None):
         """Saves collection to file.
 
@@ -472,6 +474,7 @@ class FileCollection(BaseCollection):
         )
 
     @classmethod
+    @ensure_env_with_credentials
     def open(cls, filename, crs=None):
         """Creates a FileCollection from a file in disk.
 
@@ -502,6 +505,7 @@ class FileCollection(BaseCollection):
     def __len__(self):
         return self._length
 
+    @ensure_env_with_credentials
     def __iter__(self):
         with fiona.open(self._filename, 'r') as source:
             for record in source:
