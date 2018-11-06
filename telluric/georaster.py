@@ -1820,6 +1820,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         self.save(temp_path)
         return GeoRaster2.open(temp_path)
 
+    def _raster_backed_by_a_file(self):
+        if self._filename is None:
+            return self._as_in_memory_geotiff()
+        return self
+
     def chunks(self, shape=256, pad=False):
         """
         This method returns GeoRaster chunks out of the original raster,
@@ -1835,9 +1840,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         This iterator is over a RasterChucnk namedtuple that has the raster and the offsets in it
 
         """
-        _self = self
-        if self._image is not None:
-            _self = self._as_in_memory_geotiff()
+        _self = self._raster_backed_by_a_file()
         if isinstance(shape, int):
             shape = (shape, shape)
 
@@ -1933,6 +1936,9 @@ class MutableGeoRaster(GeoRaster2):
 
     def footprint(self):
         return super()._calc_footprint()
+
+    def _raster_backed_by_a_file(self):
+        return self._as_in_memory_geotiff()
 
 
 class Histogram:
