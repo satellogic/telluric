@@ -48,6 +48,13 @@ from telluric.util.raster_utils import (
 
 import matplotlib  # for mypy
 
+from telluric.util.local_tile_server import TileServer
+
+with warnings.catch_warnings():  # silences warning, see https://github.com/matplotlib/matplotlib/issues/5836
+    warnings.simplefilter("ignore", UserWarning)
+    import matplotlib.pyplot as plt
+
+
 dtype_map = {
     np.uint8: rasterio.uint8,
     np.uint16: rasterio.uint16,
@@ -1382,9 +1389,15 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         return GeoRaster2(image=roll[:3, :, :], affine=affine, crs=crs, band_names=band_names)
 
-    def _repr_png_(self):
-        """Required for jupyter notebook to show raster."""
-        return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, in_range='image')
+    # def _repr_png_(self):
+    #     """Required for jupyter notebook to show raster."""
+    #     return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, in_range='image')
+
+    def _repr_html_(self):
+        """Required for jupyter notebook to show raster as an interactive map."""
+        TileServer.run_tileserver(self)
+        mp = TileServer.folium_client(self)
+        return mp._repr_html_()
 
     def limit_to_bands(self, bands):
         bands_data = self.bands_data(bands)
