@@ -63,7 +63,7 @@ class TileServer:
             tiles="http://localhost:%s/%s/{x}/{y}/{z}.png" % (port, id(raster)),
             attr="raster %s" % raster._filename
         ).add_to(mp)
-        
+
         return mp
 
     @classmethod
@@ -84,4 +84,3 @@ class TileServer:
     def add_raster(cls, raster):
         with rasters_lock:
             cls.rasters[id(raster)] = raster
-        
