@@ -10,6 +10,7 @@ from rasterio.warp import (
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from math import ceil
+from telluric.vrt import boundless_vrt_doc
 
 
 def _calc_overviews_factors(one, blocksize=256):
@@ -427,7 +428,7 @@ def build_vrt(source_file, destination_file, **kwargs):
         VRT XML is stored to destination file.
     """
     with rasterio.open(source_file) as src:
-        vrt_doc = rasterio.vrt._boundless_vrt_doc(src, **kwargs)
+        vrt_doc = boundless_vrt_doc(src, **kwargs)
 
         with open(destination_file, 'wb') as dst:
             dst.write(vrt_doc)
