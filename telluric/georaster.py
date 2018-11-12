@@ -48,11 +48,6 @@ from telluric.util.raster_utils import (
 
 import matplotlib  # for mypy
 
-with warnings.catch_warnings():  # silences warning, see https://github.com/matplotlib/matplotlib/issues/5836
-    warnings.simplefilter("ignore", UserWarning)
-    import matplotlib.pyplot as plt
-
-
 dtype_map = {
     np.uint8: rasterio.uint8,
     np.uint16: rasterio.uint16,
@@ -1783,7 +1778,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         vmin = vmin if vmin is not None else min(self.min())
         vmax = vmax if vmax is not None else max(self.max())
 
-        cmap = plt.get_cmap(colormap)  # type: matplotlib.colors.Colormap
+        cmap = matplotlib.cm.get_cmap(colormap)  # type: matplotlib.colors.Colormap
 
         band_index = 0
         if band_name is None:
@@ -1971,6 +1966,9 @@ class Histogram:
         return self.hist[band]
 
     def _repr_png_(self):
+        with warnings.catch_warnings():  # silences warning, see https://github.com/matplotlib/matplotlib/issues/5836
+            warnings.simplefilter("ignore", UserWarning)
+            import matplotlib.pyplot as plt
         plt.figure(figsize=(18, 6))
         plt.title('histogram')
         plt.xlabel('intensity')
