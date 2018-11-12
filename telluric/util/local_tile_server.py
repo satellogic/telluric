@@ -51,20 +51,21 @@ class TileServer:
 
     @classmethod
     def folium_client(cls, raster, base_map="Stamen Terrain", port=4000, zoom_start=13):
-        raster_center = raster.center().get_shape(WGS84_CRS)
-        # print([raster_center.x, raster_center.y])
-        mp = folium.Map(
-            tiles=base_map,
-            location=[raster_center.x, raster_center.y],
-            zoom_start=zoom_start
-        )
-        # print("http://localhost:%s/%s/{x}/{y}/{z}.png" % (port, id(raster)))
+        shape = raster.footprint().get_shape(WGS84_CRS)
+        mp = folium.Map(tiles=base_map)
+
         folium.raster_layers.TileLayer(
-            tiles="http://localhost:%s/%s/{x}/{y}/{z}.png" % (port, id(raster)),
+            tiles=cls.server_url(raster, port),
             attr="raster %s" % raster._filename
         ).add_to(mp)
 
+        mp.fit_bounds([shape.bounds[:1:-1], shape.bounds[1::-1]])
+
         return mp
+
+    @classmethod
+    def server_url(cls, raster, port):
+        return "http://localhost:%s/%s/{x}/{y}/{z}.png" % (port, id(raster))
 
     @classmethod
     def run_tileserver(cls, raster, port=4000):
