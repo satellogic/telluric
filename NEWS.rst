@@ -1,3 +1,12 @@
+telluric 0.7.1 (2018-11-12)
+===========================
+
+Bug fixes
+---------
+
+* Removed :py:mod:`pyplot` import from the module level to overcome issues at
+  headless environments (#177)
+
 telluric 0.7.0 (2018-11-06)
 ===========================
 
