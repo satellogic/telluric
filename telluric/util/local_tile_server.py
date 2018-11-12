@@ -56,7 +56,8 @@ class TileServer:
 
         folium.raster_layers.TileLayer(
             tiles=cls.server_url(raster, port),
-            attr="raster %s" % raster._filename
+            attr="raster: %s" % raster._filename,
+            overlay=True
         ).add_to(mp)
 
         mp.fit_bounds([shape.bounds[:1:-1], shape.bounds[1::-1]])
