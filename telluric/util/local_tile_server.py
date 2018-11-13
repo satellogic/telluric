@@ -60,7 +60,7 @@ class TileServer:
     running_app = None
 
     @classmethod
-    def folium_client(cls, raster, base_map="Stamen Terrain", port=4000, zoom_start=13):
+    def folium_client(cls, raster, base_map="Stamen Terrain", port=4000):
         shape = raster.footprint().get_shape(WGS84_CRS)
         mp = folium.Map(tiles=base_map)
 
