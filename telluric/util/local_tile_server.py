@@ -20,8 +20,8 @@ class TileServerHandler(tornado.web.RequestHandler):
     def get(self, raster_id, x, y, z):
         png_tile = yield self._get_png_tile(int(raster_id), int(x), int(y), int(z))
         if png_tile:
-            self.finish(png_tile)
             self.set_header("Content-type", "image/png")
+            self.finish(png_tile)
         else:
             self.send_error(404)
 
