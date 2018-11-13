@@ -56,7 +56,7 @@ rasters_lock = Lock()
 
 
 class TileServer:
-    rasters = {}
+    rasters = {}  # type:dict
     running_app = None
 
     @classmethod
