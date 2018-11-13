@@ -672,7 +672,7 @@ def test_png_thumbnail_has_expected_properties():
     raster = GeoRaster2.open("tests/data/raster/rgb.tif")
     expected_thumbnail = raster.resize(dest_width=512, resampling=Resampling.nearest)
     result_thumbnail = GeoRaster2.from_bytes(
-        raster._repr_png_(),
+        raster.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, in_range='image'),
         affine=expected_thumbnail.affine, crs=expected_thumbnail.crs, band_names=expected_thumbnail.band_names
     )
 
