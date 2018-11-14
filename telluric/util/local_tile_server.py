@@ -2,15 +2,23 @@ import asyncio
 import folium
 import rasterio
 import tornado.web
+import concurrent.futures
+
 from tornado import gen
 from threading import Thread, Lock
 from tornado.ioloop import IOLoop
 from rasterio.enums import Resampling
 from telluric.constants import WGS84_CRS
 from tornado.httpserver import HTTPServer
+from tornado.concurrent import run_on_executor
+
+
+executor = concurrent.futures.ThreadPoolExecutor(50)
 
 
 class TileServerHandler(tornado.web.RequestHandler):
+    _tread_pool = executor
+
     def initialize(self, rasters, resampling):
         self.rasters = rasters
         self.resampling = resampling
@@ -25,7 +33,7 @@ class TileServerHandler(tornado.web.RequestHandler):
         else:
             self.send_error(404)
 
-    @gen.coroutine
+    @run_on_executor(executor='_tread_pool')
     def _get_png_tile(self, raster_id, x, y, z):
         raster = self.rasters[raster_id]
         with rasterio.Env():
