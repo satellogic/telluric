@@ -46,6 +46,7 @@ from telluric.util.raster_utils import (
     _mask_from_masked_array, _join_masks_from_masked_array,
     calc_transform, warp)
 
+from telluric.util.local_tile_server import TileServer
 import matplotlib  # for mypy
 
 dtype_map = {
@@ -980,11 +981,14 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         dst_array = dst_array.astype(dst_type)
         return self.copy_with(image=dst_array)
 
-    def crop(self, vector, resolution=None, masked=None, bands=None):
+    def crop(self, vector, resolution=None, masked=None,
+             bands=None, resampling=Resampling.cubic):
         """
         crops raster outside vector (convex hull)
         :param vector: GeoVector
         :param resolution: output resolution, None for full resolution
+        :param resampling: reprojection resampling method, default `cubic`
+
         :return: GeoRaster
         """
         bounds, window = self._vector_to_raster_bounds(vector, boundless=self._image is None)
@@ -993,7 +997,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         else:
             xsize, ysize = (None, None)
 
-        return self.pixel_crop(bounds, xsize, ysize, window=window, masked=masked, bands=bands)
+        return self.pixel_crop(bounds, xsize, ysize, window=window,
+                               masked=masked, bands=bands, resampling=resampling)
 
     def _window(self, bounds, to_round=True):
         # self.window expects to receive the arguments west, south, east, north,
@@ -1043,7 +1048,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         ysize = round(height / yscale)
         return xsize, ysize
 
-    def pixel_crop(self, bounds, xsize=None, ysize=None, window=None, masked=None, bands=None):
+    def pixel_crop(self, bounds, xsize=None, ysize=None, window=None,
+                   masked=None, bands=None, resampling=Resampling.cubic):
         """Crop raster outside vector (convex hull).
 
         :param bounds: bounds of requester portion of the image in image pixels
@@ -1051,11 +1057,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param ysize: output raster height, None for full resolution
         :param windows: the bounds representation window on image in image pixels, Optional
         :param bands: list of indices of requested bands, default None which returns all bands
+        :param resampling: reprojection resampling method, default `cubic`
+
         :return: GeoRaster
         """
 
         if self._image is not None:
-            raster = self._crop(bounds, xsize=xsize, ysize=ysize)
+            raster = self._crop(bounds, xsize=xsize, ysize=ysize, resampling=resampling)
             if bands is not None:
                 raster = raster.limit_to_bands(bands)
             return raster
@@ -1064,14 +1072,17 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                                        bounds[1],
                                                        bounds[2] - bounds[0] + 1,
                                                        bounds[3] - bounds[1] + 1)
-            return self.get_window(window, xsize=xsize, ysize=ysize, masked=masked, bands=bands)
+            return self.get_window(window, xsize=xsize, ysize=ysize, masked=masked,
+                                   bands=bands, resampling=resampling)
 
-    def _crop(self, bounds, xsize=None, ysize=None):
+    def _crop(self, bounds, xsize=None, ysize=None, resampling=Resampling.cubic):
         """Crop raster outside vector (convex hull).
 
         :param bounds: bounds on image
         :param xsize: output raster width, None for full resolution
         :param ysize: output raster height, None for full resolution
+        :param resampling: reprojection resampling method, default `cubic`
+
         :return: GeoRaster2
         """
         out_raster = self[
@@ -1081,7 +1092,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         if xsize and ysize:
             if not (xsize == out_raster.width and ysize == out_raster.height):
-                out_raster = out_raster.resize(dest_width=xsize, dest_height=ysize)
+                out_raster = out_raster.resize(dest_width=xsize, dest_height=ysize, resampling=resampling)
         return out_raster
 
     def attributes(self, url):
@@ -1382,9 +1393,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         return GeoRaster2(image=roll[:3, :, :], affine=affine, crs=crs, band_names=band_names)
 
-    def _repr_png_(self):
-        """Required for jupyter notebook to show raster."""
-        return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, in_range='image')
+    def _repr_html_(self):
+        """Required for jupyter notebook to show raster as an interactive map."""
+        TileServer.run_tileserver(self, resampling=Resampling.nearest)
+        mp = TileServer.folium_client(self)
+        return mp._repr_html_()
 
     def limit_to_bands(self, bands):
         bands_data = self.bands_data(bands)
@@ -1722,6 +1735,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param y_tile: y coordinate of tile
         :param zoom: zoom level
         :param bands: list of indices of requested bands, default None which returns all bands
+        :param resampling: reprojection resampling method, default `cubic`
+
         :return: GeoRaster2 of tile in WEB_MERCATOR_CRS
 
         You can use TELLURIC_GET_TILE_BUFFER env variable to control the number of pixels surrounding
@@ -1738,7 +1753,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         new_resolution = resolution_from_affine(new_affine)
         buffer_ratio = int(os.environ.get("TELLURIC_GET_TILE_BUFFER", 10))
         roi_buffer = roi.buffer(math.sqrt(roi.area * buffer_ratio / 100))
-        raster = self.crop(roi_buffer, resolution=new_resolution, masked=masked, bands=bands)
+        raster = self.crop(roi_buffer, resolution=new_resolution, masked=masked,
+                           bands=bands, resampling=resampling)
         raster = raster.reproject(dst_crs=WEB_MERCATOR_CRS, resolution=MERCATOR_RESOLUTION_MAPPING[zoom],
                                   dst_bounds=roi_buffer.get_bounds(WEB_MERCATOR_CRS),
                                   resampling=Resampling.cubic_spline)
