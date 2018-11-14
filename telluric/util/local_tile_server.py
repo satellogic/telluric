@@ -23,7 +23,6 @@ class TileServerHandler(tornado.web.RequestHandler):
         self.rasters = rasters
         self.resampling = resampling
 
-    @tornado.web.asynchronous
     @gen.coroutine
     def get(self, raster_id, x, y, z):
         png_tile = yield self._get_png_tile(int(raster_id), int(x), int(y), int(z))
