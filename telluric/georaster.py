@@ -988,7 +988,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param vector: GeoVector
         :param resolution: output resolution, None for full resolution
         :param resampling: reprojection resampling method, default `cubic`
-        
+
         :return: GeoRaster
         """
         bounds, window = self._vector_to_raster_bounds(vector, boundless=self._image is None)
@@ -1058,7 +1058,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param windows: the bounds representation window on image in image pixels, Optional
         :param bands: list of indices of requested bands, default None which returns all bands
         :param resampling: reprojection resampling method, default `cubic`
-        
+
         :return: GeoRaster
         """
 
@@ -1082,7 +1082,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param xsize: output raster width, None for full resolution
         :param ysize: output raster height, None for full resolution
         :param resampling: reprojection resampling method, default `cubic`
-        
+
         :return: GeoRaster2
         """
         out_raster = self[
@@ -1392,10 +1392,6 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             band_names = [band_names]
 
         return GeoRaster2(image=roll[:3, :, :], affine=affine, crs=crs, band_names=band_names)
-
-    # def _repr_png_(self):
-    #     """Required for jupyter notebook to show raster."""
-    #     return self.to_png(transparent=True, thumbnail_size=512, resampling=Resampling.nearest, in_range='image')
 
     def _repr_html_(self):
         """Required for jupyter notebook to show raster as an interactive map."""
@@ -1740,7 +1736,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param zoom: zoom level
         :param bands: list of indices of requested bands, default None which returns all bands
         :param resampling: reprojection resampling method, default `cubic`
-        
+
         :return: GeoRaster2 of tile in WEB_MERCATOR_CRS
 
         You can use TELLURIC_GET_TILE_BUFFER env variable to control the number of pixels surrounding
