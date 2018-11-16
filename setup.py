@@ -21,7 +21,7 @@ setup(
     install_requires=[
         'affine',
         'dsnparse',
-        'fiona>=1.8.0,<2.*',
+        'fiona>=1.8.1,<2.*',
         'folium',
         'ipyleaflet!=0.8.2',
         'pyproj',
