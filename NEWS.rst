@@ -1,3 +1,12 @@
+telluric 0.8.0 (2018-11-18)
+===========================
+
+New features
+------------
+
+* Interactive representation of rasters in Jupyter Notebook (#178)
+* Fiona 1.8.1 and Rasterio 1.0.10 compatibility (#179, #180)
+
 telluric 0.7.1 (2018-11-12)
 ===========================
 
