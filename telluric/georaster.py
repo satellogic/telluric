@@ -82,7 +82,7 @@ class PixelStrategy(Enum):
 
 def join(rasters):
     """
-    This method takes a list of rasters and a raster that is consturcted of all of them
+    This method takes a list of rasters and returns a raster that is consturcted of all of them
     """
     from telluric.collections import FeatureCollection
     bounds = FeatureCollection.from_geovectors([raster.footprint() for raster in rasters]).cascaded_union
