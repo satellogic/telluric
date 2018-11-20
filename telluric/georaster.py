@@ -1399,7 +1399,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def _repr_html_(self):
         """Required for jupyter notebook to show raster as an interactive map."""
-        TileServer.run_tileserver(self, resampling=Resampling.nearest)
+        TileServer.run_tileserver(self, self.footprint())
         mp = TileServer.folium_client(self, self.footprint(), capture=self._filename)
         return mp._repr_html_()
 
