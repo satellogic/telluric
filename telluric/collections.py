@@ -285,8 +285,17 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         if polygonize_width == 1:
             polygonize_kwargs.update(cap_style_point=CAP_STYLE.square)
 
+        # Reproject collection to target CRS
+        if (
+            self.crs is not None and
+            self.crs != crs
+        ):
+            reprojected = self.reproject(crs)
+        else:
+            reprojected = self
+
         width = polygonize_width * dest_resolution
-        polygonized = [feature.polygonize(width, **polygonize_kwargs) for feature in self]
+        polygonized = [feature.polygonize(width, **polygonize_kwargs) for feature in reprojected]
 
         # Discard the empty features
         shapes = [feature.geometry.get_shape(crs) for feature in polygonized
@@ -377,7 +386,7 @@ class FeatureCollection(BaseCollection):
     @property
     def crs(self):
         # Get the CRS from the first feature
-        return self._results[0].crs
+        return self._results[0].crs if self._results else None
 
     def _compute_properties(self):
         property_names_set = set()  # type: Set[str]
