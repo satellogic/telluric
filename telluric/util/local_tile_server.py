@@ -12,31 +12,69 @@ from telluric.constants import WGS84_CRS
 from tornado.httpserver import HTTPServer
 from tornado.concurrent import run_on_executor
 
+import telluric as tl
+from telluric.constants import MERCATOR_RESOLUTION_MAPPING, WEB_MERCATOR_CRS
 
-executor = concurrent.futures.ThreadPoolExecutor(50)
+
+raster_executor = concurrent.futures.ThreadPoolExecutor(50)
 
 
 class TileServerHandler(tornado.web.RequestHandler):
-    _tread_pool = executor
+    _thread_pool = raster_executor
 
-    def initialize(self, rasters, resampling):
-        self.rasters = rasters
+    def initialize(self, objects, resampling):
+        self.objects = objects
         self.resampling = resampling
 
     @gen.coroutine
-    def get(self, raster_id, x, y, z):
-        png_tile = yield self._get_png_tile(int(raster_id), int(x), int(y), int(z))
-        if png_tile:
-            self.set_header("Content-type", "image/png")
-            self.finish(png_tile)
+    def get(self, object_id, x, y, z):
+        obj = self.objects[object_id]
+        if isinstance(obj, tl.GeoRaster2):
+            tile = yield self._get_raster_png_tile(obj, x, y, z)
+        elif isinstance(obj, tl.FeatureCollection):
+            tile = yield self._get_collection_png_tile(obj, x, y, z)
         else:
             self.send_error(404)
 
-    @run_on_executor(executor='_tread_pool')
-    def _get_png_tile(self, raster_id, x, y, z):
-        raster = self.rasters[raster_id]
+        if tile:
+            self.set_header("Content-type", "image/png")
+            self.finish(tile.to_png())
+        else:
+            self.send_error(404)
+
+    @run_on_executor(executor='_thread_pool')
+    def _get_raster_png_tile(self, raster, x, y, z):
         with rasterio.Env():
-            return raster.get_tile(x, y, z, resampling=self.resampling).to_png()
+            return raster.get_tile(x, y, z, resampling=self.resampling)
+
+    @gen.coroutine
+    def _get_collection_png_tile(self, fc, x, y, z):
+        rasters = yield gen.multi([self._get_feature_png_tile(f, x, y, z) for f in fc])
+        if len(rasters) < 1:
+            return None
+        tile = yield self.merge_rasters(rasters, z)
+        return tile
+
+    @run_on_executor(executor='_thread_pool')
+    def merge_rasters(self, rasters, z):
+        actual_roi = rasters[0].footprint()
+        merge_params = {
+            'dest_resolution': MERCATOR_RESOLUTION_MAPPING[z],
+            'ul_corner': (actual_roi.left, actual_roi.top),
+            'shape': (256, 256),
+            'crs': WEB_MERCATOR_CRS,
+        }
+        return tl.georaster.merge_all(rasters, **merge_params)
+
+    @run_on_executor(executor='_thread_pool')
+    def _get_feature_png_tile(self, feature, x, y, z):
+        if 'raster' in feature.properties:
+            if isinstance(feature['raster'], str):
+                raster = tl.GeoRaster2.open(feature['raster'])
+            else:
+                raster = feature['raster']
+            with rasterio.Env():
+                return raster.get_tile(x, y, z, resampling=self.resampling)
 
 
 class OKHandler(tornado.web.RequestHandler):
@@ -44,17 +82,17 @@ class OKHandler(tornado.web.RequestHandler):
         self.write("i'm alive")
 
 
-def make_app(rasters, resampling):
+def make_app(objects, resampling):
     uri = r'/(\d+)/(\d+)/(\d+)/(\d+)\.png'
     return tornado.web.Application([
-        (uri, TileServerHandler, dict(rasters=rasters, resampling=resampling)),
+        (uri, TileServerHandler, dict(objects=objects, resampling=resampling)),
         (r'/ok', OKHandler),
     ])
 
 
-def _run_app(rasters, resampling, port=4000):
+def _run_app(objects, resampling, port=4000):
     asyncio.set_event_loop(asyncio.new_event_loop())
-    app = HTTPServer(make_app(rasters, resampling))
+    app = HTTPServer(make_app(objects, resampling))
     app.listen(port, '0.0.0.0')
     IOLoop.current().start()
 
@@ -63,17 +101,17 @@ rasters_lock = Lock()
 
 
 class TileServer:
-    rasters = {}  # type:dict
+    objects = {}  # type:dict
     running_app = None
 
     @classmethod
-    def folium_client(cls, raster, base_map="Stamen Terrain", port=4000):
-        shape = raster.footprint().get_shape(WGS84_CRS)
+    def folium_client(cls, obj, bounds, capture=None, base_map="Stamen Terrain", port=4000):
+        shape = bounds.get_shape(WGS84_CRS)
         mp = folium.Map(tiles=base_map)
 
         folium.raster_layers.TileLayer(
-            tiles=cls.server_url(raster, port),
-            attr="raster: %s" % raster._filename,
+            tiles=cls.server_url(obj, port),
+            attr="raster: %s" % capture,
             overlay=True
         ).add_to(mp)
 
@@ -82,15 +120,15 @@ class TileServer:
         return mp
 
     @classmethod
-    def server_url(cls, raster, port):
-        return "http://localhost:%s/%s/{x}/{y}/{z}.png" % (port, id(raster))
+    def server_url(cls, obj, port):
+        return "http://localhost:%s/%s/{x}/{y}/{z}.png" % (port, id(obj))
 
     @classmethod
-    def run_tileserver(cls, raster, resampling=Resampling.cubic, port=4000):
-        cls.add_raster(raster)
+    def run_tileserver(cls, obj, resampling=Resampling.cubic, port=4000):
+        cls.add_raster(obj)
         if cls.running_app is None:
             try:
-                cls.running_app = Thread(None, _run_app, args=(cls.rasters, resampling, port),
+                cls.running_app = Thread(None, _run_app, args=(cls.objects, resampling, port),
                                          name='TileServer', daemon=True)
                 cls.running_app.start()
                 return cls.running_app
@@ -100,6 +138,6 @@ class TileServer:
                 raise e
 
     @classmethod
-    def add_raster(cls, raster):
+    def add_raster(cls, obj):
         with rasters_lock:
-            cls.rasters[id(raster)] = raster
+            cls.objects[id(obj)] = obj

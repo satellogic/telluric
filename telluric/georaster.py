@@ -89,6 +89,14 @@ def join(rasters):
     return merge_all(rasters, roi=bounds)
 
 
+def _dest_resolution(first_raster, crs):
+    transform, _, _ = rasterio.warp.calculate_default_transform(
+        first_raster.crs, crs, first_raster.width, first_raster.height,
+        *first_raster.footprint().get_bounds(first_raster.crs))
+    dest_resolution = abs(transform.a), abs(transform.e)
+    return dest_resolution
+
+
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
               shape=None, ul_corner=None, crs=None, pixel_strategy=PixelStrategy.FIRST,
               resampling=Resampling.nearest):
@@ -103,11 +111,7 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
     if roi:
         crs = crs or roi.crs
 
-    if dest_resolution is None:
-        transform, _, _ = rasterio.warp.calculate_default_transform(
-            first_raster.crs, crs, first_raster.width, first_raster.height,
-            *first_raster.footprint().get_bounds(first_raster.crs))
-        dest_resolution = abs(transform.a), abs(transform.e)
+    dest_resolution = dest_resolution or _dest_resolution(first_raster, crs)
 
     # Create empty raster
     empty = GeoRaster2.empty_from_roi(
@@ -1396,7 +1400,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
     def _repr_html_(self):
         """Required for jupyter notebook to show raster as an interactive map."""
         TileServer.run_tileserver(self, resampling=Resampling.nearest)
-        mp = TileServer.folium_client(self)
+        mp = TileServer.folium_client(self, self.footprint(), capture=self._filename)
         return mp._repr_html_()
 
     def limit_to_bands(self, bands):
