@@ -1,19 +1,20 @@
+import json
 import os
 import io
-import json
-import uuid
-import math
-import tempfile
 import contextlib
-
-from functools import reduce
+from functools import reduce, partial
+from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 from types import SimpleNamespace
 from enum import Enum
 from collections import namedtuple
 
+import tempfile
 from copy import copy, deepcopy
 
+import math
 from itertools import groupby
+
+import mercantile
 
 import warnings
 
@@ -36,19 +37,17 @@ from shapely.geometry import Point, Polygon
 
 from PIL import Image
 
-from telluric.constants import WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
+from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
+import uuid
 from telluric.util.raster_utils import (
     convert_to_cog, _calc_overviews_factors,
     _mask_from_masked_array, _join_masks_from_masked_array,
     calc_transform, warp)
 
 from telluric.util.local_tile_server import TileServer
-
-# for mypy
-import matplotlib.cm
-from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
+import matplotlib  # for mypy
 
 dtype_map = {
     np.uint8: rasterio.uint8,
@@ -83,7 +82,7 @@ class PixelStrategy(Enum):
 
 def join(rasters):
     """
-    This method takes a list of rasters and returns a raster that is consturcted of all of them
+    This method takes a list of rasters and a raster that is consturcted of all of them
     """
     from telluric.collections import FeatureCollection
     bounds = FeatureCollection.from_geovectors([raster.footprint() for raster in rasters]).cascaded_union
@@ -1118,10 +1117,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             _cls = MutableGeoRaster
         return _cls(**init_args)
 
-    def not_loaded(self):
-        """Return True if image is not loaded."""
-        return self._image is None
-
     def as_mutable(self):
         return self.copy_with(mutable=True)
 
@@ -1404,9 +1399,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def _repr_html_(self):
         """Required for jupyter notebook to show raster as an interactive map."""
-        TileServer.run_tileserver(self, self.footprint())
-        capture = "raster: %s" % self._filename
-        mp = TileServer.folium_client(self, self.footprint(), capture=capture)
+        TileServer.run_tileserver(self, resampling=Resampling.nearest)
+        mp = TileServer.folium_client(self, self.footprint(), capture=self._filename)
         return mp._repr_html_()
 
     def limit_to_bands(self, bands):
@@ -1694,10 +1688,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 "boundless": True,
                 "out_shape": out_shape,
             }
-
-            # to handle get_window / get_tile of in memory rasters
-            filename = self._raster_backed_by_a_file()._filename
-            with self._raster_opener(filename) as raster:  # type: rasterio.io.DatasetReader
+            with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
                 read_params["masked"] = self._read_with_mask(raster, masked)
                 array = raster.read(bands, **read_params)
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
