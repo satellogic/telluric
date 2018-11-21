@@ -31,6 +31,8 @@ class TileServerHandler(tornado.web.RequestHandler):
 
     @gen.coroutine
     def get(self, object_id, x, y, z):
+        # the import is here to eliminate recursive import
+        from telluric.collections import BaseCollection
         object_id, x, y, z = int(object_id), int(x), int(y), int(z)
         obj = self.objects[object_id]
         tile_vector = tl.GeoVector.from_xyz(x, y, z)
@@ -38,7 +40,7 @@ class TileServerHandler(tornado.web.RequestHandler):
         if tile_vector.intersects(obj.footprint):
             if isinstance(obj.obj, tl.GeoRaster2):
                 tile = yield self._get_raster_png_tile(obj.obj, x, y, z)
-            elif isinstance(obj.obj, tl.collections.BaseCollection):
+            elif isinstance(obj.obj, BaseCollection):
                 tile = yield self._get_collection_png_tile(obj.obj, x, y, z)
 
             if tile:
@@ -64,6 +66,8 @@ class TileServerHandler(tornado.web.RequestHandler):
 
     @run_on_executor(executor='_thread_pool')
     def merge_rasters(self, rasters, z):
+        # the import is here to eliminate recursive import
+        from telluric.georaster import merge_all
         actual_roi = rasters[0].footprint()
         merge_params = {
             'dest_resolution': MERCATOR_RESOLUTION_MAPPING[z],
@@ -71,7 +75,7 @@ class TileServerHandler(tornado.web.RequestHandler):
             'shape': (256, 256),
             'crs': WEB_MERCATOR_CRS,
         }
-        return tl.georaster.merge_all(rasters, **merge_params)
+        return merge_all(rasters, **merge_params)
 
 
 class OKHandler(tornado.web.RequestHandler):
@@ -109,7 +113,7 @@ class TileServer:
 
         folium.raster_layers.TileLayer(
             tiles=cls.server_url(obj, port),
-            attr="raster: %s" % capture,
+            attr=capture,
             overlay=True
         ).add_to(mp)
 

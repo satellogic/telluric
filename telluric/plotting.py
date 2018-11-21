@@ -154,7 +154,7 @@ class NotebookPlottingMixin:
         if isinstance(self, BaseCollection):
             if isinstance(self[0], GeoFeatureWithRaster):
                 TileServer.run_tileserver(self, self.envelope)
-                mp = TileServer.folium_client(self, self.envelope)
+                mp = TileServer.folium_client(self, self.envelope, capture="Feature collection of rasters")
                 return mp._repr_html_()
         warnings.warn(
             "Plotting a limited representation of the data, use the .plot() method for further customization")
