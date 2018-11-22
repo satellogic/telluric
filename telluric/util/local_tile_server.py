@@ -79,11 +79,17 @@ class TileServerHandler(tornado.web.RequestHandler):
 
 
 class OKHandler(tornado.web.RequestHandler):
+    @gen.coroutine
     def get(self):
-        self.write("i'm alive")
+        answer = yield self.answer()
+        self.write(answer)
+
+    @gen.coroutine
+    def answer(self):
+        return "i'm alive"
 
 
-def make_app(objects, resampling):
+def make_app(objects, resampling=Resampling.nearest):
     uri = r'/(\d+)/(\d+)/(\d+)/(\d+)\.png'
     return tornado.web.Application([
         (uri, TileServerHandler, dict(objects=objects, resampling=resampling)),
@@ -127,7 +133,7 @@ class TileServer:
 
     @classmethod
     def run_tileserver(cls, obj, footprint, resampling=Resampling.nearest, port=4000):
-        cls.add_raster(obj, footprint)
+        cls.add_object(obj, footprint)
         if cls.running_app is None:
             try:
                 cls.running_app = Thread(None, _run_app, args=(cls.objects, resampling, port),
@@ -140,6 +146,6 @@ class TileServer:
                 raise e
 
     @classmethod
-    def add_raster(cls, obj, footprint):
+    def add_object(cls, obj, footprint):
         with rasters_lock:
             cls.objects[id(obj)] = ServedObj(obj, footprint)
