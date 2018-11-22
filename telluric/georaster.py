@@ -31,6 +31,8 @@ from rasterio.coords import BoundingBox
 from rasterio.enums import Resampling, Compression
 from rasterio.features import geometry_mask
 from rasterio.windows import Window, WindowMethodsMixin
+from rasterio.io import MemoryFile
+
 from affine import Affine
 
 from shapely.geometry import Point, Polygon
@@ -48,6 +50,7 @@ from telluric.util.raster_utils import (
 
 from telluric.util.local_tile_server import TileServer
 import matplotlib  # for mypy
+from telluric.vrt import wms_vrt
 
 dtype_map = {
     np.uint8: rasterio.uint8,
@@ -583,6 +586,16 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 return rasterio.open(filename, *args, **kwargs)
             except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_BaseError) as e:
                 raise GeoRaster2IOError(e)
+
+    @classmethod
+    def from_wms(cls, filename, vector, resolution):
+        doc = wms_vrt(filename,
+                      bounds=vector.get_bounds(WEB_MERCATOR_CRS),
+                      resolution=resolution)
+        mem_file = MemoryFile(ext=".vrt")
+        mem_file.write(doc)
+        return GeoRaster2.open(mem_file.name)
+
 
     @classmethod
     def open(cls, filename, band_names=None, lazy_load=True, mutable=False, **kwargs):
