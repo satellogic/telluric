@@ -15,6 +15,7 @@ from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.collections import FeatureCollection, FileCollection, FeatureCollectionIOError, dissolve
+from telluric.georaster import GeoRaster2
 
 
 def fc_generator(num_features):
@@ -481,3 +482,17 @@ def test_feature_collection_to_record_from_record():
     fc = FeatureCollection(gen_features)
 
     assert mapping(fc) == mapping(FeatureCollection.from_record(fc.to_record(WGS84_CRS), WGS84_CRS))
+
+
+def test_feature_collection_from_rasters():
+    rasters_list = [GeoRaster2.open("./tests/data/raster/overlap1.tif"),
+                    GeoRaster2.open("./tests/data/raster/overlap2.tif")]
+    fc = FeatureCollection.from_georasters(rasters_list)
+    assert fc.is_rasters_collection()
+
+
+def test_feature_collection_from_vectors_is_not_from_rasters():
+    gv1 = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1)
+    gv2 = GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=1)
+    fc = FeatureCollection.from_geovectors([gv1, gv2])
+    assert not fc.is_rasters_collection()
