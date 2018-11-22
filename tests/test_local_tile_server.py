@@ -38,7 +38,7 @@ class TestFCLocalTileServer(AsyncHTTPTestCase):
         future_2.set_result(rasters[2])
         mock_get_tile.return_value = future_2
         for tile in tiles:
-            uri = "/%i/%i/%i/%i.png" % (id(self.fc), *tile)
+            uri = "/%i/%i/%i/%i.png" % (id(self.fc), tile[0], tile[1], tile[2])
             response = self.fetch(uri)
             self.assertEqual(response.code, 200)
             self.assertNotEqual(response.body, b"")
