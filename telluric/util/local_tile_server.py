@@ -61,11 +61,13 @@ class TileServerHandler(tornado.web.RequestHandler):
         rasters = yield gen.multi([self._get_raster_png_tile(f.raster, x, y, z) for f in fc])
         if len(rasters) < 1:
             return None
-        tile = yield self.merge_rasters(rasters, z)
+        print(type(rasters))
+        print(rasters)
+        tile = yield self._merge_rasters(rasters, z)
         return tile
 
     @run_on_executor(executor='_thread_pool')
-    def merge_rasters(self, rasters, z):
+    def _merge_rasters(self, rasters, z):
         # the import is here to eliminate recursive import
         from telluric.georaster import merge_all
         actual_roi = rasters[0].footprint()
