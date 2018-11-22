@@ -1,20 +1,19 @@
-import json
 import os
 import io
+import json
+import uuid
+import math
+import tempfile
 import contextlib
-from functools import reduce, partial
-from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
+
+from functools import reduce
 from types import SimpleNamespace
 from enum import Enum
 from collections import namedtuple
 
-import tempfile
 from copy import copy, deepcopy
 
-import math
 from itertools import groupby
-
-import mercantile
 
 import warnings
 
@@ -37,17 +36,19 @@ from shapely.geometry import Point, Polygon
 
 from PIL import Image
 
-from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
+from telluric.constants import WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
-import uuid
 from telluric.util.raster_utils import (
     convert_to_cog, _calc_overviews_factors,
     _mask_from_masked_array, _join_masks_from_masked_array,
     calc_transform, warp)
 
 from telluric.util.local_tile_server import TileServer
-import matplotlib  # for mypy
+
+# for mypy
+import matplotlib
+from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 
 dtype_map = {
     np.uint8: rasterio.uint8,
@@ -89,6 +90,14 @@ def join(rasters):
     return merge_all(rasters, roi=bounds)
 
 
+def _dest_resolution(first_raster, crs):
+    transform, _, _ = rasterio.warp.calculate_default_transform(
+        first_raster.crs, crs, first_raster.width, first_raster.height,
+        *first_raster.footprint().get_bounds(first_raster.crs))
+    dest_resolution = abs(transform.a), abs(transform.e)
+    return dest_resolution
+
+
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
               shape=None, ul_corner=None, crs=None, pixel_strategy=PixelStrategy.FIRST,
               resampling=Resampling.nearest):
@@ -103,11 +112,7 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
     if roi:
         crs = crs or roi.crs
 
-    if dest_resolution is None:
-        transform, _, _ = rasterio.warp.calculate_default_transform(
-            first_raster.crs, crs, first_raster.width, first_raster.height,
-            *first_raster.footprint().get_bounds(first_raster.crs))
-        dest_resolution = abs(transform.a), abs(transform.e)
+    dest_resolution = dest_resolution or _dest_resolution(first_raster, crs)
 
     # Create empty raster
     empty = GeoRaster2.empty_from_roi(
@@ -1395,8 +1400,9 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def _repr_html_(self):
         """Required for jupyter notebook to show raster as an interactive map."""
-        TileServer.run_tileserver(self, resampling=Resampling.nearest)
-        mp = TileServer.folium_client(self)
+        TileServer.run_tileserver(self, self.footprint())
+        capture = "raster: %s" % self._filename
+        mp = TileServer.folium_client(self, self.footprint(), capture=capture)
         return mp._repr_html_()
 
     def limit_to_bands(self, bands):
@@ -1684,7 +1690,10 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 "boundless": True,
                 "out_shape": out_shape,
             }
-            with self._raster_opener(self._filename) as raster:  # type: rasterio.io.DatasetReader
+
+            # to handle get_window / get_tile of in memory rasters
+            filename = self._raster_backed_by_a_file()._filename
+            with self._raster_opener(filename) as raster:  # type: rasterio.io.DatasetReader
                 read_params["masked"] = self._read_with_mask(raster, masked)
                 array = raster.read(bands, **read_params)
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])

@@ -15,6 +15,8 @@ from ipyleaflet import (
 )
 
 from telluric.constants import WGS84_CRS
+from telluric.util.local_tile_server import TileServer
+
 
 SIMPLE_PLOT_MAX_ROWS = 200
 
@@ -146,6 +148,14 @@ def plot(feature, mp=None, style_function=None, **map_kwargs):
 
 class NotebookPlottingMixin:
     def _repr_html_(self):
+        # These imports are here to avoid cyclic references
+        from telluric.collections import BaseCollection
+        from telluric.features import GeoFeatureWithRaster
+        if isinstance(self, BaseCollection):
+            if isinstance(self[0], GeoFeatureWithRaster):
+                TileServer.run_tileserver(self, self.envelope)
+                mp = TileServer.folium_client(self, self.envelope, capture="Feature collection of rasters")
+                return mp._repr_html_()
         warnings.warn(
             "Plotting a limited representation of the data, use the .plot() method for further customization")
         return simple_plot(self)._repr_html_()
