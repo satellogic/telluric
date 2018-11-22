@@ -61,8 +61,6 @@ class TileServerHandler(tornado.web.RequestHandler):
         rasters = yield gen.multi([self._get_raster_png_tile(f.raster, x, y, z) for f in fc])
         if len(rasters) < 1:
             return None
-        print(type(rasters))
-        print(rasters)
         tile = yield self._merge_rasters(rasters, z)
         return tile
 

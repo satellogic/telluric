@@ -1691,6 +1691,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 "out_shape": out_shape,
             }
 
+            # to handle get_window / get_tile of in memory rasters
             filename = self._raster_backed_by_a_file()._filename
             with self._raster_opener(filename) as raster:  # type: rasterio.io.DatasetReader
                 read_params["masked"] = self._read_with_mask(raster, masked)
