@@ -17,7 +17,8 @@ from shapely.prepared import prep
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
 from telluric.vectors import GeoVector
-from telluric.features import GeoFeature
+from telluric.features import GeoFeature, GeoFeatureWithRaster
+from telluric.georaster import GeoRaster2
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -54,6 +55,7 @@ def dissolve(collection, aggfunc=None):
 
 
 class BaseCollection(Sequence, NotebookPlottingMixin):
+
     def __len__(self):
         raise NotImplementedError
 
@@ -350,12 +352,18 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
 
+    def is_rasters_collection(self):
+        if self.is_empty:
+            return False
+        return isinstance(self[0], GeoFeatureWithRaster)
+
 
 class FeatureCollectionIOError(BaseException):
     pass
 
 
 class FeatureCollection(BaseCollection):
+
     def __init__(self, results):
         """Initialize FeatureCollection object.
 
@@ -441,6 +449,11 @@ class FeatureCollection(BaseCollection):
         return cls([GeoFeature(vector, {}) for vector in geovectors])
 
     @classmethod
+    def from_georasters(cls, georasters):
+        """Builds new FeatureCollection from a sequence of :py:class:`~telluric.georaster.GeoRaster2` objects."""
+        return cls([GeoFeature.from_raster(raster, {}) for raster in georasters])
+
+    @classmethod
     def from_record(cls, record, crs):
         features = record.get("features", [])
         features = [GeoFeature.from_record(f, crs) for f in features]
@@ -460,6 +473,7 @@ class FileCollection(BaseCollection):
     """FileCollection object.
 
     """
+
     def __init__(self, filename, crs, schema, length):
         """Initialize a FileCollection object.
 
@@ -544,6 +558,7 @@ class FileCollection(BaseCollection):
 
 
 class _CollectionGroupBy:
+
     def __init__(self, groups):
         # type: (Dict) -> None
         self._groups = groups
