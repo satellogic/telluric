@@ -66,7 +66,7 @@ class TestRasterLocalTileServer(AsyncHTTPTestCase):
 
     def test_raster_collection_merges_data(self):
         for tile in tiles:
-            uri = "/%i/%i/%i/%i.png" % (id(self.raster), *tile)
+            uri = "/%i/%i/%i/%i.png" % (id(self.raster), tile[0], tile[1], tile[2])
             response = self.fetch(uri)
             self.assertEqual(response.code, 200)
             self.assertNotEqual(response.body, b"")
