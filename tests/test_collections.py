@@ -491,6 +491,12 @@ def test_feature_collection_from_rasters():
     assert fc.is_rasters_collection()
 
 
+def test_feature_collection_from_rasters_with_empty_list():
+    rasters_list = []
+    fc = FeatureCollection.from_georasters(rasters_list)
+    assert not fc.is_rasters_collection()
+
+
 def test_feature_collection_from_vectors_is_not_from_rasters():
     gv1 = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1)
     gv2 = GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=1)

@@ -353,6 +353,8 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                 sink.write(new_feature.to_record(crs))
 
     def is_rasters_collection(self):
+        if self.is_empty:
+            return False
         return isinstance(self[0], GeoFeatureWithRaster)
 
 
