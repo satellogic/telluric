@@ -47,7 +47,7 @@ from telluric.util.raster_utils import (
 from telluric.util.local_tile_server import TileServer
 
 # for mypy
-import matplotlib
+import matplotlib.cm
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
 
 dtype_map = {
