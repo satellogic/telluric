@@ -20,6 +20,7 @@ NODATA_DEPRECATION_WARNING = ("Passing nodata_value to rasterize is not supporte
 class ScaleError(ValueError):
     pass
 
+
 def raster_data(bounds=None, dest_resolution=None, shape=None, ul_corner=None):
     if isinstance(dest_resolution, (int, float)):
         rx = ry = dest_resolution
@@ -41,7 +42,6 @@ def raster_data(bounds=None, dest_resolution=None, shape=None, ul_corner=None):
         raise ValueError("Either bounds or shape + ul_corner must be specified")
     affine = Affine.translation(minx, maxy) * Affine.scale(rx, -ry)
     return sx, sy, affine
-
 
 
 def rasterize(shapes, crs, bounds=None, dest_resolution=None, *, fill_value=None,
@@ -75,7 +75,6 @@ def rasterize(shapes, crs, bounds=None, dest_resolution=None, *, fill_value=None
 
     if band_names is None:
         band_names = [1]
-
 
     sz = len(band_names)
 

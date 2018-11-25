@@ -11,6 +11,7 @@ from rasterio.windows import from_bounds
 import os
 from xml.dom import minidom
 
+
 def prettify(elem):
     """Return a pretty-printed XML string for the Element.
     """
@@ -19,27 +20,35 @@ def prettify(elem):
     return reparsed.toprettyxml(indent="\t")
 
 
+def find_and_convert_to_type(_type, node, path):
+    value = node.find(path)
+    if value:
+        value = _type(value)
+    return value
+
+
 def wms_vrt(wms_file, bounds=None, resolution=None):
     from telluric import rasterization, constants
     wms_tree = ET.parse(wms_file)
-    left = float(wms_tree.find(".//DataWindow/UpperLeftX").text)
-    up = float(wms_tree.find(".//DataWindow/UpperLeftY").text)
-    right = float(wms_tree.find(".//DataWindow/LowerRightX").text)
-    bottom = float(wms_tree.find(".//DataWindow/LowerRightY").text)
+    left = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftX")
+    up = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftY")
+    right = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightX")
+    bottom = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightY")
     src_bounds = (left, bottom, right, up)
     bounds = bounds or src_bounds
     src_resolution = constants.MERCATOR_RESOLUTION_MAPPING[20]
     resolution = resolution or constants.MERCATOR_RESOLUTION_MAPPING[20]
     dst_height, dst_width, transform = rasterization.raster_data(bounds=bounds, dest_resolution=resolution)
-    orig_height, orig_width, orig_transform = rasterization.raster_data(bounds=src_bounds, dest_resolution=src_resolution)
+    orig_height, orig_width, orig_transform = rasterization.raster_data(
+        bounds=src_bounds, dest_resolution=src_resolution)
     src_window = from_bounds(*bounds, orig_transform)
     vrtdataset = ET.Element('VRTDataset')
     vrtdataset.attrib['rasterXSize'] = str(dst_height)
     vrtdataset.attrib['rasterYSize'] = str(dst_width)
     srs = ET.SubElement(vrtdataset, 'SRS')
-    projection = wms_tree.find(".//Projection").text
-    blockx = wms_tree.find(".//BlockSizeX").text
-    blocky = wms_tree.find(".//BlockSizeY").text
+    projection = find_and_convert_to_type(str, wms_tree, ".//projection")
+    blockx = find_and_convert_to_type(str, wms_tree, "//BlockSizeX")
+    blocky = find_and_convert_to_type(str, wms_tree, "//BlockSizeY")
     projection = CRS(init=projection)
     srs.text = projection.wkt
     geotransform = ET.SubElement(vrtdataset, 'GeoTransform')
@@ -79,12 +88,6 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
         dstrect.attrib["xSize"] = str(dst_height)
         dstrect.attrib["ySize"] = str(dst_width)
     return ET.tostring(vrtdataset)
-
-
-
-
-
-
 
 
 def boundless_vrt_doc(
