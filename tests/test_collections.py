@@ -502,3 +502,25 @@ def test_feature_collection_from_vectors_is_not_from_rasters():
     gv2 = GeoVector.from_bounds(xmin=1, ymin=0, xmax=3, ymax=1)
     fc = FeatureCollection.from_geovectors([gv1, gv2])
     assert not fc.is_rasters_collection()
+
+
+def test_featurecollection_apply_simple_add_property():
+    fc = fc_generator(5)
+    new_fc = fc.apply(prop1=3)
+    assert new_fc == FeatureCollection([GeoFeature(feat.geometry, {'prop1': 3}) for feat in fc])
+
+
+def test_featurecollection_apply_multiple_statements():
+    fc = fc_generator(5)
+    new_fc = fc.apply(prop1=3)
+    new_fc_2 = new_fc.apply(prop2=lambda f: f['prop1'] + 2, prop3='aaa')
+
+    assert new_fc_2 == FeatureCollection([GeoFeature(feat.geometry, {'prop1': 3, 'prop2': 5, 'prop3': 'aaa'}) for feat in fc])
+
+
+def test_featurecollection_apply_on_rasters_collection():
+    rasters_list = [GeoRaster2.open("./tests/data/raster/overlap1.tif"),
+                    GeoRaster2.open("./tests/data/raster/overlap2.tif")]
+    fc = FeatureCollection.from_georasters(rasters_list)
+    new_fc = fc.apply(prop1=3)
+    assert new_fc.is_rasters_collection()
