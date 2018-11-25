@@ -596,7 +596,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         mem_file.write(doc)
         return GeoRaster2.open(mem_file.name)
 
-
     @classmethod
     def open(cls, filename, band_names=None, lazy_load=True, mutable=False, **kwargs):
         """
