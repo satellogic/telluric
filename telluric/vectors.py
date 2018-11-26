@@ -481,7 +481,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
 
     def __repr__(self):
         return str(self)
-    
+
     def copy(self):
         """make a copy of the GeoVector."""
         return self.__class__(self._shape, self.crs)

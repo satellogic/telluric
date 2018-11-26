@@ -269,7 +269,7 @@ def test_geofeature_with_raster_copy_with_updates_properties(request):
     assert feature != feature_copy
     assert feature.raster == feature_copy.raster
     assert id(feature.raster) != id(feature_copy.raster)
-    
+
     assert feature_copy.properties == {'prop1': 1, 'prop2': 1, 'prop3': '2'}
 
 
@@ -295,5 +295,5 @@ def test_geofeature_copy_with_updates_properties(request):
     assert feature != feature_copy
     assert feature.geometry == feature_copy.geometry
     assert id(feature.geometry) != id(feature_copy.geometry)
-   
+
     assert feature_copy.properties == {'prop1': 1, 'prop2': 1, 'prop3': '2'}
