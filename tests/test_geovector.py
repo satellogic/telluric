@@ -597,3 +597,10 @@ def test_geovector_quick_operations():
 
     assert (gv1 | gv2) == GeoVector.from_bounds(xmin=0, ymin=0, xmax=3, ymax=1)
     assert (gv1 & gv2) == GeoVector.from_bounds(xmin=1, ymin=0, xmax=2, ymax=1)
+
+
+def test_geovector_copy():
+    gv1 = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=1)
+    gv1_copy = gv1.copy()
+    assert gv1 == gv1_copy
+    assert id(gv1) != id(gv1_copy)

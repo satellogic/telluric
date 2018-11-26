@@ -1,4 +1,5 @@
 import os
+import copy
 import os.path
 import warnings
 import contextlib
@@ -356,6 +357,21 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         if self.is_empty:
             return False
         return isinstance(self[0], GeoFeatureWithRaster)
+
+    def apply(self, **kwargs):
+        """Return a new FeatureCollection with the results of applying the statements in the arguments to each element.
+
+        """
+        def _apply(f):
+            properties = copy.deepcopy(f.properties)
+            for prop, value in kwargs.items():
+                if callable(value):
+                    properties[prop] = value(f)
+                else:
+                    properties[prop] = value
+            return f.copy_with(properties=properties)
+
+        return self.map(_apply)
 
 
 class FeatureCollectionIOError(BaseException):

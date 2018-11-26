@@ -248,3 +248,52 @@ def test_transform_properties():
         ('prop3', '2018-05-19T15:00:00'),
         ('prop4', None)
     ]), schema) == expected_properties
+
+
+def test_geofeature_with_raster_copy_with(request):
+    raster = request.getfuncargvalue("test_raster_with_url")
+    properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
+    feature = GeoFeature.from_raster(raster, properties=properties)
+    feature_copy = feature.copy_with()
+    assert feature == feature_copy
+    assert id(feature.raster) != id(feature_copy.raster)
+    assert id(feature.properties) != id(feature_copy.properties)
+
+
+def test_geofeature_with_raster_copy_with_updates_properties(request):
+    raster = request.getfuncargvalue("test_raster_with_url")
+    properties = OrderedDict([('prop1', 1), ('prop2', '2')])
+    feature = GeoFeature.from_raster(raster, properties=properties)
+    new_properties = OrderedDict([('prop2', 1), ('prop3', '2')])
+    feature_copy = feature.copy_with(properties=new_properties)
+    assert feature != feature_copy
+    assert feature.raster == feature_copy.raster
+    assert id(feature.raster) != id(feature_copy.raster)
+
+    assert feature_copy.properties == {'prop1': 1, 'prop2': 1, 'prop3': '2'}
+
+
+def test_geofeature_copy_with(request):
+    feature = GeoFeature(
+        GeoVector(Point(0, 0)),
+        OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
+    )
+
+    feature_copy = feature.copy_with()
+    assert feature == feature_copy
+    assert id(feature.geometry) != id(feature_copy.geometry)
+    assert id(feature.properties) != id(feature_copy.properties)
+
+
+def test_geofeature_copy_with_updates_properties(request):
+    feature = GeoFeature(
+        GeoVector(Point(0, 0)),
+        OrderedDict([('prop1', 1), ('prop2', '2')])
+    )
+    new_properties = OrderedDict([('prop2', 1), ('prop3', '2')])
+    feature_copy = feature.copy_with(properties=new_properties)
+    assert feature != feature_copy
+    assert feature.geometry == feature_copy.geometry
+    assert id(feature.geometry) != id(feature_copy.geometry)
+
+    assert feature_copy.properties == {'prop1': 1, 'prop2': 1, 'prop3': '2'}

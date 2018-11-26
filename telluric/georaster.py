@@ -1118,6 +1118,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             _cls = MutableGeoRaster
         return _cls(**init_args)
 
+    def not_loaded(self):
+        """Return True if image is not loaded."""
+        return self._image is None
+
     def as_mutable(self):
         return self.copy_with(mutable=True)
 
