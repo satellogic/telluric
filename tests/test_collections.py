@@ -515,7 +515,8 @@ def test_featurecollection_apply_multiple_statements():
     new_fc = fc.apply(prop1=3)
     new_fc_2 = new_fc.apply(prop2=lambda f: f['prop1'] + 2, prop3='aaa')
 
-    assert new_fc_2 == FeatureCollection([GeoFeature(feat.geometry, {'prop1': 3, 'prop2': 5, 'prop3': 'aaa'}) for feat in fc])
+    assert new_fc_2 == FeatureCollection([GeoFeature(feat.geometry, {'prop1': 3, 'prop2': 5, 'prop3': 'aaa'})
+                                          for feat in fc])
 
 
 def test_featurecollection_apply_on_rasters_collection():
