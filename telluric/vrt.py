@@ -42,7 +42,7 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
     dst_height, dst_width, transform = rasterization.raster_data(bounds=bounds, dest_resolution=resolution)
     orig_height, orig_width, orig_transform = rasterization.raster_data(
         bounds=src_bounds, dest_resolution=src_resolution)
-    src_window = from_bounds(*bounds, orig_transform)
+    src_window = from_bounds(*bounds, transform=orig_transform)
     vrtdataset = ET.Element('VRTDataset')
     vrtdataset.attrib['rasterXSize'] = str(dst_height)
     vrtdataset.attrib['rasterYSize'] = str(dst_width)
