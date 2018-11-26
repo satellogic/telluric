@@ -377,6 +377,9 @@ class FeatureCollection(BaseCollection):
         self._results = list(results)
         self._schema = None
 
+        if not all(f.__class__ == results[0].__class__ for f in results):
+            raise ValueError("Creating of heterogeneous collections is not supported at this time")
+
     def __len__(self):
         return len(self._results)
 

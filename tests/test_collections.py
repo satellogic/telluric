@@ -13,7 +13,7 @@ from shapely.geometry import Polygon, Point, mapping
 
 from telluric.constants import DEFAULT_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.vectors import GeoVector
-from telluric.features import GeoFeature
+from telluric.features import GeoFeature, GeoFeatureWithRaster
 from telluric.collections import FeatureCollection, FileCollection, FeatureCollectionIOError, dissolve
 from telluric.georaster import GeoRaster2
 
@@ -26,6 +26,16 @@ def fc_generator(num_features):
         for d_x in range(num_features)
     )
     return FeatureCollection(gen_features)
+
+
+def test_feature_collection_raises_error_for_heterogeneous_features():
+    with pytest.raises(ValueError) as excinfo:
+        fc = FeatureCollection([
+            GeoFeature(GeoVector(Point(0, 0)), {'prop1': 1}),
+            GeoFeatureWithRaster(GeoRaster2.open('tests/data/raster/rgb.tif'), {'prop1': 2})
+        ])
+
+    assert "Creating of heterogeneous collections is not supported at this time" in excinfo.exconly()
 
 
 def test_feature_collection_geo_interface():
