@@ -1,6 +1,7 @@
 from telluric import GeoFeature, GeoRaster2, constants
 from rasterio.io import MemoryFile
 from telluric.vrt import wms_vrt
+import os
 
 record = {
     "type": "Feature",
@@ -42,6 +43,7 @@ def test_wms_vrt():
                   resolution=1)
     with open("tests/data/raster/google_israel.vrt", 'rb') as expected_src:
         expected = expected_src.read()
+        expected.replace(bytes("home/guyd/projects/telluric_githhub/", "utf-8"), bytes(os.getcwd(), 'utf-8'))
         assert expected == doc
 
 
