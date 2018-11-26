@@ -22,8 +22,8 @@ def prettify(elem):
 
 def find_and_convert_to_type(_type, node, path):
     value = node.find(path)
-    if value:
-        value = _type(value)
+    if value is not None:
+        value = _type(value.text)
     return value
 
 
@@ -46,9 +46,9 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
     vrtdataset.attrib['rasterXSize'] = str(dst_height)
     vrtdataset.attrib['rasterYSize'] = str(dst_width)
     srs = ET.SubElement(vrtdataset, 'SRS')
-    projection = find_and_convert_to_type(str, wms_tree, ".//projection")
-    blockx = find_and_convert_to_type(str, wms_tree, "//BlockSizeX")
-    blocky = find_and_convert_to_type(str, wms_tree, "//BlockSizeY")
+    projection = find_and_convert_to_type(str, wms_tree, ".//Projection")
+    blockx = find_and_convert_to_type(str, wms_tree, ".//BlockSizeX")
+    blocky = find_and_convert_to_type(str, wms_tree, ".//BlockSizeY")
     projection = CRS(init=projection)
     srs.text = projection.wkt
     geotransform = ET.SubElement(vrtdataset, 'GeoTransform')
