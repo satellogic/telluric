@@ -369,12 +369,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                     properties[prop] = value(f)
                 else:
                     properties[prop] = value
-            # we should check if self is a raster_collection because GeoFeatureWithRaster expects a
-            # GeoRaster in th constructor
-            if self.is_rasters_collection():
-                return f.__class__(f.raster, properties)
-            else:
-                return f.__class__(f.geometry, properties)
+            return f.copy_with(properties=properties)
 
         return self.map(_apply)
 

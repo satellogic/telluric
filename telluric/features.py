@@ -1,3 +1,4 @@
+import copy
 import warnings
 from collections import Mapping
 
@@ -289,6 +290,15 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def __repr__(self):
         return str(self)
 
+    def copy_with(self, geometry=None, properties=None):
+        """Generate a new GeoFeature with different geometry or preperties."""
+        geometry = geometry or self.geometry.copy()
+        properties = properties or {}
+        new_properties = copy.deepcopy(self.properties)
+        new_properties.update(properties)
+
+        return self.__class__(geometry, new_properties)
+
 
 class GeoFeatureWithRaster(GeoFeature):
 
@@ -332,3 +342,17 @@ class GeoFeatureWithRaster(GeoFeature):
         properties = cls._to_properties(record, schema)
         raster = raster_from_assets(record.get("raster", {}))
         return GeoFeatureWithRaster(raster, properties)
+
+    def copy_with(self, raster=None, properties=None):
+        """Generate a new GeoFeatureWithRaster with different raster or preperties."""
+        if raster is None:
+            if self.raster.not_loaded():
+                raster = GeoRaster2.open(self.raster._filename)
+            else:
+                raster = self.raster.copy_with()
+
+        properties = properties or {}
+        new_properties = copy.deepcopy(self.properties)
+        new_properties.update(properties)
+
+        return self.__class__(raster, new_properties)

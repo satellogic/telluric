@@ -860,3 +860,10 @@ def test_chunks_without_pad(raster):
     assert merged_raster.crs == raster.crs
     assert merged_raster.affine.almost_equals(raster.affine, precision=1e-3)
     assert np.array_equal(merged_raster.image, raster.image)
+
+
+def test_not_loades():
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif")
+    assert raster.not_loaded()
+    raster.image
+    assert not raster.not_loaded()
