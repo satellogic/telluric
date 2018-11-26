@@ -36,8 +36,9 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
     bottom = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightY")
     src_bounds = (left, bottom, right, up)
     bounds = bounds or src_bounds
-    src_resolution = constants.MERCATOR_RESOLUTION_MAPPING[20]
-    resolution = resolution or constants.MERCATOR_RESOLUTION_MAPPING[20]
+    upper_bound_zoom = find_and_convert_to_type(int, wms_tree, ".//DataWindow/TileLevel")
+    src_resolution = constants.MERCATOR_RESOLUTION_MAPPING[upper_bound_zoom]
+    resolution = resolution or constants.MERCATOR_RESOLUTION_MAPPING[upper_bound_zoom]
     dst_height, dst_width, transform = rasterization.raster_data(bounds=bounds, dest_resolution=resolution)
     orig_height, orig_width, orig_transform = rasterization.raster_data(
         bounds=src_bounds, dest_resolution=src_resolution)
@@ -58,6 +59,9 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
     image_mdi = ET.SubElement(image_metadata, "MDI")
     image_mdi.attrib["key"] = "INTERLEAVE"
     image_mdi.text = "PIXEL"
+    bands_count = find_and_convert_to_type(int, wms_tree, ".//BandsCount")
+    if bands_count != 3:
+        raise ValueError("We support corrently on 3 bands WMS")
     for idx, band in enumerate(["RED", "GREEN", "BLUE"]):
         bidx = idx + 1
         vrtrasterband = ET.SubElement(vrtdataset, 'VRTRasterBand')
