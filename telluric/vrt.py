@@ -91,7 +91,7 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
         dstrect.attrib["yOff"] = "0"
         dstrect.attrib["xSize"] = str(dst_height)
         dstrect.attrib["ySize"] = str(dst_width)
-    return prettify(vrtdataset)
+    return ET.tostring(vrtdataset)
 
 
 def boundless_vrt_doc(

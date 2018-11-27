@@ -52,3 +52,4 @@ def test_georaster_wms_vrt():
     raster = GeoRaster2.from_wms("tests/data/google.xml", vector, resolution=1)
     assert raster._filename.startswith("/vsimem")
     assert raster._filename.endswith(".vrt")
+    assert raster.resolution() == 1
