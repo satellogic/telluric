@@ -5,6 +5,93 @@ import xml.etree.ElementTree as ET
 from rasterio.dtypes import _gdal_typename
 from rasterio.enums import MaskFlags
 from rasterio.path import parse_path, vsi_path
+from rasterio.crs import CRS
+from rasterio.io import MemoryFile
+from rasterio.windows import from_bounds
+import os
+from xml.dom import minidom
+
+
+def prettify(elem):
+    """Return a pretty-printed XML string for the Element.
+    """
+    rough_string = ET.tostring(elem, 'utf-8')
+    reparsed = minidom.parseString(rough_string)
+    return reparsed.toprettyxml(indent="\t")
+
+
+def find_and_convert_to_type(_type, node, path):
+    value = node.find(path)
+    if value is not None:
+        value = _type(value.text)
+    return value
+
+
+def wms_vrt(wms_file, bounds=None, resolution=None):
+    from telluric import rasterization, constants
+    wms_tree = ET.parse(wms_file)
+    left = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftX")
+    up = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftY")
+    right = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightX")
+    bottom = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightY")
+    src_bounds = (left, bottom, right, up)
+    bounds = bounds or src_bounds
+    upper_bound_zoom = find_and_convert_to_type(int, wms_tree, ".//DataWindow/TileLevel")
+    src_resolution = constants.MERCATOR_RESOLUTION_MAPPING[upper_bound_zoom]
+    resolution = resolution or constants.MERCATOR_RESOLUTION_MAPPING[upper_bound_zoom]
+    dst_height, dst_width, transform = rasterization.raster_data(bounds=bounds, dest_resolution=resolution)
+    orig_height, orig_width, orig_transform = rasterization.raster_data(
+        bounds=src_bounds, dest_resolution=src_resolution)
+    src_window = from_bounds(*bounds, transform=orig_transform)
+    vrtdataset = ET.Element('VRTDataset')
+    vrtdataset.attrib['rasterXSize'] = str(dst_height)
+    vrtdataset.attrib['rasterYSize'] = str(dst_width)
+    srs = ET.SubElement(vrtdataset, 'SRS')
+    projection = find_and_convert_to_type(str, wms_tree, ".//Projection")
+    blockx = find_and_convert_to_type(str, wms_tree, ".//BlockSizeX")
+    blocky = find_and_convert_to_type(str, wms_tree, ".//BlockSizeY")
+    projection = CRS(init=projection)
+    srs.text = projection.wkt
+    geotransform = ET.SubElement(vrtdataset, 'GeoTransform')
+    geotransform.text = ','.join([str(v) for v in transform.to_gdal()])
+    image_metadata = ET.SubElement(vrtdataset, 'Metadata')
+    image_metadata.attrib["domain"] = "IMAGE_STRUCTURE"
+    image_mdi = ET.SubElement(image_metadata, "MDI")
+    image_mdi.attrib["key"] = "INTERLEAVE"
+    image_mdi.text = "PIXEL"
+    bands_count = find_and_convert_to_type(int, wms_tree, ".//BandsCount")
+    if bands_count != 3:
+        raise ValueError("We support corrently on 3 bands WMS")
+    for idx, band in enumerate(["RED", "GREEN", "BLUE"]):
+        bidx = idx + 1
+        vrtrasterband = ET.SubElement(vrtdataset, 'VRTRasterBand')
+        vrtrasterband.attrib['dataType'] = "Byte"
+        vrtrasterband.attrib['band'] = str(bidx)
+        colorinterp = ET.SubElement(vrtrasterband, 'ColorInterp')
+        colorinterp.text = band
+        simplesource = ET.SubElement(vrtrasterband, 'SimpleSource')
+        sourcefilename = ET.SubElement(simplesource, "SourceFilename")
+        sourcefilename.attrib["relativeToVRT"] = "0"
+        sourcefilename.text = os.path.abspath(wms_file)
+        sourceband = ET.SubElement(simplesource, "sourceband")
+        sourceband.text = str(bidx)
+        sourceproperties = ET.SubElement(simplesource, 'SourceProperties')
+        sourceproperties.attrib['RasterYSize'] = str(orig_width)
+        sourceproperties.attrib['RasterXSize'] = str(orig_height)
+        sourceproperties.attrib['DataType'] = "Byte"
+        sourceproperties.attrib['BlockXSize'] = blockx
+        sourceproperties.attrib['BlockYSize'] = blocky
+        srcrect = ET.SubElement(simplesource, 'SrcRect')
+        srcrect.attrib["yOff"] = str(src_window.row_off)
+        srcrect.attrib["xOff"] = str(src_window.col_off)
+        srcrect.attrib["ySize"] = str(src_window.height)
+        srcrect.attrib["xSize"] = str(src_window.width)
+        dstrect = ET.SubElement(simplesource, 'DstRect')
+        dstrect.attrib["xOff"] = "0"
+        dstrect.attrib["yOff"] = "0"
+        dstrect.attrib["xSize"] = str(dst_height)
+        dstrect.attrib["ySize"] = str(dst_width)
+    return ET.tostring(vrtdataset)
 
 
 def boundless_vrt_doc(
@@ -133,5 +220,4 @@ def boundless_vrt_doc(
         dstrect.attrib['yOff'] = str((src_dataset.transform.yoff - transform.yoff) / transform.e)
         dstrect.attrib['xSize'] = str(src_dataset.width)
         dstrect.attrib['ySize'] = str(src_dataset.height)
-
     return ET.tostring(vrtdataset)

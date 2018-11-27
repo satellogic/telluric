@@ -196,7 +196,7 @@ def test_geofeature_correctly_serializes_non_simple_types():
     "test_raster_with_url", "test_raster_with_no_url"
 ])
 def test_geofeature_from_raster_returns_a_valid_feature(raster, request):
-    raster = request.getfuncargvalue(raster)
+    raster = request.getfixturevalue(raster)
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     assert feature.properties == properties
@@ -208,7 +208,7 @@ def test_geofeature_from_raster_returns_a_valid_feature(raster, request):
     "test_raster_with_url"
 ])
 def test_geofeature_from_raster_serializes_with_assets(raster, request):
-    raster = request.getfuncargvalue(raster)
+    raster = request.getfixturevalue(raster)
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     assert mapping(feature)["raster"] == {'0': {'href': raster._filename, 'bands': raster.band_names}}
@@ -218,7 +218,7 @@ def test_geofeature_from_raster_serializes_with_assets(raster, request):
     "test_raster_with_url"
 ])
 def test_geofeature_from_record_for_a_record_with_raster(raster, request):
-    raster = request.getfuncargvalue(raster)
+    raster = request.getfixturevalue(raster)
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     feature2 = GeoFeature.from_record(feature.to_record(feature.crs), feature.crs)
