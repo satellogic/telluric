@@ -1,6 +1,6 @@
 from telluric import GeoFeature, GeoRaster2, constants
 from rasterio.io import MemoryFile
-from telluric.vrt import wms_vrt
+from telluric.vrt import wms_vrt, prettify
 import os
 
 record = {
@@ -38,12 +38,12 @@ record = {
 
 def test_wms_vrt():
     vector = GeoFeature.from_record(record, crs=constants.WGS84_CRS).geometry
-    doc = wms_vrt("tests/data/google.xml",
-                  bounds=vector.get_bounds(constants.WEB_MERCATOR_CRS),
-                  resolution=1)
-    with open("tests/data/raster/google_israel.vrt", 'rb') as expected_src:
+    doc = str(wms_vrt("tests/data/google.xml",
+                      bounds=vector.get_bounds(constants.WEB_MERCATOR_CRS),
+                      resolution=1))
+    with open("tests/data/raster/google_israel.vrt", 'r') as expected_src:
         expected = expected_src.read()
-        expected.replace(bytes("home/guyd/projects/telluric_githhub/", "utf-8"), bytes(os.getcwd(), 'utf-8'))
+        expected = expected.replace("--root-folder--", os.getcwd())
         assert expected == doc
 
 
