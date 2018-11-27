@@ -50,6 +50,6 @@ def test_wms_vrt():
 def test_georaster_wms_vrt():
     vector = GeoFeature.from_record(record, crs=constants.WGS84_CRS).geometry
     raster = GeoRaster2.from_wms("tests/data/google.xml", vector, resolution=1)
-    assert raster._filename.startswith("/vsimem")
-    assert raster._filename.endswith(".vrt")
     assert raster.resolution() == 1
+    assert raster.crs == constants.WEB_MERCATOR_CRS
+    assert raster.footprint().difference(vector).area < 0.9
