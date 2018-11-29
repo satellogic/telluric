@@ -28,12 +28,13 @@ def load_scheme():
 class BaseVRT:
     schema = load_scheme()
 
-    def __init__(self, width, height, srs, affine):
+    def __init__(self, width, height, crs, affine):
         self.vrtdataset = ET.Element('VRTDataset')
         self.vrtdataset.attrib['rasterXSize'] = str(width)
         self.vrtdataset.attrib['rasterYSize'] = str(height)
         srs_element = ET.SubElement(self.vrtdataset, 'SRS')
-        srs_element.text = srs
+        srs_element.text = crs.wkt if crs else ""
+
         geotransform = ET.SubElement(self.vrtdataset, 'GeoTransform')
         geotransform.text = ','.join([str(v) for v in affine.to_gdal()])
         self._metadata = None

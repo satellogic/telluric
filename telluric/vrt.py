@@ -37,7 +37,7 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
     blocky = find_and_convert_to_type(str, wms_tree, ".//BlockSizeY")
     projection = CRS(init=projection)
 
-    vrt = BaseVRT(dst_width, dst_height, projection.wkt, transform)
+    vrt = BaseVRT(dst_width, dst_height, projection, transform)
 
     vrt.add_metadata_attributes(domain="IMAGE_STRUCTURE")
     vrt.add_entity_to_metadata("MDI", text="PIXEL", key="INTERLEAVE")
@@ -83,8 +83,7 @@ def boundless_vrt_doc(
     height = height or src_dataset.height
     transform = transform or src_dataset.transform
 
-    srs = src_dataset.crs.wkt if src_dataset.crs else ""
-    vrt = BaseVRT(width, height, srs, transform)
+    vrt = BaseVRT(width, height, src_dataset.crs, transform)
 
     for bidx, ci, block_shape, dtype in zip(src_dataset.indexes, src_dataset.colorinterp,
                                             src_dataset.block_shapes, src_dataset.dtypes):
