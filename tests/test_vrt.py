@@ -61,8 +61,6 @@ def test_georaster_wms_vrt():
 def test_boundless_vrt():
     with rasterio.open("tests/data/raster/overlap2.tif") as raster:
         doc = boundless_vrt_doc(raster)
-        # with open("tests/data/raster/overlap2.vrt", 'wb') as dst:
-        #     dst.write(doc)
     with open("tests/data/raster/overlap2.vrt", 'rb') as expected_src:
         expected = expected_src.read()
         assert expected == doc
