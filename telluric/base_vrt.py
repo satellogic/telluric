@@ -2,13 +2,9 @@
 
 import lxml.etree as ET
 
-from collections import namedtuple
 from xml.dom import minidom
 from rasterio.dtypes import _gdal_typename, check_dtype
 from rasterio.path import parse_path, vsi_path
-
-
-RectElement = namedtuple('RectElement', 'xoff yoff xsize ysize')
 
 
 def prettify(elem):
@@ -49,7 +45,7 @@ class BaseVRT:
         for attr, val in attributes.items():
             self.metadata.attrib[attr] = val
 
-    def add_entity_to_metadata(self, name, text=None, **attributes):
+    def add_element_to_metadata(self, name, text=None, **attributes):
         sub_element = ET.SubElement(self.metadata, name)
         for attr, val in attributes.items():
             sub_element.attrib[attr] = val
@@ -63,11 +59,11 @@ class BaseVRT:
         vrtrasterband.attrib['dataType'] = _gdal_typename(dtype) if check_dtype(dtype) else dtype
         return vrtrasterband
 
-    def add_band(self, dtype, band_name, color_interp,
+    def add_band(self, dtype, band_idx, color_interp,
                  nodata=None, hidenodata=False):
         vrtrasterband = ET.SubElement(self.vrtdataset, 'VRTRasterBand')
         vrtrasterband.attrib['dataType'] = _gdal_typename(dtype) if check_dtype(dtype) else dtype
-        vrtrasterband.attrib['band'] = str(band_name)
+        vrtrasterband.attrib['band'] = str(band_idx)
 
         if nodata is not None:
             nodatavalue = ET.SubElement(vrtrasterband, 'NoDataValue')
@@ -82,28 +78,28 @@ class BaseVRT:
 
         return vrtrasterband
 
-    def add_band_simplesource(self, vrtrasterband, band_name, dtype, relative_to_vrt,
+    def add_band_simplesource(self, vrtrasterband, band_idx, dtype, relative_to_vrt,
                               file_name, rasterxsize, rasterysize, blockxsize, blockysize,
                               src_rect, dst_rect, nodata=None
                               ):
         simplesource = ET.SubElement(vrtrasterband, 'SimpleSource')
-        self._setup_band_simplesource(simplesource, band_name, dtype, relative_to_vrt, file_name,
+        self._setup_band_simplesource(simplesource, band_idx, dtype, relative_to_vrt, file_name,
                                       rasterxsize, rasterysize, blockxsize, blockysize, nodata)
         srcrect_element = ET.SubElement(simplesource, 'SrcRect')
-        self._setup_rect(srcrect_element, src_rect.xoff, src_rect.yoff,
-                         src_rect.xsize, src_rect.ysize)
+        self._setup_rect(srcrect_element, src_rect.col_off, src_rect.row_off,
+                         src_rect.width, src_rect.height)
         dstrect_element = ET.SubElement(simplesource, 'DstRect')
-        self._setup_rect(dstrect_element, dst_rect.xoff, dst_rect.yoff,
-                         dst_rect.xsize, dst_rect.ysize)
+        self._setup_rect(dstrect_element, dst_rect.col_off, dst_rect.col_off,
+                         dst_rect.width, dst_rect.height)
         return simplesource, srcrect_element, dstrect_element
 
-    def _setup_band_simplesource(self, simplesource, band_name, dtype, relative_to_vrt, file_name,
+    def _setup_band_simplesource(self, simplesource, band_idx, dtype, relative_to_vrt, file_name,
                                  rasterxsize, rasterysize, blockxsize, blockysize, nodata):
         sourcefilename = ET.SubElement(simplesource, 'SourceFilename')
         sourcefilename.attrib['relativeToVRT'] = "1" if relative_to_vrt else "0"
         sourcefilename.text = vsi_path(parse_path(file_name))
         sourceband = ET.SubElement(simplesource, 'SourceBand')
-        sourceband.text = str(band_name)
+        sourceband.text = str(band_idx)
         sourceproperties = ET.SubElement(simplesource, 'SourceProperties')
         sourceproperties.attrib['RasterXSize'] = str(rasterxsize)
         sourceproperties.attrib['RasterYSize'] = str(rasterysize)

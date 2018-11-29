@@ -4,9 +4,9 @@ import xml.etree.ElementTree as ET
 
 from rasterio.enums import MaskFlags
 from rasterio.crs import CRS
-from rasterio.windows import from_bounds
+from rasterio.windows import from_bounds, Window
 import os
-from telluric.base_vrt import BaseVRT, RectElement
+from telluric.base_vrt import BaseVRT
 
 
 def find_and_convert_to_type(_type, node, path):
@@ -40,7 +40,7 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
     vrt = BaseVRT(dst_width, dst_height, projection, transform)
 
     vrt.add_metadata_attributes(domain="IMAGE_STRUCTURE")
-    vrt.add_entity_to_metadata("MDI", text="PIXEL", key="INTERLEAVE")
+    vrt.add_element_to_metadata("MDI", text="PIXEL", key="INTERLEAVE")
 
     bands_count = find_and_convert_to_type(int, wms_tree, ".//BandsCount")
     if bands_count != 3:
@@ -50,13 +50,11 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
         bidx = idx + 1
 
         band_element = vrt.add_band("Byte", bidx, band)
-        src_rect = RectElement(src_window.col_off, src_window.row_off,
-                               src_window.width, src_window.height)
-        dest_rect = RectElement(0, 0, dst_width, dst_height)
+        dst_window = Window(0, 0, dst_width, dst_height)
 
         vrt.add_band_simplesource(band_element, bidx, "Byte", False, os.path.abspath(wms_file),
                                   orig_width, orig_height, blockx, blocky,
-                                  src_rect, dest_rect)
+                                  src_window, dst_window)
 
     return vrt.tostring()
 
@@ -90,30 +88,30 @@ def boundless_vrt_doc(
         band_element = vrt.add_band(dtype, bidx, ci.name, nodata=nodata, hidenodata=True)
 
         if background is not None:
-            src_rect = RectElement(0, 0, background.width, background.height)
-            dst_rect = RectElement(0, 0, width, height)
+            src_window = Window(0, 0, background.width, background.height)
+            dst_window = Window(0, 0, width, height)
             vrt.add_band_simplesource(band_element, bidx, dtype, False, background.name,
                                       width, height, block_shape[1], block_shape[0],
-                                      src_rect, dst_rect)
+                                      src_window, dst_window)
 
-        src_rect = RectElement(0, 0, src_dataset.width, src_dataset.height)
+        src_window = Window(0, 0, src_dataset.width, src_dataset.height)
         xoff = (src_dataset.transform.xoff - transform.xoff) / transform.a
         yoff = (src_dataset.transform.yoff - transform.yoff) / transform.e
         xsize = src_dataset.width * src_dataset.transform.a / transform.a
         ysize = src_dataset.height * src_dataset.transform.e / transform.e
-        dst_rect = RectElement(xoff, yoff, xsize, ysize)
+        dst_window = Window(xoff, yoff, xsize, ysize)
         vrt.add_band_simplesource(band_element, bidx, dtype, False, src_dataset.name,
                                   width, height, block_shape[1], block_shape[0],
-                                  src_rect, dst_rect, nodata=src_dataset.nodata)
+                                  src_window, dst_window, nodata=src_dataset.nodata)
 
     if all(MaskFlags.per_dataset in flags for flags in src_dataset.mask_flag_enums):
         mask_band = vrt.add_mask_band('Byte')
-        src_rect = RectElement(0, 0, src_dataset.width, src_dataset.height)
+        src_window = Window(0, 0, src_dataset.width, src_dataset.height)
         xoff = (src_dataset.transform.xoff - transform.xoff) / transform.a
         yoff = (src_dataset.transform.yoff - transform.yoff) / transform.e
         xsize = src_dataset.width
         ysize = src_dataset.height
-        dst_rect = RectElement(xoff, yoff, xsize, ysize)
+        dst_window = Window(xoff, yoff, xsize, ysize)
         vrt.add_band_simplesource(mask_band, 'mask,1', 'Byte', False, src_dataset.name,
-                                  width, height, block_shape[1], block_shape[0], src_rect, dst_rect)
+                                  width, height, block_shape[1], block_shape[0], src_window, dst_window)
     return vrt.tostring()
