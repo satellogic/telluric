@@ -1428,7 +1428,6 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             mem_file.write(doc)
             return GeoRaster2.open(mem_file.name)
 
-
         bands_data = self.bands_data(bands)
         return self.copy_with(image=bands_data, band_names=bands)
 

@@ -60,6 +60,7 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
 
     return vrt.tostring()
 
+
 def limit_to_bands_vrt(src_dataset, bands):
     height = src_dataset.height
     width = src_dataset.width
@@ -87,7 +88,6 @@ def limit_to_bands_vrt(src_dataset, bands):
                                       dtype, False, src_dataset._filename, width, height,
                                       block_shape[1], block_shape[0], window, window
                                       )
-
 
         vrt.add_metadata_attributes()
         vrt.add_metadata_item(text=json.dumps(bands), key="telluric_band_names")
