@@ -39,8 +39,7 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
 
     vrt = BaseVRT(dst_width, dst_height, projection, transform)
 
-    vrt.add_metadata_attributes(domain="IMAGE_STRUCTURE")
-    vrt.add_metadata_item(text="PIXEL", key="INTERLEAVE")
+    vrt.add_metadata(domain="IMAGE_STRUCTURE", items={"INTERLEAVE": "PIXEL"})
 
     bands_count = find_and_convert_to_type(int, wms_tree, ".//BandsCount")
     if bands_count != 3:
