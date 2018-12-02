@@ -217,6 +217,18 @@ def test_limit_to_bands():
     assert selected.band_names == bands
 
 
+def test_lazy_limit_to_bands():
+    raster_url = "tests/data/raster/overlap1.tif"
+    raster_lazy = GeoRaster2.open(raster_url)
+    raster_eager = GeoRaster2.open(raster_url, lazy_load=False)
+    bands = ["blue", "green"]
+    result_lazy = raster_lazy.limit_to_bands(bands)
+    result_eager = raster_eager.limit_to_bands(bands)
+    assert (result_lazy.image == result_eager.image).all()
+    assert raster_lazy.crs == result_eager.crs
+    assert raster_lazy.affine.almost_equals(result_eager.affine)
+
+
 def test_to_png():
     for raster in [some_raster, some_raster_multiband]:
         png_bytes = raster.to_png(transparent=True, thumbnail_size=512)
