@@ -22,9 +22,12 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
     from telluric import rasterization, constants
     wms_tree = ET.parse(wms_file)
     service = wms_tree.find(".//Service")
-    service = service.attrib["name"]
+    if service is not None:
+        service_name = service.attrib.get("name")
+    else:
+        raise ValueError("Service tag is required")
     # definition is based on https://www.gdal.org/frmt_wms.html
-    if service == "VirtualEarth":
+    if service_name == "VirtualEarth":
         left = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftX", -20037508.34)
         up = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftY", 20037508.34)
         right = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightX", 20037508.34)
