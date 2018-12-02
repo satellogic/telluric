@@ -7,6 +7,7 @@ from rasterio.crs import CRS
 from rasterio.windows import from_bounds, Window
 import rasterio
 import os
+import json
 from telluric.base_vrt import BaseVRT
 
 
@@ -70,9 +71,9 @@ def limit_to_bands_vrt(src_dataset, bands):
         for target_idx, source_band in enumerate(bands):
             source_idx = src_dataset.band_names.index(source_band)
             block_shape = block_shapes[source_idx]
-            band_element = vrt.add_band(dtype, target_idx, "gray")
+            band_element = vrt.add_band(dtype, target_idx + 1, "gray")
             window = Window(0, 0, height, width)
-            vrt.add_band_simplesource(band_element, source_idx,
+            vrt.add_band_simplesource(band_element, source_idx + 1,
                                       dtype, False, src_dataset._filename, width, height,
                                       block_shape[1], block_shape[0], window, window
                                       )
@@ -82,14 +83,14 @@ def limit_to_bands_vrt(src_dataset, bands):
             source_idx = src_dataset.band_names.index(source_band)
             block_shape = block_shapes[source_idx]
             window = Window(0, 0, height, width)
-            vrt.add_band_simplesource(mask_band, source_idx,
+            vrt.add_band_simplesource(mask_band, "mask, 1",
                                       dtype, False, src_dataset._filename, width, height,
                                       block_shape[1], block_shape[0], window, window
                                       )
 
 
-        vrt.add_metadata_attributes(domain="telluric")
-        vrt.add_metadata_item(test=",".join(bands), key="telluric_band_names")
+        vrt.add_metadata_attributes()
+        vrt.add_metadata_item(text=json.dumps(bands), key="telluric_band_names")
         return vrt.tostring()
 
 
