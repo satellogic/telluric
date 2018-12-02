@@ -51,7 +51,7 @@ from telluric.util.local_tile_server import TileServer
 # for mypy
 import matplotlib.cm
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
-from telluric.vrt import wms_vrt
+from telluric.vrt import wms_vrt, limit_to_bands_vrt
 
 dtype_map = {
     np.uint8: rasterio.uint8,
@@ -1422,6 +1422,13 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return mp._repr_html_()
 
     def limit_to_bands(self, bands):
+        if self._image is None and self._filename is not None:
+            doc = limit_to_bands_vrt(self, bands)
+            mem_file = MemoryFile(ext=".vrt")
+            mem_file.write(doc)
+            return GeoRaster2.open(mem_file.name)
+
+
         bands_data = self.bands_data(bands)
         return self.copy_with(image=bands_data, band_names=bands)
 

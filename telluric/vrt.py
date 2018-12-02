@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 from rasterio.enums import MaskFlags
 from rasterio.crs import CRS
 from rasterio.windows import from_bounds, Window
+import rasterio
 import os
 from telluric.base_vrt import BaseVRT
 
@@ -57,6 +58,39 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
                                   src_window, dst_window)
 
     return vrt.tostring()
+
+def limit_to_bands_vrt(src_dataset, bands):
+    height = src_dataset.height
+    width = src_dataset.width
+    dtype = str(src_dataset.dtype)
+    vrt = BaseVRT(width, height, src_dataset.crs, src_dataset.affine)
+    with rasterio.open(src_dataset._filename) as src:
+        block_shapes = src.block_shapes
+
+        for target_idx, source_band in enumerate(bands):
+            source_idx = src_dataset.band_names.index(source_band)
+            block_shape = block_shapes[source_idx]
+            band_element = vrt.add_band(dtype, target_idx, "gray")
+            window = Window(0, 0, height, width)
+            vrt.add_band_simplesource(band_element, source_idx,
+                                      dtype, False, src_dataset._filename, width, height,
+                                      block_shape[1], block_shape[0], window, window
+                                      )
+
+        if all(MaskFlags.per_dataset in flags for flags in src.mask_flag_enums):
+            mask_band = vrt.add_mask_band('Byte')
+            source_idx = src_dataset.band_names.index(source_band)
+            block_shape = block_shapes[source_idx]
+            window = Window(0, 0, height, width)
+            vrt.add_band_simplesource(mask_band, source_idx,
+                                      dtype, False, src_dataset._filename, width, height,
+                                      block_shape[1], block_shape[0], window, window
+                                      )
+
+
+        vrt.add_metadata_attributes(domain="telluric")
+        vrt.add_metadata_item(test=",".join(bands), key="telluric_band_names")
+        return vrt.tostring()
 
 
 def boundless_vrt_doc(
