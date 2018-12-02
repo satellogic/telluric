@@ -40,11 +40,11 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
     vrt = BaseVRT(dst_width, dst_height, projection, transform)
 
     vrt.add_metadata_attributes(domain="IMAGE_STRUCTURE")
-    vrt.add_element_to_metadata("MDI", text="PIXEL", key="INTERLEAVE")
+    vrt.add_metadata_item(text="PIXEL", key="INTERLEAVE")
 
     bands_count = find_and_convert_to_type(int, wms_tree, ".//BandsCount")
     if bands_count != 3:
-        raise ValueError("We support corrently on 3 bands WMS")
+        raise ValueError("We support currently on 3 bands WMS")
 
     for idx, band in enumerate(["RED", "GREEN", "BLUE"]):
         bidx = idx + 1

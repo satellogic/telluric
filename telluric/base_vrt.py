@@ -45,8 +45,8 @@ class BaseVRT:
         for attr, val in attributes.items():
             self.metadata.attrib[attr] = val
 
-    def add_element_to_metadata(self, name, text=None, **attributes):
-        sub_element = ET.SubElement(self.metadata, name)
+    def add_metadata_item(self, text=None, **attributes):
+        sub_element = ET.SubElement(self.metadata, "MDI")
         for attr, val in attributes.items():
             sub_element.attrib[attr] = val
         if text is not None:
