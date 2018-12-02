@@ -32,6 +32,7 @@ setup(
         'matplotlib',
         'boltons',
         'imageio',
+        "lxml"
     ],
     extras_require={
         ':python_version<="3.4"': ['typing', 'pandas<0.21.0'],
