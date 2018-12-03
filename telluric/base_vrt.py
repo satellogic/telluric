@@ -25,15 +25,33 @@ def load_scheme():
 class BaseVRT:
     schema = load_scheme()
 
-    def __init__(self, width, height, crs, affine):
+    def __init__(self, width=None, height=None, crs=None, affine=None):
         self.vrtdataset = ET.Element('VRTDataset')
-        self.vrtdataset.attrib['rasterXSize'] = str(width)
-        self.vrtdataset.attrib['rasterYSize'] = str(height)
-        srs_element = ET.SubElement(self.vrtdataset, 'SRS')
-        srs_element.text = crs.wkt if crs else ""
+        self.set_width(width)
+        self.set_height(height)
+        self.set_srs(crs)
+        self.set_affine(affine)
+        self._metadata = None
 
-        geotransform = ET.SubElement(self.vrtdataset, 'GeoTransform')
-        geotransform.text = ','.join([str(v) for v in affine.to_gdal()])
+    def sel_width(self, width):
+        if width is not None:
+            self.vrtdataset.attrib['rasterXSize'] = str(width)
+
+    def set_height(self, height):
+        if height is not None:
+            self.vrtdataset.attrib['rasterYSize'] = str(height)
+
+    def set_srs(self, crs):
+        if crs is not None:
+            if not hasattr(self, 'srs_element'):
+                self.srs_element = ET.SubElement(self.vrtdataset, 'SRS')
+            self.srs_element.text = crs.wkt if crs else ""
+
+    def set_affine(self, affine):
+        if affine is not None:
+            if not hasattr(self, 'geotransform'):
+                self.geotransform = ET.SubElement(self.vrtdataset, 'GeoTransform')
+            self.geotransform.text = ','.join([str(v) for v in affine.to_gdal()])
 
     def add_metadata(self, **kwargs):
         items = kwargs.pop("items")

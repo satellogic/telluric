@@ -47,11 +47,13 @@ from telluric.util.raster_utils import (
     calc_transform, warp)
 
 from telluric.util.local_tile_server import TileServer
+from telluric.vrt import wms_vrt
+from telluric.base_vrt import BaseVRT
 
 # for mypy
 import matplotlib.cm
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
-from telluric.vrt import wms_vrt
+
 
 dtype_map = {
     np.uint8: rasterio.uint8,
@@ -596,6 +598,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         mem_file = MemoryFile(ext=".vrt")
         mem_file.write(doc)
         return GeoRaster2.open(mem_file.name)
+
+    @classmethod
+    def from_rasters_list(cls, rasters):
+        pass
 
     @classmethod
     def open(cls, filename, band_names=None, lazy_load=True, mutable=False, **kwargs):
