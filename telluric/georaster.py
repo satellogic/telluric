@@ -47,7 +47,7 @@ from telluric.util.raster_utils import (
     calc_transform, warp)
 
 from telluric.util.local_tile_server import TileServer
-from telluric.vrt import wms_vrt
+from telluric.vrt import wms_vrt, raster_list_vrt, raster_collection_vrt
 from telluric.base_vrt import BaseVRT
 
 # for mypy
@@ -88,10 +88,10 @@ class PixelStrategy(Enum):
 
 def join(rasters):
     """
-    This method takes a list of rasters and returns a raster that is consturcted of all of them
+    This method takes a list of rasters and returns a raster that is constructed of all of them
     """
     from telluric.collections import FeatureCollection
-    bounds = FeatureCollection.from_geovectors([raster.footprint() for raster in rasters]).cascaded_union
+    bounds = FeatureCollection.from_geovectors([raster.footprint() for raster in rasters]).convex_hull
     return merge_all(rasters, roi=bounds)
 
 
@@ -594,14 +594,24 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     def from_wms(cls, filename, vector, resolution):
         doc = wms_vrt(filename,
                       bounds=vector,
-                      resolution=resolution)
+                      resolution=resolution).tostring()
         mem_file = MemoryFile(ext=".vrt")
         mem_file.write(doc)
         return GeoRaster2.open(mem_file.name)
 
     @classmethod
-    def from_rasters_list(cls, rasters):
-        pass
+    def from_rasters(cls, rasters, relative_to_vrt=True):
+        doc = raster_list_vrt(rasters, relative_to_vrt).tostring()
+        mem_file = MemoryFile(ext=".vrt")
+        mem_file.write(doc)
+        return GeoRaster2.open(mem_file.name)
+
+    @classmethod
+    def from_raster_collection(cls, rasters_feature_collection, relative_to_vrt=True):
+        doc = raster_collection_vrt(rasters_feature_collection, relative_to_vrt).tostring()
+        mem_file = MemoryFile(ext=".vrt")
+        mem_file.write(doc)
+        return GeoRaster2.open(mem_file.name)
 
     @classmethod
     def open(cls, filename, band_names=None, lazy_load=True, mutable=False, **kwargs):
@@ -678,6 +688,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 self._set_image(image)
             else:
                 self._set_shape((raster.count, raster.shape[0], raster.shape[1]))
+
+            self._blockshapes = raster.block_shapes
 
     @classmethod
     def tags(cls, filename, namespace=None):
@@ -768,6 +780,14 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 factors = [f for f in factors if f <= factor_max]
             r.build_overviews(factors, resampling=resampling)
             r.update_tags(ns='rio_overview', resampling=resampling.name)
+
+    def block_shape(self, band=None):
+        """Raster shape."""
+        if self._blockshapes is None:
+            self._populate_from_rasterio_object(read_image=False)
+        if band is not None:
+            return self._blockshapes[band]
+        return self._blockshapes
 
     def save(self, filename, tags=None, **kwargs):
         """
@@ -880,7 +900,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return self.crs == other.crs \
             and self.affine.almost_equals(other.affine) \
             and self.shape == other.shape \
-            and self.image.dtype == other.image.dtype \
+            and self.dtype == other.dtype \
             and (
                 (self.image.mask is np.ma.nomask or not np.any(self.image.mask)) and
                 (other.image.mask is np.ma.nomask or not np.any(other.image.mask)) or

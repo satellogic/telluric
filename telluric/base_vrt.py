@@ -33,7 +33,7 @@ class BaseVRT:
         self.set_affine(affine)
         self._metadata = None
 
-    def sel_width(self, width):
+    def set_width(self, width):
         if width is not None:
             self.vrtdataset.attrib['rasterXSize'] = str(width)
 
@@ -72,6 +72,7 @@ class BaseVRT:
     def add_band(self, dtype, band_idx, color_interp,
                  nodata=None, hidenodata=False):
         vrtrasterband = ET.SubElement(self.vrtdataset, 'VRTRasterBand')
+        dtype = dtype if isinstance(dtype, str) else dtype.name
         vrtrasterband.attrib['dataType'] = _gdal_typename(dtype) if check_dtype(dtype) else dtype
         vrtrasterband.attrib['band'] = str(band_idx)
 
@@ -89,8 +90,8 @@ class BaseVRT:
         return vrtrasterband
 
     def add_band_simplesource(self, vrtrasterband, band_idx, dtype, relative_to_vrt,
-                              file_name, rasterxsize, rasterysize, blockxsize, blockysize,
-                              src_rect, dst_rect, nodata=None
+                              file_name, rasterxsize, rasterysize, blockxsize=None, blockysize=None,
+                              src_rect=None, dst_rect=None, nodata=None
                               ):
         simplesource = ET.SubElement(vrtrasterband, 'SimpleSource')
         self._setup_band_simplesource(simplesource, band_idx, dtype, relative_to_vrt, file_name,
@@ -99,7 +100,7 @@ class BaseVRT:
         self._setup_rect(srcrect_element, src_rect.col_off, src_rect.row_off,
                          src_rect.width, src_rect.height)
         dstrect_element = ET.SubElement(simplesource, 'DstRect')
-        self._setup_rect(dstrect_element, dst_rect.col_off, dst_rect.col_off,
+        self._setup_rect(dstrect_element, dst_rect.col_off, dst_rect.row_off,
                          dst_rect.width, dst_rect.height)
         return simplesource, srcrect_element, dstrect_element
 
@@ -113,8 +114,10 @@ class BaseVRT:
         sourceproperties = ET.SubElement(simplesource, 'SourceProperties')
         sourceproperties.attrib['RasterXSize'] = str(rasterxsize)
         sourceproperties.attrib['RasterYSize'] = str(rasterysize)
-        sourceproperties.attrib['BlockXSize'] = str(blockxsize)
-        sourceproperties.attrib['BlockYSize'] = str(blockysize)
+        if blockxsize is not None and blockysize is not None:
+            sourceproperties.attrib['BlockXSize'] = str(blockxsize)
+            sourceproperties.attrib['BlockYSize'] = str(blockysize)
+        dtype = dtype if isinstance(dtype, str) else dtype.name
         sourceproperties.attrib['DataType'] = _gdal_typename(dtype) if check_dtype(dtype) else dtype
 
         # this code was originally in rasterio code but it fails scheme validation
