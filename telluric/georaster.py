@@ -436,7 +436,7 @@ class _Raster:
         """
         self._image = None
         self._band_names = None
-        self._bandshapes = None
+        self._blockshapes = None
         self._shape = copy(shape)
         if band_names:
             self._set_bandnames(copy(band_names))

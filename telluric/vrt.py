@@ -20,6 +20,21 @@ def find_and_convert_to_type(_type, node, path, default=None):
 
 
 def wms_vrt(wms_file, bounds=None, resolution=None):
+    """Make a VRT XML document from a wms file.
+    Parameters
+    ----------
+    wms_file : str
+        The source wms file
+    bounds : GeoVector, optional
+        The requested footprint of the generated VRT
+    resolution : float, optional
+        The requested resolution of the generated VRT
+    Returns
+    -------
+    bytes
+        An ascii-encoded string (an ElementTree detail)
+    """
+
     from telluric import rasterization, constants
     wms_tree = ET.parse(wms_file)
     service = wms_tree.find(".//Service")
