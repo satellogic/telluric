@@ -7,6 +7,8 @@ from rasterio.enums import MaskFlags
 from rasterio.windows import from_bounds, Window
 from telluric.base_vrt import BaseVRT
 
+from Typing import Dict
+
 
 def find_and_convert_to_type(_type, node, path, default=None):
     value = node.find(path)
@@ -147,12 +149,38 @@ def band_name_to_color_interpretation(band_name):
 
 
 def raster_list_vrt(rasters, relative_to_vrt=True):
+    """Make a VRT XML document from a list of GeoRaster2 objects.
+    Parameters
+    ----------
+    rasters : list
+        The list of GeoRasters.
+    relative_to_vrt : bool, optional
+        If True the bands simple source url will be related to the VRT file
+    Returns
+    -------
+    bytes
+        An ascii-encoded string (an ElementTree detail)
+    """
+
     from telluric import FeatureCollection
     fc = FeatureCollection.from_georasters(rasters)
     return raster_collection_vrt(fc, relative_to_vrt)
 
 
 def raster_collection_vrt(fc, relative_to_vrt=True):
+    """Make a VRT XML document from a feature collection of GeoRaster2 objects.
+    Parameters
+    ----------
+    rasters : FeatureCollection
+        The FeatureCollection of GeoRasters.
+    relative_to_vrt : bool, optional
+        If True the bands simple source url will be related to the VRT file
+    Returns
+    -------
+    bytes
+        An ascii-encoded string (an ElementTree detail)
+    """
+
     def max_resolution():
         max_affine = max(fc, key=lambda f: f.raster.resolution()).raster.affine
         return abs(max_affine.a), abs(max_affine.e)
@@ -165,7 +193,7 @@ def raster_collection_vrt(fc, relative_to_vrt=True):
     resolution = max_resolution()
     width, height, affine = rasterization.raster_data(bounds, resolution)
 
-    bands = {}
+    bands = {}  # type: Dict[str, tuple]
     vrt = BaseVRT(width, height, fc.crs, affine)
 
     last_band_idx = 0

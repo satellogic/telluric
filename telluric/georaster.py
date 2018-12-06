@@ -48,11 +48,10 @@ from telluric.util.raster_utils import (
 
 from telluric.util.local_tile_server import TileServer
 from telluric.vrt import wms_vrt, raster_list_vrt, raster_collection_vrt
-from telluric.base_vrt import BaseVRT
 
 # for mypy
 import matplotlib.cm
-from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
+from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple, Any
 
 
 dtype_map = {
@@ -437,6 +436,7 @@ class _Raster:
         """
         self._image = None
         self._band_names = None
+        self._bandshapes = None
         self._shape = copy(shape)
         if band_names:
             self._set_bandnames(copy(band_names))
