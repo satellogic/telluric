@@ -7,7 +7,7 @@ from rasterio.enums import MaskFlags
 from rasterio.windows import from_bounds, Window
 from telluric.base_vrt import BaseVRT
 
-from Typing import Dict
+from typing import Dict
 
 
 def find_and_convert_to_type(_type, node, path, default=None):

@@ -785,13 +785,18 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             r.build_overviews(factors, resampling=resampling)
             r.update_tags(ns='rio_overview', resampling=resampling.name)
 
-    def block_shape(self, band=None):
-        """Raster shape."""
+    @property
+    def blockshapes(self):
+        """Raster all bands block shape."""
         if self._blockshapes is None:
             self._populate_from_rasterio_object(read_image=False)
-        if band is not None:
-            return self._blockshapes[band]
         return self._blockshapes
+
+    def block_shape(self, band=None):
+        """Raster single band block shape."""
+        if band is not None:
+            return self.blockshapes[band]
+        return self.blockshapes
 
     def save(self, filename, tags=None, **kwargs):
         """
