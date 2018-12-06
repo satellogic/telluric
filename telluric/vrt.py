@@ -160,7 +160,7 @@ def band_name_to_color_interpretation(band_name):
     if band_name.lower().endswith('_enhanced'):
         return band_name_to_color_interpretation(band_name[:-len('_enhanced')])
     else:
-        return 'grey'
+        return 'Gray'
 
 
 def raster_list_vrt(rasters, relative_to_vrt=True):
