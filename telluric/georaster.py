@@ -591,27 +591,31 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 raise GeoRaster2IOError(e)
 
     @classmethod
-    def from_wms(cls, filename, vector, resolution):
+    def _save_to_destination_file(cls, doc, destination_file):
+        if destination_file is None:
+            mem_file = MemoryFile(ext=".vrt")
+            mem_file.write(doc)
+            return mem_file.name
+        with open(destination_file, 'wb') as f:
+            f.write(doc)
+        return destination_file
+
+    @classmethod
+    def from_wms(cls, filename, vector, resolution, destination_file=None):
         doc = wms_vrt(filename,
                       bounds=vector,
                       resolution=resolution).tostring()
-        mem_file = MemoryFile(ext=".vrt")
-        mem_file.write(doc)
-        return GeoRaster2.open(mem_file.name)
+        filename = cls._save_to_destination_file(doc, destination_file)
+        return GeoRaster2.open(filename)
 
     @classmethod
-    def from_rasters(cls, rasters, relative_to_vrt=True):
-        doc = raster_list_vrt(rasters, relative_to_vrt).tostring()
-        mem_file = MemoryFile(ext=".vrt")
-        mem_file.write(doc)
-        return GeoRaster2.open(mem_file.name)
-
-    @classmethod
-    def from_raster_collection(cls, rasters_feature_collection, relative_to_vrt=True):
-        doc = raster_collection_vrt(rasters_feature_collection, relative_to_vrt).tostring()
-        mem_file = MemoryFile(ext=".vrt")
-        mem_file.write(doc)
-        return GeoRaster2.open(mem_file.name)
+    def from_rasters(cls, rasters, relative_to_vrt=True, destination_file=None):
+        if isinstance(rasters, list):
+            doc = raster_list_vrt(rasters, relative_to_vrt).tostring()
+        else:
+            doc = raster_collection_vrt(rasters, relative_to_vrt).tostring()
+        filename = cls._save_to_destination_file(doc, destination_file)
+        return GeoRaster2.open(filename)
 
     @classmethod
     def open(cls, filename, band_names=None, lazy_load=True, mutable=False, **kwargs):
