@@ -636,7 +636,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             self._temporary = False
 
     def _populate_from_rasterio_object(self, read_image):
-        with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
+        with self._raster_opener(self.source_file) as raster:  # type: rasterio.DatasetReader
             self._dtype = np.dtype(raster.dtypes[0])
 
             if self._affine is None:
