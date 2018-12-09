@@ -761,15 +761,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             folder = os.path.abspath(os.path.join(filename, os.pardir))
             os.makedirs(folder, exist_ok=True)
 
-        if (
-            (self._image is None and self._filename is not None) and
-            (tags is None and not kwargs)
-        ):
-            rasterio.shutil.copy(self._filename, filename)
-            self._cleanup()
-            self._filename = filename
-            return
-
         internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
         nodata_value = kwargs.get('nodata', None)
         compression = kwargs.get('compression', Compression.lzw)
