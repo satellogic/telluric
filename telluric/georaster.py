@@ -778,7 +778,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             rasterio_envs['CPL_DEBUG'] = True
         with rasterio.Env(**rasterio_envs):
             try:
-                size = self.image.shape
+                size = self.shape
                 extension = os.path.splitext(filename)[1].lower()[1:]
                 driver = gdal_drivers[extension]
 
@@ -790,7 +790,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 params = {
                     'mode': "w", 'transform': self.affine, 'crs': self.crs,
                     'driver': driver, 'width': size[2], 'height': size[1], 'count': size[0],
-                    'dtype': dtype_map[self.image.dtype.type],
+                    'dtype': dtype_map[self.dtype.type],
                     'nodata': nodata_value,
                     'masked': True,
                     'blockxsize': min(blockxsize, size[2]),
@@ -804,10 +804,22 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 if creation_options:
                     params.update(**creation_options)
 
+                if self._image is None and self._filename is not None:
+                    creation_options["blockxsize"] = params["blockxsize"]
+                    creation_options["blockysize"] = params["blockysize"]
+                    creation_options["tiled"] =  params["tiled"]
+                    creation_options["compress"] = params["compress"]
+
+                    rasterio.shutil.copy(self._filename, filename, creation_options=creation_options)
+                    self._cleanup()
+                self._filename = filename
+                return
+
+
                 with self._raster_opener(filename, **params) as r:
 
                     # write data:
-                    for band in range(self.image.shape[0]):
+                    for band in range(self.shape[0]):
                         if nodata_value is not None:
                             img = deepcopy(self.image)
                             # those pixels aren't nodata, make sure they're not set to nodata:
