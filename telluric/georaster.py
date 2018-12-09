@@ -742,6 +742,27 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Raster height."""
         return int(self.shape[1])
 
+    def _add_overviews_and_tags(self, r, tags, kwargs):
+            # write tags:
+        tags_to_save = {'telluric_band_names': json.dumps(self.band_names)}
+        if tags:
+            tags_to_save.update(tags)
+
+        r.update_tags(**tags_to_save)  # in default namespace
+
+        # overviews:
+        overviews = kwargs.get('overviews', True)
+        resampling = kwargs.get('resampling', Resampling.cubic)
+        if overviews:
+            factors = kwargs.get('factors')
+            if factors is None:
+                factors = self._overviews_factors()
+            else:
+                factor_max = max(self._overviews_factors(blocksize=1), default=0)
+                factors = [f for f in factors if f <= factor_max]
+            r.build_overviews(factors, resampling=resampling)
+            r.update_tags(ns='rio_overview', resampling=resampling.name)
+
     def save(self, filename, tags=None, **kwargs):
         """
         Save GeoRaster to a file.
@@ -810,26 +831,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                     rasterio.shutil.copy(self.source_file, filename)
                     self._cleanup()
                     with GeoRaster2._raster_opener(filename, "r+",) as r:
-
-                        # write tags:
-                        tags_to_save = {'telluric_band_names': json.dumps(self.band_names)}
-                        if tags:
-                            tags_to_save.update(tags)
-
-                        r.update_tags(**tags_to_save)  # in default namespace
-
-                        # overviews:
-                        overviews = kwargs.get('overviews', True)
-                        resampling = kwargs.get('resampling', Resampling.cubic)
-                        if overviews:
-                            factors = kwargs.get('factors')
-                            if factors is None:
-                                factors = self._overviews_factors()
-                            else:
-                                factor_max = max(self._overviews_factors(blocksize=1), default=0)
-                                factors = [f for f in factors if f <= factor_max]
-                            r.build_overviews(factors, resampling=resampling)
-                            r.update_tags(ns='rio_overview', resampling=resampling.name)
+                        self._add_overviews_and_tags(r, tags, kwargs)
 
                 else:
                     with GeoRaster2._raster_opener(filename, **params) as r:
@@ -858,25 +860,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
                         mask = _mask_from_masked_array(self.image)
                         r.write_mask(mask)
-                        # write tags:
-                        tags_to_save = {'telluric_band_names': json.dumps(self.band_names)}
-                        if tags:
-                            tags_to_save.update(tags)
+                        self._add_overviews_and_tags(r, tags, kwargs)
 
-                        r.update_tags(**tags_to_save)  # in default namespace
-
-                        # overviews:
-                        overviews = kwargs.get('overviews', True)
-                        resampling = kwargs.get('resampling', Resampling.cubic)
-                        if overviews:
-                            factors = kwargs.get('factors')
-                            if factors is None:
-                                factors = self._overviews_factors()
-                            else:
-                                factor_max = max(self._overviews_factors(blocksize=1), default=0)
-                                factors = [f for f in factors if f <= factor_max]
-                            r.build_overviews(factors, resampling=resampling)
-                            r.update_tags(ns='rio_overview', resampling=resampling.name)
                 self._filename = filename  # Not sure about this, but the api made sure the internal filename is changed
                 # so the same object could be continue to use
                 return GeoRaster2.open(filename)
@@ -1662,6 +1647,13 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
     def from_tiles(cls, tiles):
         """Compose raster from tiles. return GeoRaster."""
         raise NotImplementedError
+
+    @property
+    def overviews_factors(self):
+        """ returns the overviews factors
+        """
+        with self._raster_opener(self.source_file) as r:
+            return r.overviews(1)
 
     def _overviews_factors(self, blocksize=256):
         return _calc_overviews_factors(self, blocksize=blocksize)

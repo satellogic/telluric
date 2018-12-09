@@ -701,6 +701,16 @@ def test_save_temporary():
         assert not os.path.isfile(src.name)
 
 
+def test_save_uses_copy():
+    band_names = ["b1", "b2", "b3"]
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif", band_names=band_names)
+    with NamedTemporaryFile(suffix='.tif') as target:
+        factors = [2, 4]
+        raster.save(target.name, overviews=True, factors=factors)
+        assert raster.band_names == band_names
+        assert raster.overviews_factors == factors
+
+
 def test_reproject_lazy():
     raster = GeoRaster2.open("tests/data/raster/rgb.tif")
     reprojected = raster.reproject(dst_crs=WGS84_CRS)
