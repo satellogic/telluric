@@ -5,6 +5,7 @@ import lxml.etree as ET
 from xml.dom import minidom
 from rasterio.dtypes import _gdal_typename, check_dtype
 from rasterio.path import parse_path, vsi_path
+from pkg_resources import resource_filename
 
 
 def prettify(elem):
@@ -16,7 +17,7 @@ def prettify(elem):
 
 
 def load_scheme():
-    with open('./telluric/gdalvrt.xsd') as f:
+    with open(resource_filename('telluric', 'gdalvrt.xsd')) as f:
         scheme_doc = ET.parse(f)
         return ET.XMLSchema(scheme_doc)
 

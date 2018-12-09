@@ -42,7 +42,7 @@ record = {
 def test_wms_vrt():
     vector = GeoFeature.from_record(record, crs=constants.WGS84_CRS).geometry
     doc = str(wms_vrt("tests/data/google.xml",
-                      bounds=vector.get_bounds(constants.WEB_MERCATOR_CRS),
+                      bounds=vector,
                       resolution=1))
     with open("tests/data/raster/google_israel.vrt", 'r') as expected_src:
         expected = expected_src.read()

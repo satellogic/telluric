@@ -9,49 +9,71 @@ import os
 from telluric.base_vrt import BaseVRT
 
 
-def find_and_convert_to_type(_type, node, path):
+def find_and_convert_to_type(_type, node, path, default=None):
     value = node.find(path)
     if value is not None:
         value = _type(value.text)
+    else:
+        value = default
     return value
 
 
 def wms_vrt(wms_file, bounds=None, resolution=None):
     from telluric import rasterization, constants
     wms_tree = ET.parse(wms_file)
-    left = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftX")
-    up = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftY")
-    right = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightX")
-    bottom = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightY")
+    service = wms_tree.find(".//Service")
+    if service is not None:
+        service_name = service.attrib.get("name")
+    else:
+        raise ValueError("Service tag is required")
+    # definition is based on https://www.gdal.org/frmt_wms.html
+    if service_name == "VirtualEarth":
+        left = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftX", -20037508.34)
+        up = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftY", 20037508.34)
+        right = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightX", 20037508.34)
+        bottom = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightY", -20037508.34)
+        upper_bound_zoom = find_and_convert_to_type(int, wms_tree, ".//DataWindow/TileLevel", 19)
+        projection = find_and_convert_to_type(str, wms_tree, ".//Projection", "EPSG: 3857")
+        projection = CRS(init=projection)
+        blockx = find_and_convert_to_type(str, wms_tree, ".//BlockSizeX", 256)
+        blocky = find_and_convert_to_type(str, wms_tree, ".//BlockSizeY", 256)
+    else:
+        left = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftX", -180.0)
+        up = find_and_convert_to_type(float, wms_tree, ".//DataWindow/UpperLeftY", 90.0)
+        right = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightX", 180.0)
+        bottom = find_and_convert_to_type(float, wms_tree, ".//DataWindow/LowerRightY", -90.0)
+        upper_bound_zoom = find_and_convert_to_type(int, wms_tree, ".//DataWindow/TileLevel", 0)
+        projection = find_and_convert_to_type(str, wms_tree, ".//Projection", "EPSG:4326")
+        blockx = find_and_convert_to_type(str, wms_tree, ".//BlockSizeX", 1024)
+        blocky = find_and_convert_to_type(str, wms_tree, ".//BlockSizeY", 1024)
+        projection = CRS(init=projection)
+
+    bands_count = find_and_convert_to_type(int, wms_tree, ".//BandsCount", 3)
+    data_type = find_and_convert_to_type(str, wms_tree, ".//DataType", "Byte")
+
     src_bounds = (left, bottom, right, up)
-    bounds = bounds or src_bounds
-    upper_bound_zoom = find_and_convert_to_type(int, wms_tree, ".//DataWindow/TileLevel")
+    bounds = bounds.get_bounds(crs=projection) or src_bounds
     src_resolution = constants.MERCATOR_RESOLUTION_MAPPING[upper_bound_zoom]
     resolution = resolution or constants.MERCATOR_RESOLUTION_MAPPING[upper_bound_zoom]
     dst_width, dst_height, transform = rasterization.raster_data(bounds=bounds, dest_resolution=resolution)
     orig_width, orig_height, orig_transform = rasterization.raster_data(
         bounds=src_bounds, dest_resolution=src_resolution)
     src_window = from_bounds(*bounds, transform=orig_transform)
-    projection = find_and_convert_to_type(str, wms_tree, ".//Projection")
-    blockx = find_and_convert_to_type(str, wms_tree, ".//BlockSizeX")
-    blocky = find_and_convert_to_type(str, wms_tree, ".//BlockSizeY")
-    projection = CRS(init=projection)
 
     vrt = BaseVRT(dst_width, dst_height, projection, transform)
 
     vrt.add_metadata(domain="IMAGE_STRUCTURE", items={"INTERLEAVE": "PIXEL"})
 
-    bands_count = find_and_convert_to_type(int, wms_tree, ".//BandsCount")
     if bands_count != 3:
         raise ValueError("We support currently on 3 bands WMS")
 
     for idx, band in enumerate(["RED", "GREEN", "BLUE"]):
         bidx = idx + 1
 
-        band_element = vrt.add_band("Byte", bidx, band)
+        band_element = vrt.add_band(data_type, bidx, band)
         dst_window = Window(0, 0, dst_width, dst_height)
 
-        vrt.add_band_simplesource(band_element, bidx, "Byte", False, os.path.abspath(wms_file),
+        vrt.add_band_simplesource(band_element, bidx, data_type, False, os.path.abspath(wms_file),
                                   orig_width, orig_height, blockx, blocky,
                                   src_window, dst_window)
 

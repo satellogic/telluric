@@ -591,7 +591,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     @classmethod
     def from_wms(cls, filename, vector, resolution):
         doc = wms_vrt(filename,
-                      bounds=vector.get_bounds(WEB_MERCATOR_CRS),
+                      bounds=vector,
                       resolution=resolution)
         mem_file = MemoryFile(ext=".vrt")
         mem_file.write(doc)
