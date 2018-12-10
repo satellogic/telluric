@@ -636,7 +636,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             self._temporary = False
 
     def _populate_from_rasterio_object(self, read_image):
-        with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
+        with self._raster_opener(self.source_file) as raster:  # type: rasterio.DatasetReader
             self._dtype = np.dtype(raster.dtypes[0])
 
             if self._affine is None:
@@ -732,9 +732,36 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return int(self.shape[2])
 
     @property
+    def source_file(self):
+        """ When using open, returns the filename used
+        """
+        return self._filename
+
+    @property
     def height(self):
         """Raster height."""
         return int(self.shape[1])
+
+    def _add_overviews_and_tags(self, r, tags, kwargs):
+            # write tags:
+        tags_to_save = {'telluric_band_names': json.dumps(self.band_names)}
+        if tags:
+            tags_to_save.update(tags)
+
+        r.update_tags(**tags_to_save)  # in default namespace
+
+        # overviews:
+        overviews = kwargs.get('overviews', True)
+        resampling = kwargs.get('resampling', Resampling.cubic)
+        if overviews:
+            factors = kwargs.get('factors')
+            if factors is None:
+                factors = self._overviews_factors()
+            else:
+                factor_max = max(self._overviews_factors(blocksize=1), default=0)
+                factors = [f for f in factors if f <= factor_max]
+            r.build_overviews(factors, resampling=resampling)
+            r.update_tags(ns='rio_overview', resampling=resampling.name)
 
     def save(self, filename, tags=None, **kwargs):
         """
@@ -761,15 +788,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             folder = os.path.abspath(os.path.join(filename, os.pardir))
             os.makedirs(folder, exist_ok=True)
 
-        if (
-            (self._image is None and self._filename is not None) and
-            (tags is None and not kwargs)
-        ):
-            rasterio.shutil.copy(self._filename, filename)
-            self._cleanup()
-            self._filename = filename
-            return
-
         internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
         nodata_value = kwargs.get('nodata', None)
         compression = kwargs.get('compression', Compression.lzw)
@@ -778,7 +796,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             rasterio_envs['CPL_DEBUG'] = True
         with rasterio.Env(**rasterio_envs):
             try:
-                size = self.image.shape
+                size = self.shape
                 extension = os.path.splitext(filename)[1].lower()[1:]
                 driver = gdal_drivers[extension]
 
@@ -790,7 +808,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 params = {
                     'mode': "w", 'transform': self.affine, 'crs': self.crs,
                     'driver': driver, 'width': size[2], 'height': size[1], 'count': size[0],
-                    'dtype': dtype_map[self.image.dtype.type],
+                    'dtype': dtype_map[self.dtype.type],
                     'nodata': nodata_value,
                     'masked': True,
                     'blockxsize': min(blockxsize, size[2]),
@@ -804,51 +822,49 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 if creation_options:
                     params.update(**creation_options)
 
-                with self._raster_opener(filename, **params) as r:
+                if self._image is None and self._filename is not None:
+                    creation_options["blockxsize"] = params["blockxsize"]
+                    creation_options["blockysize"] = params["blockysize"]
+                    creation_options["tiled"] = params["tiled"]
+                    creation_options["compress"] = params["compress"]
+                    rasterio.shutil.copy(self.source_file, filename, creation_options=creation_options)
+                    rasterio.shutil.copy(self.source_file, filename)
+                    self._cleanup()
+                    with GeoRaster2._raster_opener(filename, "r+",) as r:
+                        self._add_overviews_and_tags(r, tags, kwargs)
 
-                    # write data:
-                    for band in range(self.image.shape[0]):
-                        if nodata_value is not None:
-                            img = deepcopy(self.image)
-                            # those pixels aren't nodata, make sure they're not set to nodata:
-                            img.data[np.logical_and(img == nodata_value, self.image.mask is False)] = nodata_value + 1
-                            img = np.ma.filled(img, nodata_value)
-                        else:
-                            img = self.image.data
-                        r.write_band(1 + band, img[band, :, :])
+                else:
+                    with GeoRaster2._raster_opener(filename, **params) as r:
 
-                    # write mask:
-                    if not (
-                        np.ma.getmaskarray(self.image) ==
-                        np.ma.getmaskarray(self.image)[0]
-                    ).all():
-                        warnings.warn(
-                            "Saving different masks per band is not supported, "
-                            "the union of the masked values will be performed.", GeoRaster2Warning
-                        )
+                        # write data:
+                        for band in range(self.shape[0]):
+                            if nodata_value is not None:
+                                img = deepcopy(self.image)
+                                # those pixels aren't nodata, make sure they're not set to nodata:
+                                img.data[np.logical_and(img == nodata_value,
+                                                        self.image.mask is False)] = nodata_value + 1
+                                img = np.ma.filled(img, nodata_value)
+                            else:
+                                img = self.image.data
+                            r.write_band(1 + band, img[band, :, :])
 
-                    mask = _mask_from_masked_array(self.image)
-                    r.write_mask(mask)
+                        # write mask:
+                        if not (
+                            np.ma.getmaskarray(self.image) ==
+                            np.ma.getmaskarray(self.image)[0]
+                        ).all():
+                            warnings.warn(
+                                "Saving different masks per band is not supported, "
+                                "the union of the masked values will be performed.", GeoRaster2Warning
+                            )
 
-                    # write tags:
-                    tags_to_save = {'telluric_band_names': json.dumps(self.band_names)}
-                    if tags:
-                        tags_to_save.update(tags)
+                        mask = _mask_from_masked_array(self.image)
+                        r.write_mask(mask)
+                        self._add_overviews_and_tags(r, tags, kwargs)
 
-                    r.update_tags(**tags_to_save)  # in default namespace
-
-                    # overviews:
-                    overviews = kwargs.get('overviews', True)
-                    resampling = kwargs.get('resampling', Resampling.cubic)
-                    if overviews:
-                        factors = kwargs.get('factors')
-                        if factors is None:
-                            factors = self._overviews_factors()
-                        else:
-                            factor_max = max(self._overviews_factors(blocksize=1), default=0)
-                            factors = [f for f in factors if f <= factor_max]
-                        r.build_overviews(factors, resampling=resampling)
-                        r.update_tags(ns='rio_overview', resampling=resampling.name)
+                self._filename = filename  # Not sure about this, but the api made sure the internal filename is changed
+                # so the same object could be continue to use
+                return GeoRaster2.open(filename)
 
             except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_BaseError, KeyError) as e:
                 raise GeoRaster2IOError(e)
@@ -1631,6 +1647,13 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
     def from_tiles(cls, tiles):
         """Compose raster from tiles. return GeoRaster."""
         raise NotImplementedError
+
+    @property
+    def overviews_factors(self):
+        """ returns the overviews factors
+        """
+        with self._raster_opener(self.source_file) as r:
+            return r.overviews(1)
 
     def _overviews_factors(self, blocksize=256):
         return _calc_overviews_factors(self, blocksize=blocksize)
