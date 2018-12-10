@@ -34,25 +34,16 @@ class BaseVRT:
 
         geotransform = ET.SubElement(self.vrtdataset, 'GeoTransform')
         geotransform.text = ','.join([str(v) for v in affine.to_gdal()])
-        self._metadata = None
 
-    @property
-    def metadata(self):
-        if self._metadata is None:
-            self._metadata = ET.SubElement(self.vrtdataset, 'Metadata')
-        return self._metadata
-
-    def add_metadata_attributes(self, **attributes):
-        for attr, val in attributes.items():
-            self.metadata.attrib[attr] = val
-
-    def add_metadata_item(self, text=None, **attributes):
-        sub_element = ET.SubElement(self.metadata, "MDI")
-        for attr, val in attributes.items():
-            sub_element.attrib[attr] = val
-        if text is not None:
-            sub_element.text = text
-        return sub_element
+    def add_metadata(self, **kwargs):
+        items = kwargs.pop("items")
+        metadata_tag = ET.SubElement(self.vrtdataset, 'Metadata')
+        for key, val in kwargs.items():
+            metadata_tag.attrib[key] = val
+        for key, val in items.items():
+            mdi = ET.SubElement(metadata_tag, "MDI")
+            mdi.attrib["key"] = key
+            mdi.text = val
 
     def add_mask_band(self, dtype):
         maskband = ET.SubElement(self.vrtdataset, 'MaskBand')

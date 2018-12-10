@@ -62,8 +62,7 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
 
     vrt = BaseVRT(dst_width, dst_height, projection, transform)
 
-    vrt.add_metadata_attributes(domain="IMAGE_STRUCTURE")
-    vrt.add_metadata_item(text="PIXEL", key="INTERLEAVE")
+    vrt.add_metadata(domain="IMAGE_STRUCTURE", items={"INTERLEAVE": "PIXEL"})
 
     if bands_count != 3:
         raise ValueError("We support currently on 3 bands WMS")
