@@ -22,7 +22,7 @@ setup(
         'affine',
         'dsnparse',
         'fiona>=1.8.1,<2.*',
-        'folium',
+        'folium>=0.6.0',
         'ipyleaflet!=0.8.2',
         'pyproj',
         'shapely>=1.6.3,<2.*',
