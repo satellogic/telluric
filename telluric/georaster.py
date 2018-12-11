@@ -74,6 +74,9 @@ gdal_drivers = {
 }
 
 
+band_names_tag = 'telluric_band_names'
+
+
 class MergeStrategy(Enum):
     LEFT_ALL = 0
     INTERSECTION = 1
@@ -609,11 +612,11 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return GeoRaster2.open(filename)
 
     @classmethod
-    def from_rasters(cls, rasters, relative_to_vrt=True, destination_file=None):
+    def from_rasters(cls, rasters, relative_to_vrt=True, destination_file=None, nodata=None):
         if isinstance(rasters, list):
-            doc = raster_list_vrt(rasters, relative_to_vrt).tostring()
+            doc = raster_list_vrt(rasters, relative_to_vrt, nodata).tostring()
         else:
-            doc = raster_collection_vrt(rasters, relative_to_vrt).tostring()
+            doc = raster_collection_vrt(rasters, relative_to_vrt, nodata).tostring()
         filename = cls._save_to_destination_file(doc, destination_file)
         return GeoRaster2.open(filename)
 
@@ -678,8 +681,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
                 else:
                     tags = raster.tags()
-                    if tags and 'telluric_band_names' in tags:
-                        key_name = 'telluric_band_names'
+                    if tags and band_names_tag in tags:
+                        key_name = band_names_tag
 
                 if key_name is not None:
                     band_names = tags[key_name]
@@ -766,7 +769,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def _add_overviews_and_tags(self, r, tags, kwargs):
             # write tags:
-        tags_to_save = {'telluric_band_names': json.dumps(self.band_names)}
+        tags_to_save = {band_names_tag: json.dumps(self.band_names)}
         if tags:
             tags_to_save.update(tags)
 

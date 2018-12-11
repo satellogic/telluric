@@ -95,6 +95,7 @@ def test_raster_list_vrt_for_single_raster():
         assert raster.shape == rasters[0].shape
         assert raster.affine.almost_equals(rasters[0].affine)
         assert (raster.image.data == rasters[0].image.data).all()
+        assert raster.band_names == rasters[0].band_names
 
 
 def test_vrt_from_single_raster():
