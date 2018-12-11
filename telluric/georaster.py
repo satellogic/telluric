@@ -792,7 +792,11 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     def blockshapes(self):
         """Raster all bands block shape."""
         if self._blockshapes is None:
-            self._populate_from_rasterio_object(read_image=False)
+            if self._filename:
+                self._populate_from_rasterio_object(read_image=False)
+            else:
+                # if no file is attached to the raster set the shape of each band to be the data array size
+                self._blockshapes = [(self.height, self.width) for z in range(self.num_bands)]
         return self._blockshapes
 
     def block_shape(self, band=None):

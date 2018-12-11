@@ -877,3 +877,14 @@ def test_not_loades():
     assert raster.not_loaded()
     raster.image
     assert not raster.not_loaded()
+
+
+def test_blockshapes_for_in_memory_raster():
+    assert len(some_raster.blockshapes) == some_raster.num_bands
+    assert some_raster.blockshapes == [(some_raster.height, some_raster.width),]
+
+
+def test_blockshapes_for_file_raster():
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif")
+    assert len(raster.blockshapes) == raster.num_bands
+    assert raster.blockshapes == [(27, 100), (27, 100), (27, 100)]
