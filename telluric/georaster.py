@@ -1359,6 +1359,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         ---------
         out: GeoRaster2
         """
+
+        if not self.not_loaded():
+            with MemoryFile(ext=".tif") as tmp_file:
+                tmp_raster = self.save(tmp_file.name)
+                return tmp_raster.reproject(dst_crs, resolution, dimensions, src_bounds, dst_bounds,
+                                            target_aligned_pixels, resampling, creation_options, **kwargs)
+
         if self._image is None and self._filename is not None:
             # image is not loaded yet
             with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tf:
