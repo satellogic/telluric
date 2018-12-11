@@ -881,7 +881,7 @@ def test_not_loades():
 
 def test_blockshapes_for_in_memory_raster():
     assert len(some_raster.blockshapes) == some_raster.num_bands
-    assert some_raster.blockshapes == [(some_raster.height, some_raster.width),]
+    assert some_raster.blockshapes == [(some_raster.height, some_raster.width)]
 
 
 def test_blockshapes_for_file_raster():
