@@ -31,7 +31,6 @@ class BaseVRT:
         self.set_height(height)
         self.set_srs(crs)
         self.set_affine(affine)
-        self._metadata = None
 
     def set_width(self, width):
         if width is not None:
