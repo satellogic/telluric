@@ -880,8 +880,9 @@ def test_not_loades():
 
 
 def test_blockshapes_for_in_memory_raster():
-    assert len(some_raster.blockshapes) == some_raster.num_bands
-    assert some_raster.blockshapes == [(some_raster.height, some_raster.width)]
+    raster = GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs, band_names=['r'])
+    assert len(raster.blockshapes) == raster.num_bands
+    assert raster.blockshapes == [(raster.height, raster.width)]
 
 
 def test_blockshapes_for_file_raster():
