@@ -1,12 +1,14 @@
 """borrowed from Rasterio"""
-
+import os
+import json
 import xml.etree.ElementTree as ET
 
-from rasterio.enums import MaskFlags
 from rasterio.crs import CRS
+from rasterio.enums import MaskFlags
 from rasterio.windows import from_bounds, Window
-import os
 from telluric.base_vrt import BaseVRT
+
+from typing import Dict, List, Any
 
 
 def find_and_convert_to_type(_type, node, path, default=None):
@@ -19,6 +21,21 @@ def find_and_convert_to_type(_type, node, path, default=None):
 
 
 def wms_vrt(wms_file, bounds=None, resolution=None):
+    """Make a VRT XML document from a wms file.
+    Parameters
+    ----------
+    wms_file : str
+        The source wms file
+    bounds : GeoVector, optional
+        The requested footprint of the generated VRT
+    resolution : float, optional
+        The requested resolution of the generated VRT
+    Returns
+    -------
+    bytes
+        An ascii-encoded string (an ElementTree detail)
+    """
+
     from telluric import rasterization, constants
     wms_tree = ET.parse(wms_file)
     service = wms_tree.find(".//Service")
@@ -77,7 +94,7 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
                                   orig_width, orig_height, blockx, blocky,
                                   src_window, dst_window)
 
-    return vrt.tostring()
+    return vrt
 
 
 def boundless_vrt_doc(
@@ -135,4 +152,95 @@ def boundless_vrt_doc(
         dst_window = Window(xoff, yoff, xsize, ysize)
         vrt.add_band_simplesource(mask_band, 'mask,1', 'Byte', False, src_dataset.name,
                                   width, height, block_shape[1], block_shape[0], src_window, dst_window)
-    return vrt.tostring()
+    return vrt
+
+
+def band_name_to_color_interpretation(band_name):
+    if band_name.lower() in ['red', 'green', 'blue']:
+        return band_name
+    else:
+        return 'Gray'
+
+
+def raster_list_vrt(rasters, relative_to_vrt=True, nodata=None):
+    """Make a VRT XML document from a list of GeoRaster2 objects.
+    Parameters
+    ----------
+    rasters : list
+        The list of GeoRasters.
+    relative_to_vrt : bool, optional
+        If True the bands simple source url will be related to the VRT file
+    nodata : int, optional
+        If supplied is the note data value to be used
+    Returns
+    -------
+    bytes
+        An ascii-encoded string (an ElementTree detail)
+    """
+
+    from telluric import FeatureCollection
+    fc = FeatureCollection.from_georasters(rasters)
+    return raster_collection_vrt(fc, relative_to_vrt, nodata)
+
+
+def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None):
+    """Make a VRT XML document from a feature collection of GeoRaster2 objects.
+    Parameters
+    ----------
+    rasters : FeatureCollection
+        The FeatureCollection of GeoRasters.
+    relative_to_vrt : bool, optional
+        If True the bands simple source url will be related to the VRT file
+    nodata : int, optional
+        If supplied is the note data value to be used
+    Returns
+    -------
+    bytes
+        An ascii-encoded string (an ElementTree detail)
+    """
+
+    def max_resolution():
+        max_affine = max(fc, key=lambda f: f.raster.resolution()).raster.affine
+        return abs(max_affine.a), abs(max_affine.e)
+
+    from telluric import rasterization
+    from telluric.georaster import band_names_tag
+    assert all(fc.crs == f.crs for f in fc), "all rasters should have the same CRS"
+
+    rasters = (f.raster for f in fc)
+    bounds = fc.convex_hull.get_bounds(fc.crs)
+    resolution = max_resolution()
+    width, height, affine = rasterization.raster_data(bounds, resolution)
+
+    bands = {}  # type: Dict[str, tuple]
+    band_names = []  # type: List[Any]
+    vrt = BaseVRT(width, height, fc.crs, affine)
+
+    last_band_idx = 0
+    for raster in rasters:
+        for i, band_name in enumerate(raster.band_names):
+            if band_name in bands:
+                band_element, band_idx = bands[band_name]
+            else:
+                last_band_idx += 1
+                band_idx = last_band_idx
+                band_element = vrt.add_band(raster.dtype, band_idx, band_name_to_color_interpretation(band_name),
+                                            nodata=nodata)
+                bands[band_name] = (band_element, last_band_idx)
+                band_names.append(band_name)
+
+            src_window = Window(0, 0, raster.width, raster.height)
+            xoff = (raster.affine.xoff - affine.xoff) / affine.a
+            yoff = (raster.affine.yoff - affine.yoff) / affine.e
+            xsize = raster.width * raster.affine.a / affine.a
+            ysize = raster.height * raster.affine.e / affine.e
+            dst_window = Window(xoff, yoff, xsize, ysize)
+            file_name = raster._filename if relative_to_vrt else os.path.join(os.getcwd(), raster._filename)
+            print(file_name)
+            vrt.add_band_simplesource(band_element, band_idx, raster.dtype, relative_to_vrt, file_name,
+                                      raster.width, raster.height,
+                                      raster.block_shape(i)[1], raster.block_shape(i)[0],
+                                      src_window, dst_window)
+
+    vrt.add_metadata(items={band_names_tag: json.dumps(band_names)})
+    return vrt

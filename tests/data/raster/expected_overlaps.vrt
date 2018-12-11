@@ -1,0 +1,73 @@
+<VRTDataset rasterXSize="972" rasterYSize="1012">
+  <SRS>PROJCS["WGS 84 / Pseudo-Mercator",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],PROJECTION["Mercator_1SP"],PARAMETER["central_meridian",0],PARAMETER["scale_factor",1],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],EXTENSION["PROJ4","+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"],AUTHORITY["EPSG","3857"]]</SRS>
+  <GeoTransform>  1.3732549850943736e+06,  9.9998506365880768e+00,  0.0000000000000000e+00,  5.1760439810917731e+06,  0.0000000000000000e+00, -1.0000149365876702e+01</GeoTransform>
+  <VRTRasterBand dataType="Byte" band="1">
+    <ColorInterp>Red</ColorInterp>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">overlap1.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="843" RasterYSize="801" DataType="Byte" BlockXSize="843" BlockYSize="256" />
+      <SrcRect xOff="0" yOff="0" xSize="843" ySize="801" />
+      <DstRect xOff="0" yOff="211.278101955526" xSize="842.995923864941" ySize="801.003873053597" />
+    </SimpleSource>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">overlap2.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="713" RasterYSize="881" DataType="Byte" BlockXSize="713" BlockYSize="256" />
+      <SrcRect xOff="0" yOff="0" xSize="713" ySize="881" />
+      <DstRect xOff="258.825440723109" yOff="0" xSize="713.003447549581" ySize="880.995740124571" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Byte" band="2">
+    <ColorInterp>Green</ColorInterp>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">overlap1.tif</SourceFilename>
+      <SourceBand>2</SourceBand>
+      <SourceProperties RasterXSize="843" RasterYSize="801" DataType="Byte" BlockXSize="843" BlockYSize="256" />
+      <SrcRect xOff="0" yOff="0" xSize="843" ySize="801" />
+      <DstRect xOff="0" yOff="211.278101955526" xSize="842.995923864941" ySize="801.003873053597" />
+    </SimpleSource>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">overlap2.tif</SourceFilename>
+      <SourceBand>2</SourceBand>
+      <SourceProperties RasterXSize="713" RasterYSize="881" DataType="Byte" BlockXSize="713" BlockYSize="256" />
+      <SrcRect xOff="0" yOff="0" xSize="713" ySize="881" />
+      <DstRect xOff="258.825440723109" yOff="0" xSize="713.003447549581" ySize="880.995740124571" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Byte" band="3">
+    <ColorInterp>Blue</ColorInterp>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">overlap1.tif</SourceFilename>
+      <SourceBand>3</SourceBand>
+      <SourceProperties RasterXSize="843" RasterYSize="801" DataType="Byte" BlockXSize="843" BlockYSize="256" />
+      <SrcRect xOff="0" yOff="0" xSize="843" ySize="801" />
+      <DstRect xOff="0" yOff="211.278101955526" xSize="842.995923864941" ySize="801.003873053597" />
+    </SimpleSource>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">overlap2.tif</SourceFilename>
+      <SourceBand>3</SourceBand>
+      <SourceProperties RasterXSize="713" RasterYSize="881" DataType="Byte" BlockXSize="713" BlockYSize="256" />
+      <SrcRect xOff="0" yOff="0" xSize="713" ySize="881" />
+      <DstRect xOff="258.825440723109" yOff="0" xSize="713.003447549581" ySize="880.995740124571" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <MaskBand>
+    <VRTRasterBand dataType="Byte">
+      <SimpleSource>
+        <SourceFilename relativeToVRT="1">overlap1.tif</SourceFilename>
+        <SourceBand>mask,1</SourceBand>
+        <SourceProperties RasterXSize="843" RasterYSize="801" DataType="Byte" BlockXSize="843" BlockYSize="256" />
+        <SrcRect xOff="0" yOff="0" xSize="843" ySize="801" />
+        <DstRect xOff="0" yOff="211.278101955526" xSize="842.995923864941" ySize="801.003873053597" />
+      </SimpleSource>
+      <SimpleSource>
+        <SourceFilename relativeToVRT="1">overlap2.tif</SourceFilename>
+        <SourceBand>mask,1</SourceBand>
+        <SourceProperties RasterXSize="713" RasterYSize="881" DataType="Byte" BlockXSize="713" BlockYSize="256" />
+        <SrcRect xOff="0" yOff="0" xSize="713" ySize="881" />
+        <DstRect xOff="258.825440723109" yOff="0" xSize="713.003447549581" ySize="880.995740124571" />
+      </SimpleSource>
+    </VRTRasterBand>
+  </MaskBand>
+</VRTDataset>

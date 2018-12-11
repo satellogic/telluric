@@ -47,11 +47,12 @@ from telluric.util.raster_utils import (
     calc_transform, warp)
 
 from telluric.util.local_tile_server import TileServer
+from telluric.vrt import wms_vrt, raster_list_vrt, raster_collection_vrt
 
 # for mypy
 import matplotlib.cm
-from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple
-from telluric.vrt import wms_vrt
+from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple, Any
+
 
 dtype_map = {
     np.uint8: rasterio.uint8,
@@ -73,6 +74,9 @@ gdal_drivers = {
 }
 
 
+band_names_tag = 'telluric_band_names'
+
+
 class MergeStrategy(Enum):
     LEFT_ALL = 0
     INTERSECTION = 1
@@ -86,10 +90,10 @@ class PixelStrategy(Enum):
 
 def join(rasters):
     """
-    This method takes a list of rasters and returns a raster that is consturcted of all of them
+    This method takes a list of rasters and returns a raster that is constructed of all of them
     """
     from telluric.collections import FeatureCollection
-    bounds = FeatureCollection.from_geovectors([raster.footprint() for raster in rasters]).cascaded_union
+    bounds = FeatureCollection.from_geovectors([raster.footprint() for raster in rasters]).convex_hull
     return merge_all(rasters, roi=bounds)
 
 
@@ -435,6 +439,7 @@ class _Raster:
         """
         self._image = None
         self._band_names = None
+        self._blockshapes = None
         self._shape = copy(shape)
         if band_names:
             self._set_bandnames(copy(band_names))
@@ -589,13 +594,31 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 raise GeoRaster2IOError(e)
 
     @classmethod
-    def from_wms(cls, filename, vector, resolution):
+    def _save_to_destination_file(cls, doc, destination_file):
+        if destination_file is None:
+            mem_file = MemoryFile(ext=".vrt")
+            mem_file.write(doc)
+            return mem_file.name
+        with open(destination_file, 'wb') as f:
+            f.write(doc)
+        return destination_file
+
+    @classmethod
+    def from_wms(cls, filename, vector, resolution, destination_file=None):
         doc = wms_vrt(filename,
                       bounds=vector,
-                      resolution=resolution)
-        mem_file = MemoryFile(ext=".vrt")
-        mem_file.write(doc)
-        return GeoRaster2.open(mem_file.name)
+                      resolution=resolution).tostring()
+        filename = cls._save_to_destination_file(doc, destination_file)
+        return GeoRaster2.open(filename)
+
+    @classmethod
+    def from_rasters(cls, rasters, relative_to_vrt=True, destination_file=None, nodata=None):
+        if isinstance(rasters, list):
+            doc = raster_list_vrt(rasters, relative_to_vrt, nodata).tostring()
+        else:
+            doc = raster_collection_vrt(rasters, relative_to_vrt, nodata).tostring()
+        filename = cls._save_to_destination_file(doc, destination_file)
+        return GeoRaster2.open(filename)
 
     @classmethod
     def open(cls, filename, band_names=None, lazy_load=True, mutable=False, **kwargs):
@@ -658,8 +681,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
                 else:
                     tags = raster.tags()
-                    if tags and 'telluric_band_names' in tags:
-                        key_name = 'telluric_band_names'
+                    if tags and band_names_tag in tags:
+                        key_name = band_names_tag
 
                 if key_name is not None:
                     band_names = tags[key_name]
@@ -672,6 +695,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 self._set_image(image)
             else:
                 self._set_shape((raster.count, raster.shape[0], raster.shape[1]))
+
+            self._blockshapes = raster.block_shapes
 
     @classmethod
     def tags(cls, filename, namespace=None):
@@ -744,7 +769,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def _add_overviews_and_tags(self, r, tags, kwargs):
             # write tags:
-        tags_to_save = {'telluric_band_names': json.dumps(self.band_names)}
+        tags_to_save = {band_names_tag: json.dumps(self.band_names)}
         if tags:
             tags_to_save.update(tags)
 
@@ -762,6 +787,23 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 factors = [f for f in factors if f <= factor_max]
             r.build_overviews(factors, resampling=resampling)
             r.update_tags(ns='rio_overview', resampling=resampling.name)
+
+    @property
+    def blockshapes(self):
+        """Raster all bands block shape."""
+        if self._blockshapes is None:
+            if self._filename:
+                self._populate_from_rasterio_object(read_image=False)
+            else:
+                # if no file is attached to the raster set the shape of each band to be the data array size
+                self._blockshapes = [(self.height, self.width) for z in range(self.num_bands)]
+        return self._blockshapes
+
+    def block_shape(self, band=None):
+        """Raster single band block shape."""
+        if band is not None:
+            return self.blockshapes[band]
+        return self.blockshapes
 
     def save(self, filename, tags=None, **kwargs):
         """
@@ -874,7 +916,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return self.crs == other.crs \
             and self.affine.almost_equals(other.affine) \
             and self.shape == other.shape \
-            and self.image.dtype == other.image.dtype \
+            and self.dtype == other.dtype \
             and (
                 (self.image.mask is np.ma.nomask or not np.any(self.image.mask)) and
                 (other.image.mask is np.ma.nomask or not np.any(other.image.mask)) or

@@ -428,7 +428,7 @@ def build_vrt(source_file, destination_file, **kwargs):
         The path to the destination file.
     """
     with rasterio.open(source_file) as src:
-        vrt_doc = boundless_vrt_doc(src, **kwargs)
+        vrt_doc = boundless_vrt_doc(src, **kwargs).tostring()
 
         with open(destination_file, 'wb') as dst:
             dst.write(vrt_doc)
