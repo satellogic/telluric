@@ -1,4 +1,4 @@
-telluric 0.9.0 (TBD)
+telluric 0.9.0 (2018-12-12)
 ===========================
 
 New features
@@ -23,6 +23,7 @@ Bug fixes
 * Fix :py:mod:`matplotlib.cm` call (#187)
 * Fix :py:meth:`telluric.georaster.GeoRaster2.save` (#197)
 * Pin minimal version of Folium (#198)
+* Fix rasterio's GDAL environment issue (#201)
 
 telluric 0.8.0 (2018-11-18)
 ===========================
