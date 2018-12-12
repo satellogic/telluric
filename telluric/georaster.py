@@ -449,6 +449,9 @@ class _Raster:
         else:
             self._dtype = None
 
+    def _build_masked_array(self, image, nodata):
+        return np.ma.masked_array(image, image == nodata)
+
     def _set_image(self, image, nodata=0):
         """
         Set self._image.
@@ -461,7 +464,7 @@ class _Raster:
         if isinstance(image, np.ma.core.MaskedArray):
             masked = image
         elif isinstance(image, np.core.ndarray):
-            masked = np.ma.masked_array(image, image == nodata)
+            masked = self._build_masked_array(image, nodata)
         else:
             raise GeoRaster2NotImplementedError('only ndarray or masked array supported, got %s' % type(image))
 
@@ -546,7 +549,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     """
 
     def __init__(self, image=None, affine=None, crs=None,
-                 filename=None, band_names=None, nodata=0, shape=None, footprint=None,
+                 filename=None, band_names=None, nodata=None, shape=None, footprint=None,
                  temporary=False):
         """Create a GeoRaster object
 
@@ -567,6 +570,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         self._filename = filename
         self._temporary = temporary
         self._footprint = copy(footprint)
+        self._nodata_value = nodata
 
     def __del__(self):
         try:
@@ -693,6 +697,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                         band_names = json.loads(band_names)
                     self._set_bandnames(band_names)
 
+            if self._nodata_value is None:
+                self._nodata_value = raster.nodata
+
             if read_image:
                 image = np.ma.masked_array(raster.read(), ~raster.read_masks()).copy()
                 self._set_image(image)
@@ -719,6 +726,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         if self._band_names is None:
             self._populate_from_rasterio_object(read_image=False)
         return self._band_names
+
+    @property
+    def nodata_value(self):
+        if self._nodata_value is None:
+            self._populate_from_rasterio_object(read_image=False)
+        return self._nodata_value
 
     @property
     def affine(self):
@@ -1107,7 +1120,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         width = right - left
         height = top - bottom
         window = rasterio.windows.Window(col_off=left, row_off=bottom, width=width, height=height)
-
         return bounds, window
 
     def _resolution_to_output_shape(self, bounds, resolution):
@@ -1136,6 +1148,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         :return: GeoRaster
         """
+        import pdb; pdb.set_trace();
 
         if self._image is not None:
             raster = self._crop(bounds, xsize=xsize, ysize=ysize, resampling=resampling)
@@ -1259,7 +1272,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
         dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
-        return self._reproject(new_width, new_height, dest_affine, resampling=resampling)
+        return self.reproject(new_width, new_height, dest_affine, resampling=resampling)
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
@@ -1359,8 +1372,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         ---------
         out: GeoRaster2
         """
-
+        print("bla")
         if not self.not_loaded():
+            print("here")
             with MemoryFile(ext=".tif") as tmp_file:
                 tmp_raster = self.save(tmp_file.name)
                 return tmp_raster.reproject(dst_crs, resolution, dimensions, src_bounds, dst_bounds,
@@ -1803,9 +1817,10 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             filename = self._raster_backed_by_a_file()._filename
             with self._raster_opener(filename) as raster:  # type: rasterio.io.DatasetReader
                 read_params["masked"] = self._read_with_mask(raster, masked)
+                read_params["masked"] = True
                 array = raster.read(bands, **read_params)
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
-            raster = self.copy_with(image=array, affine=affine)
+            raster = self.copy_with(image=array, affine=affine, nodata=self.nodata_value)
 
             if masked and not raster.image.mask.any():
                 intersection = self.footprint().envelope.intersection(raster.footprint().envelope)
