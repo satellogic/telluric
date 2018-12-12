@@ -605,6 +605,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     @classmethod
     def from_wms(cls, filename, vector, resolution, destination_file=None):
+        """Create georaster from the web service definition file."""
         doc = wms_vrt(filename,
                       bounds=vector,
                       resolution=resolution).tostring()
@@ -613,6 +614,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     @classmethod
     def from_rasters(cls, rasters, relative_to_vrt=True, destination_file=None, nodata=None):
+        """Create georaster out of a list of rasters."""
         if isinstance(rasters, list):
             doc = raster_list_vrt(rasters, relative_to_vrt, nodata).tostring()
         else:
