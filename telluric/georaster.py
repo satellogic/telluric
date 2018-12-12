@@ -1704,7 +1704,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return _calc_overviews_factors(self, blocksize=blocksize)
 
     def save_cloud_optimized(self, dest_url, resampling=Resampling.gauss, blocksize=256,
-                   overview_blocksize=256, creation_options=None):
+                             overview_blocksize=256, creation_options=None):
         """Save as Cloud Optimized GeoTiff object to a new file.
 
         :param dest_url: path to the new raster
