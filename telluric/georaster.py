@@ -1703,20 +1703,25 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
     def _overviews_factors(self, blocksize=256):
         return _calc_overviews_factors(self, blocksize=blocksize)
 
-    def save_cloud_optimized(self, dest_url, resampling=Resampling.gauss):
+    def save_cloud_optimized(self, dest_url, resampling=Resampling.gauss, blocksize=256,
+                   overview_blocksize=256, creation_options=None):
         """Save as Cloud Optimized GeoTiff object to a new file.
 
         :param dest_url: path to the new raster
         :param resampling: which Resampling to use on reading, default Resampling.gauss
-
-        :return: new VirtualGeoRaster of the tiled object
+        :param blocksize: the size of the blocks default 256
+        :param overview_blocksize: the block size of the overviews, default 256
+        :param creation_options: <dictioanry>, options that can override the source raster profile,
+                              notice that you can't override tiled=True, and the blocksize
+                              the list of creation_options can be found here https://www.gdal.org/frmt_gtiff.html
+        :return: new GeoRaster of the tiled object
         """
 
         src = self  # GeoRaster2.open(self._filename)
 
         with tempfile.NamedTemporaryFile(suffix='.tif') as tf:
             src.save(tf.name, overviews=False)
-            convert_to_cog(tf.name, dest_url, resampling)
+            convert_to_cog(tf.name, dest_url, resampling, blocksize, overview_blocksize, creation_options)
 
         geotiff = GeoRaster2.open(dest_url)
         return geotiff
