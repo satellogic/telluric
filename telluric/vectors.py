@@ -1,6 +1,6 @@
 import json
 import warnings
-import rasterio
+import fiona
 import numpy as np
 
 import shapely.geometry
@@ -400,7 +400,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         return self._shape._repr_svg_()
 
     def reproject(self, new_crs):
-        with rasterio.Env():
+        with fiona.Env():
             if new_crs == self.crs:
                 return self
             else:
