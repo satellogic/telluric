@@ -549,17 +549,33 @@ class FileCollection(BaseCollection):
     def __getitem__(self, index):
         # See https://github.com/Toblerity/Fiona/issues/327 for discussion
         # about random access in Fiona
+        def adjust(bound):
+            if bound is not None:
+                if bound > 0 and bound > len(self):
+                    bound = len(self)
+                elif bound < 0 and abs(bound) >= len(self):
+                    bound = 0
+            return bound
+
         if isinstance(index, int):
+            if (
+                (index < 0 and abs(index) > len(self)) or
+                (index >= 0 and index >= len(self))
+            ):
+                raise IndexError("collection index out of range")
+
             # We have to convert to positive indices to use islice here, see
             # https://bugs.python.org/issue33040
             index = index % len(self)
             return list(islice(self, index, index + 1))[0]
 
         else:
-            start, stop, step = index.start, index.stop, index.step
+            start, stop, step = adjust(index.start), adjust(index.stop), index.step
 
-            start = start % len(self) if start is not None else None
-            stop = stop % len(self) if stop is not None else None
+            if start is not None and start < 0:
+                start = start % len(self)
+            if stop is not None and stop < 0:
+                stop = stop % len(self)
 
             try:
                 results = list(islice(self, start, stop, step))

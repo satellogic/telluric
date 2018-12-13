@@ -230,6 +230,8 @@ def test_collection_slicing(fc):
     assert fc[-2:] == FeatureCollection(features[-2:])
     assert fc[:-1] == FeatureCollection(features[:-1])
     assert fc[::2] == FeatureCollection(features[::2])
+    assert fc[:len(fc) + 1] == FeatureCollection(features[:])
+    assert fc[-(len(fc) + 1):] == FeatureCollection(features[:])
 
     # Negative step slicing
     assert fc[::-1] == FeatureCollection(features[::-1])
@@ -240,6 +242,18 @@ def test_collection_slicing(fc):
 
     # Slicing should return another FeatureCollection
     assert type(fc[:]) is FeatureCollection
+
+
+@pytest.mark.parametrize("fc", [
+    fc_generator(num_features=5),
+    FileCollection.open("tests/data/vector/bsas_barrios_lla.geojson"),
+])
+def test_collection_index_out_of_range_raises_error(fc):
+    with pytest.raises(IndexError):
+        fc[len(fc)]
+
+    with pytest.raises(IndexError):
+        fc[-(len(fc) + 1)]
 
 
 def test_file_collection_open():
