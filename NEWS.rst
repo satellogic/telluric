@@ -1,3 +1,30 @@
+telluric 0.9.0 (2018-12-12)
+===========================
+
+New features
+------------
+
+* Added new method :py:meth:`telluric.collections.FeatureCollection.from_georasters` to
+  create collections of rasters (#184)
+* Visualization feature collection with rasters in Jupyter Notebook (#186)
+* Added new method :py:meth:`telluric.collections.BaseCollection.apply` (#188)
+* Added new method :py:meth:`telluric.georaster.GeoRaster2.from_wms` for
+  creating rasters out of web services (#190, #192)
+* Generalizing the process of making VRT files (#191, #193)
+* Rasterio 1.0.11 compatibility (#194)
+* Added new method :py:meth:`telluric.georaster.GeoRaster2.from_rasters` to
+  create raster out of a list of rasters (#195)
+* Added support of several domains in a single VRT file (#196)
+
+Bug fixes
+---------
+
+* Reproject features before polygonization (#182)
+* Fix :py:mod:`matplotlib.cm` call (#187)
+* Fix :py:meth:`telluric.georaster.GeoRaster2.save` (#197)
+* Pin minimal version of Folium (#198)
+* Fix rasterio's GDAL environment issue (#201)
+
 telluric 0.8.0 (2018-11-18)
 ===========================
 
