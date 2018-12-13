@@ -1,4 +1,5 @@
 import asyncio
+import os
 import folium
 import concurrent.futures
 from threading import Thread, Lock
@@ -111,9 +112,14 @@ class TileServer:
     objects = {}  # type:dict
     running_app = None
 
+    @staticmethod
+    def default_port():
+        return int(os.getenv("TILESERVER_PORT", "4000"))
+
     @classmethod
     def folium_client(cls, obj, bounds, mp=None, capture=None,
-                      base_map_name="Stamen Terrain", port=4000):
+                      base_map_name="Stamen Terrain", port=None):
+        port = port or cls.default_port()
         shape = bounds.get_shape(WGS84_CRS)
         mp = mp or folium.Map(tiles=base_map_name)
 
@@ -132,7 +138,8 @@ class TileServer:
         return "http://localhost:%s/%s/{x}/{y}/{z}.png" % (port, id(obj))
 
     @classmethod
-    def run_tileserver(cls, obj, footprint, resampling=Resampling.nearest, port=4000):
+    def run_tileserver(cls, obj, footprint, resampling=Resampling.nearest, port=None):
+        port = port or cls.default_port()
         cls.add_object(obj, footprint)
         if cls.running_app is None:
             try:
