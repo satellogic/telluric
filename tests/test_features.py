@@ -251,7 +251,7 @@ def test_transform_properties():
 
 
 def test_geofeature_with_raster_copy_with(request):
-    raster = request.getfuncargvalue("test_raster_with_url")
+    raster = request.getfixturevalue("test_raster_with_url")
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     feature_copy = feature.copy_with()
@@ -261,7 +261,7 @@ def test_geofeature_with_raster_copy_with(request):
 
 
 def test_geofeature_with_raster_copy_with_updates_properties(request):
-    raster = request.getfuncargvalue("test_raster_with_url")
+    raster = request.getfixturevalue("test_raster_with_url")
     properties = OrderedDict([('prop1', 1), ('prop2', '2')])
     feature = GeoFeature.from_raster(raster, properties=properties)
     new_properties = OrderedDict([('prop2', 1), ('prop3', '2')])
