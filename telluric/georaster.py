@@ -847,7 +847,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             os.makedirs(folder, exist_ok=True)
 
         internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
-        nodata_value = kwargs.get('nodata', None)
+        nodata_value = kwargs.get('nodata', self.nodata_value)
+        # nodata_value = kwargs.get('nodata', None)
         compression = kwargs.get('compression', Compression.lzw)
         rasterio_envs = {'GDAL_TIFF_INTERNAL_MASK': internal_mask}
         if os.environ.get('DEBUG', False):
@@ -1148,7 +1149,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         :return: GeoRaster
         """
-        import pdb; pdb.set_trace();
 
         if self._image is not None:
             raster = self._crop(bounds, xsize=xsize, ysize=ysize, resampling=resampling)
@@ -1202,7 +1202,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def copy_with(self, mutable=False, **kwargs):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
-        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names}
+        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names, "nodata": self.nodata_value}
         init_args.update(kwargs)
 
         # The image is a special case because we don't want to make a copy of a possibly big array
@@ -1272,7 +1272,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
         dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
-        return self.reproject(new_width, new_height, dest_affine, resampling=resampling)
+        return self._reproject(new_width, new_height, dest_affine, resampling=resampling)
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
@@ -1372,11 +1372,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         ---------
         out: GeoRaster2
         """
-        print("bla")
         if not self.not_loaded():
-            print("here")
             with MemoryFile(ext=".tif") as tmp_file:
-                tmp_raster = self.save(tmp_file.name)
+                tmp_raster = self.save(tmp_file.name, overviews=False)
                 return tmp_raster.reproject(dst_crs, resolution, dimensions, src_bounds, dst_bounds,
                                             target_aligned_pixels, resampling, creation_options, **kwargs)
 
@@ -1387,7 +1385,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                      dimensions=dimensions, creation_options=creation_options,
                      src_bounds=src_bounds, dst_bounds=dst_bounds,
                      target_aligned_pixels=target_aligned_pixels,
-                     resampling=resampling, **kwargs)
+                     resampling=resampling,src_nodata=self.nodata_value
+		     ,**kwargs)
 
             new_raster = self.__class__(filename=tf.name, temporary=True,
                                         band_names=self.band_names)
@@ -1820,7 +1819,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 read_params["masked"] = True
                 array = raster.read(bands, **read_params)
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
-            raster = self.copy_with(image=array, affine=affine, nodata=self.nodata_value)
+            raster = self.copy_with(image=array, affine=affine)
 
             if masked and not raster.image.mask.any():
                 intersection = self.footprint().envelope.intersection(raster.footprint().envelope)
