@@ -1,5 +1,5 @@
-telluric 0.9.1 (TBD)
-====================
+telluric 0.9.1 (2018-12-14)
+===========================
 
 New features
 ------------
@@ -11,6 +11,7 @@ Bug fixes
 ---------
 
 * Fix iterating over :py:class:`~telluric.collections.FileCollection` (#203)
+* Fix fiona's GDAL environment issue (#204)
 
 telluric 0.9.0 (2018-12-12)
 ===========================
