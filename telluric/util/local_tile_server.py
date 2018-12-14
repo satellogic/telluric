@@ -90,21 +90,6 @@ class OKHandler(tornado.web.RequestHandler):
         return "i'm alive"
 
 
-def make_app(objects, resampling=Resampling.nearest):
-    uri = r'/(\d+)/(\d+)/(\d+)/(\d+)\.png'
-    return tornado.web.Application([
-        (uri, TileServerHandler, dict(objects=objects, resampling=resampling)),
-        (r'/ok', OKHandler),
-    ])
-
-
-def _run_app(objects, resampling, port=4000):
-    asyncio.set_event_loop(asyncio.new_event_loop())
-    app = HTTPServer(make_app(objects, resampling))
-    app.listen(port, '0.0.0.0')
-    IOLoop.current().start()
-
-
 rasters_lock = Lock()
 
 
@@ -114,7 +99,7 @@ class TileServer:
 
     @staticmethod
     def default_port():
-        return int(os.getenv("TILESERVER_PORT", "4000"))
+        return int(os.getenv("TELLURIC_TILESERVER_PORT", "4000"))
 
     @classmethod
     def folium_client(cls, obj, bounds, mp=None, capture=None,
@@ -156,3 +141,18 @@ class TileServer:
     def add_object(cls, obj, footprint):
         with rasters_lock:
             cls.objects[id(obj)] = ServedObj(obj, footprint)
+
+
+def make_app(objects, resampling=Resampling.nearest):
+    uri = r'/(\d+)/(\d+)/(\d+)/(\d+)\.png'
+    return tornado.web.Application([
+        (uri, TileServerHandler, dict(objects=objects, resampling=resampling)),
+        (r'/ok', OKHandler),
+    ])
+
+
+def _run_app(objects, resampling, port=TileServer.default_port()):
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    app = HTTPServer(make_app(objects, resampling))
+    app.listen(port, '0.0.0.0')
+    IOLoop.current().start()
