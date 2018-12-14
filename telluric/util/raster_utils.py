@@ -77,9 +77,10 @@ def _creation_options_for_cog(creation_options, source_profile, blocksize):
 
     creation_options["blocksize"] = blocksize
     creation_options["tiled"] = True
+    defaults = {"nodata": None, "compress": "lzw"}
     for key in ["nodata", "compress"]:
         if key not in creation_options:
-            creation_options[key] = source_profile.get(key, None)
+            creation_options[key] = source_profile.get(key, defaults.get(key))
     return creation_options
 
 
