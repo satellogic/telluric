@@ -1711,7 +1711,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param resampling: which Resampling to use on reading, default Resampling.gauss
         :param blocksize: the size of the blocks default 256
         :param overview_blocksize: the block size of the overviews, default 256
-        :param creation_options: <dictioanry>, options that can override the source raster profile,
+        :param creation_options: dict, options that can override the source raster profile,
                               notice that you can't override tiled=True, and the blocksize
                               the list of creation_options can be found here https://www.gdal.org/frmt_gtiff.html
         :return: new GeoRaster of the tiled object
