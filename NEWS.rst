@@ -1,3 +1,17 @@
+telluric 0.9.1 (TBD)
+====================
+
+New features
+------------
+
+* LZW compression is used by default for creating COG rasters (#200)
+* Added way to change port for local tile server (#202)
+
+Bug fixes
+---------
+
+* Fix iterating over :py:class:`~telluric.collections.FileCollection` (#203)
+
 telluric 0.9.0 (2018-12-12)
 ===========================
 
