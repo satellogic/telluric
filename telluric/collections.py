@@ -522,10 +522,11 @@ class FileCollection(BaseCollection):
             overrides the crs of the collection, this funtion will not reprojects
 
         """
-        with fiona.open(filename, 'r') as source:
-            original_crs = CRS(source.crs)
-            schema = source.schema
-            length = len(source)
+        with fiona.Env():
+            with fiona.open(filename, 'r') as source:
+                original_crs = CRS(source.crs)
+                schema = source.schema
+                length = len(source)
         crs = crs or original_crs
         ret_val = cls(filename, crs, schema, length)
         return ret_val
