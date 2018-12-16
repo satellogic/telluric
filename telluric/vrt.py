@@ -156,7 +156,7 @@ def boundless_vrt_doc(
 
 
 def band_name_to_color_interpretation(band_name):
-    if band_name.lower() in ['red', 'green', 'blue']:
+    if isinstance(band_name, str) and band_name.lower() in ['red', 'green', 'blue']:
         return band_name
     else:
         return 'Gray'
