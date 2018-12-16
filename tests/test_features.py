@@ -14,6 +14,7 @@ from telluric.vectors import (
 from telluric.features import transform_properties, GeoFeature
 from telluric.georaster import GeoRaster2
 
+
 def test_geofeature_initializer():
     expected_geovector = GeoVector(Point(0.0, 0.0))
     expected_properties = {'property_1': 1}
