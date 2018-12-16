@@ -372,9 +372,10 @@ class GeoFeatureWithRaster(GeoFeature):
 
         return self.__class__(rasters, new_properties)
 
-    def _prepare_vrt(self):
+    def rasters_as_vrt(self):
         if self._vrt is None:
             self._vrt = GeoRaster2.from_rasters(self.rasters)
+        return self._vrt
 
     @property
     def raster(self):
@@ -382,5 +383,4 @@ class GeoFeatureWithRaster(GeoFeature):
             return None
         if len(self.rasters) == 1:
             return self.rasters[0]
-        self._prepare_vrt()
-        return self._vrt
+        return self.rasters_as_vrt()
