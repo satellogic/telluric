@@ -359,12 +359,7 @@ class GeoFeatureWithRaster(GeoFeature):
     def copy_with(self, rasters=None, properties=None):
         """Generate a new GeoFeatureWithRaster with different raster or preperties."""
         if rasters is None:
-            rasters = []
-            for raster in self.rasters:
-                if raster.not_loaded():
-                    rasters.append(GeoRaster2.open(raster._filename))
-                else:
-                    rasters.append(raster.copy_with())
+            rasters = [raster.copy() for raster in self.rasters]
 
         properties = properties or {}
         new_properties = copy.deepcopy(self.properties)

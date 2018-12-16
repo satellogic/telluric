@@ -14,7 +14,7 @@ from rasterio.crs import CRS
 from rasterio.errors import NotGeoreferencedWarning
 from rasterio.windows import Window
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
-from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning, join
+from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning, join, MutableGeoRaster
 from telluric.vectors import GeoVector
 
 from common_for_tests import make_test_raster
@@ -86,6 +86,17 @@ def test_eq():
         some_raster.copy_with(image=np.ma.masked_array(
             some_raster.image.data,
             mask=np.ma.nomask)))
+
+
+def test_copy():
+    assert some_raster == some_raster.copy()
+    assert isinstance(some_raster.copy(mutable=True), MutableGeoRaster)
+    raster = GeoRaster2.open('./tests/data/raster/overlap1.tif')
+    assert raster == raster.copy()
+    assert raster.copy().not_loaded()
+    raster.image
+    assert raster == raster.copy()
+    assert not raster.copy().not_loaded()
 
 
 def test_eq_ignores_masked_values():

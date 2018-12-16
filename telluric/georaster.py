@@ -1175,6 +1175,19 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Without opening image, return size/bitness/bands/geography/...."""
         raise NotImplementedError
 
+    def copy(self, mutable=False):
+        """Return a copy of this GeoRaster with no modifications.
+
+        Can be use to create a Mutable copy of the GeoRaster"""
+
+        if self.not_loaded():
+            _cls = self.__class__
+            if mutable:
+                _cls = MutableGeoRaster
+            return _cls.open(self._filename)
+
+        return self.copy_with(mutable=mutable)
+
     def copy_with(self, mutable=False, **kwargs):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
         init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names}
