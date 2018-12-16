@@ -352,7 +352,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
 
     @classmethod
     def envelopes_union(cls, vectors, dst_crs, prevalidate=False):
-        # type: (list, rasterio.crs.CRS, bool) -> GeoVector
+        # type: (list, CRS, bool) -> GeoVector
         # This is not exactly equal as cascaded_union,
         # as we are computing the envelope of the envelopes,
         # hence saving time
@@ -376,7 +376,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
 
     @classmethod
     def cascaded_union(cls, vectors, dst_crs, prevalidate=False):
-        # type: (list, rasterio.crs.CRS, bool) -> GeoVector
+        # type: (list, CRS, bool) -> GeoVector
         """Generate a GeoVector from the cascade union of the impute vectors."""
         try:
             shapes = [geometry.get_shape(dst_crs) for geometry in vectors]
