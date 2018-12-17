@@ -232,7 +232,7 @@ def test_geofeature_from_record_for_a_record_with_raster(raster, request):
 
 def test_geofeature_from_multi_rasters_returns_a_valid_feature(request):
     rasters = [request.getfixturevalue("test_raster_with_url"),
-               request.getfixturevalue("test_raster_with_no_url")]
+               request.getfixturevalue("test_raster_with_url")]
     raster = GeoMultiRaster(rasters)
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
@@ -243,7 +243,7 @@ def test_geofeature_from_multi_rasters_returns_a_valid_feature(request):
 
 def test_geofeature_from_multi_raster_serializes_with_assets(request):
     rasters = [request.getfixturevalue("test_raster_with_url"),
-               request.getfixturevalue("test_raster_with_no_url")]
+               request.getfixturevalue("test_raster_with_url")]
     raster = GeoMultiRaster(rasters)
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
@@ -255,7 +255,7 @@ def test_geofeature_from_multi_raster_serializes_with_assets(request):
 
 def test_geofeature_from_record_for_a_record_with_multi_raster(request):
     rasters = [request.getfixturevalue("test_raster_with_url"),
-               request.getfixturevalue("test_raster_with_no_url")]
+               request.getfixturevalue("test_raster_with_url")]
     raster = GeoMultiRaster(rasters)
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
