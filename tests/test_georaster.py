@@ -696,7 +696,7 @@ def test_save_temporary():
 
         raster.save(dst.name)
         assert not raster._temporary
-        assert raster._filename == dst.name
+        assert raster._filename is None
         # temporary file is removed
         assert not os.path.isfile(src.name)
 
@@ -706,9 +706,9 @@ def test_save_uses_copy():
     raster = GeoRaster2.open("tests/data/raster/rgb.tif", band_names=band_names)
     with NamedTemporaryFile(suffix='.tif') as target:
         factors = [2, 4]
-        raster.save(target.name, overviews=True, factors=factors)
-        assert raster.band_names == band_names
-        assert raster.overviews_factors == factors
+        result = raster.save(target.name, overviews=True, factors=factors)
+        assert result.band_names == band_names
+        assert result.overviews_factors == factors
 
 
 def test_reproject_lazy():
