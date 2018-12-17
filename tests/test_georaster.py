@@ -93,7 +93,7 @@ def test_copy():
     assert isinstance(some_raster.copy(mutable=True), MutableGeoRaster)
     raster = GeoRaster2.open('./tests/data/raster/overlap1.tif')
     assert raster == raster.copy()
-    assert raster.copy().not_loaded()
+    # assert raster.copy().not_loaded()
     raster.image
     assert raster == raster.copy()
     assert not raster.copy().not_loaded()
@@ -147,7 +147,7 @@ def test_tags():
         assert GeoRaster2.tags(path, 'IMAGE_STRUCTURE') == {'COMPRESSION': 'LZW', 'INTERLEAVE': 'PIXEL'}
 
 
-def test_copy():
+def test_deepcopy():
     """ Tests .__copy__() and .__deepcopy__() """
     a_raster = some_raster.deepcopy_with()
     deep_copy = deepcopy(a_raster)

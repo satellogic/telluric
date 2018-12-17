@@ -1197,9 +1197,11 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         # unless totally necessary
         if 'image' not in init_args:
             init_args['image'] = self.image
-        _cls = self.__class__
         if mutable:
             _cls = MutableGeoRaster
+        else:
+            _cls = GeoRaster2
+
         return _cls(**init_args)
 
     def not_loaded(self):
@@ -2102,3 +2104,12 @@ class Histogram:
         for band in self.hist:
             plt.plot(self.bins, self.hist[band], label=band)
         plt.legend(loc='upper left')
+
+
+class GeoMultiRaster(GeoRaster2):
+    def __init__(self, rasters):
+        assert all(r._filename for r in rasters), "GeoMultiRaster does not supports in-memory"
+        self._rasters = rasters
+        self._vrt = GeoRaster2.from_rasters(rasters)
+        super().__init__(affine=self._vrt.affine, crs=self._vrt.crs,
+                         filename=self._vrt._filename, band_names=self._vrt.band_names,)
