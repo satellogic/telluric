@@ -907,8 +907,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                         r.write_mask(mask)
                         self._add_overviews_and_tags(r, tags, kwargs)
 
-                self._filename = filename  # Not sure about this, but the api made sure the internal filename is changed
-                # so the same object could be continue to use
                 return GeoRaster2.open(filename)
 
             except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_BaseError, KeyError) as e:
