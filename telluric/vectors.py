@@ -4,6 +4,7 @@ import fiona
 import numpy as np
 
 import shapely.geometry
+from shapely.ops import cascaded_union
 from shapely.geometry import (
     shape as to_shape,
     Point, MultiPoint, Polygon, LineString, MultiLineString, GeometryCollection,
@@ -13,7 +14,7 @@ from shapely.geometry import (
 from mercantile import Bbox, xy_bounds, tiles
 
 from rasterio.crs import CRS
-from typing import Tuple, Iterator
+from typing import Tuple, Iterator, List
 
 from telluric.constants import DEFAULT_CRS, EQUAL_AREA_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.plotting import NotebookPlottingMixin
@@ -348,6 +349,52 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         return cls.from_bounds(xmin=bb.left, ymin=bb.bottom,
                                xmax=bb.right, ymax=bb.top,
                                crs=WEB_MERCATOR_CRS)
+
+    @classmethod
+    def envelopes_union(cls, vectors, dst_crs, prevalidate=False):
+        # type: (list, CRS, bool) -> GeoVector
+        # This is not exactly equal as cascaded_union,
+        # as we are computing the envelope of the envelopes,
+        # hence saving time
+        try:
+            envelopes = [geometry.envelope.get_shape(dst_crs) for geometry in vectors]
+
+            if prevalidate:
+                if not all([sh.is_valid for sh in envelopes]):
+                    warnings.warn(
+                        "Some invalid shapes found, discarding them."
+                    )
+
+        except IndexError:
+            crs = DEFAULT_CRS
+            envelopes = []
+
+        return cls(
+            cascaded_union([sh for sh in envelopes if sh.is_valid]).envelope,
+            crs=dst_crs
+        )
+
+    @classmethod
+    def cascaded_union(cls, vectors, dst_crs, prevalidate=False):
+        # type: (list, CRS, bool) -> GeoVector
+        """Generate a GeoVector from the cascade union of the impute vectors."""
+        try:
+            shapes = [geometry.get_shape(dst_crs) for geometry in vectors]
+
+            if prevalidate:
+                if not all([sh.is_valid for sh in shapes]):
+                    warnings.warn(
+                        "Some invalid shapes found, discarding them."
+                    )
+
+        except IndexError:
+            crs = DEFAULT_CRS
+            shapes = []
+
+        return cls(
+            cascaded_union([sh for sh in shapes if sh.is_valid]).simplify(0),
+            crs=dst_crs
+        )
 
     def __or__(self, other):
         return self.union(other)

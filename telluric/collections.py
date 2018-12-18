@@ -12,7 +12,6 @@ import fiona
 from fiona.schema import FIELD_TYPES_MAP_REV
 from shapely.geometry import CAP_STYLE
 from rasterio.crs import CRS
-from shapely.ops import cascaded_union
 from shapely.prepared import prep
 
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
@@ -97,23 +96,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
     @property
     def cascaded_union(self):  # type: () -> GeoVector
-        try:
-            crs = self.crs
-            shapes = [feature.geometry.get_shape(crs) for feature in self]
-
-            if not all([sh.is_valid for sh in shapes]):
-                warnings.warn(
-                    "Some invalid shapes found, discarding them."
-                )
-
-        except IndexError:
-            crs = DEFAULT_CRS
-            shapes = []
-
-        return GeoVector(
-            cascaded_union([sh for sh in shapes if sh.is_valid]).simplify(0),
-            crs=crs
-        )
+        return GeoVector.cascaded_union(self.geometries, self.crs, True)
 
     @property
     def convex_hull(self):  # type: () -> GeoVector
@@ -124,23 +107,11 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         # This is not exactly equal as cascaded_union,
         # as we are computing the envelope of the envelopes,
         # hence saving time
-        try:
-            crs = self.crs
-            envelopes = [feature.geometry.envelope.get_shape(crs) for feature in self]
+        return GeoVector.envelopes_union(self.geometries, self.crs, True)
 
-            if not all([sh.is_valid for sh in envelopes]):
-                warnings.warn(
-                    "Some invalid shapes found, discarding them."
-                )
-
-        except IndexError:
-            crs = DEFAULT_CRS
-            envelopes = []
-
-        return GeoVector(
-            cascaded_union([sh for sh in envelopes if sh.is_valid]).envelope,
-            crs=crs
-        )
+    @property
+    def geometries(self):
+        return [feature.geometry for feature in self]
 
     @property
     def __geo_interface__(self):

@@ -1,5 +1,6 @@
 import copy
 import warnings
+from datetime import datetime
 from collections import Mapping
 
 from dateutil.parser import parse as parse_date
@@ -51,32 +52,14 @@ def serialize_properties(properties):
     """
     new_properties = properties.copy()
     for attr_name, attr_value in new_properties.items():
-        if not isinstance(attr_value, (dict, list, tuple, str, int, float, bool, type(None))):
+        if isinstance(attr_value, datetime):
+            new_properties[attr_name] = attr_value.isoformat()
+        elif not isinstance(attr_value, (dict, list, tuple, str, int, float, bool, type(None))):
             # Property is not JSON-serializable according to this table
             # https://docs.python.org/3.4/library/json.html#json.JSONEncoder
             # so we convert to string
             new_properties[attr_name] = str(attr_value)
     return new_properties
-
-
-def raster_from_assets(assets):
-    """ create a raster from assets, assets is a dictonary of links like described
-        in the stacs inteface https://github.com/radiantearth/stac-spec/tree/master/json-spec/examples
-
-        * currently we support a single raster asset, in the feature we could support more
-    """
-    raster = None
-    for key, val in assets.items():
-        href = val.get("href")
-        bands = val.get("bands")
-        if href:
-            raster = GeoRaster2.open(href, band_names=bands)
-            break
-    return raster
-
-
-def raster_to_assets(raster):
-    return {"0": {"href": raster._filename, "bands": raster.band_names}}
 
 
 class GeoFeature(Mapping, NotebookPlottingMixin):
@@ -304,22 +287,23 @@ class GeoFeatureWithRaster(GeoFeature):
 
     def __init__(self, raster, properties):
         """Initialize a GeoFeature object with a raster,
-           When a GeoFeature has a raster the default behviour is the same as GeoFeature where the geometry
-           is the union of all rasters footprint.
+           When a GeoFeature has a raster the default behavior is the same as GeoFeature where the geometry
+           is the union of all raster footprint.
 
-           we will override some methods to work differetnly like:
+           we will override some methods to work differently like:
            1. reproject (TBD)
            2. rasterize (from feature collection, TBD)
            3. to_record
 
         Parameters
         ----------
-        raster[s]: array or single GeoRaster
+        raster: GeoRaster2 or GeoMultiRaster object
         properties : dict
             Properties.
         """
-        super().__init__(raster.footprint(), properties)
+        footprint = raster.footprint()
         self.raster = raster
+        super().__init__(footprint, properties)
 
     def to_record(self, crs):
         if self.raster._filename is None:
@@ -330,7 +314,7 @@ class GeoFeatureWithRaster(GeoFeature):
             'type': 'Feature',
             'properties': serialize_properties(self.properties),
             'geometry': self.geometry.to_record(crs),
-            'raster': raster_to_assets(self.raster)
+            'raster': self.raster.to_assets()
         }
         return ret_val
 
@@ -340,16 +324,13 @@ class GeoFeatureWithRaster(GeoFeature):
     @classmethod
     def _from_record(cls, record, crs, schema=None):
         properties = cls._to_properties(record, schema)
-        raster = raster_from_assets(record.get("raster", {}))
+        raster = GeoRaster2.from_assets(record.get("raster", {}))
         return GeoFeatureWithRaster(raster, properties)
 
     def copy_with(self, raster=None, properties=None):
         """Generate a new GeoFeatureWithRaster with different raster or preperties."""
         if raster is None:
-            if self.raster.not_loaded():
-                raster = GeoRaster2.open(self.raster._filename)
-            else:
-                raster = self.raster.copy_with()
+            raster = self.raster.copy()
 
         properties = properties or {}
         new_properties = copy.deepcopy(self.properties)

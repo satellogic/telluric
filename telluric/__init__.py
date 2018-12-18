@@ -1,4 +1,4 @@
-from telluric.georaster import GeoRaster2, MutableGeoRaster
+from telluric.georaster import GeoRaster2, MutableGeoRaster, GeoMultiRaster
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.collections import FileCollection, FeatureCollection

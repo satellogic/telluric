@@ -12,6 +12,7 @@ from telluric.vectors import (
 )
 
 from telluric.features import transform_properties, GeoFeature
+from telluric.georaster import GeoRaster2, GeoMultiRaster
 
 
 def test_geofeature_initializer():
@@ -80,7 +81,7 @@ def test_delegated_properties(property_name):
 
 
 @pytest.mark.parametrize("property_name", ['x', 'y', 'xy'])
-def test_delegated_properties(property_name):
+def test_another_delegated_properties(property_name):
     feature = GeoFeature(
         GeoVector(Point(0, 10)),
         {}
@@ -181,12 +182,13 @@ def test_geofeature_equality_checks_geometry_and_properties(geometry, properties
 
 
 def test_geofeature_correctly_serializes_non_simple_types():
+    date_feature = datetime(2018, 4, 25, 11, 18)
     feature = GeoFeature(
         GeoVector(Point(0, 0)),
-        OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
+        OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', date_feature)])
     )
     expected_properties = OrderedDict([
-        ('prop1', 1), ('prop2', '2'), ('prop3', '2018-04-25 11:18:00')
+        ('prop1', 1), ('prop2', '2'), ('prop3', date_feature.isoformat())
     ])
 
     assert mapping(feature)['properties'] == expected_properties
@@ -223,8 +225,45 @@ def test_geofeature_from_record_for_a_record_with_raster(raster, request):
     feature = GeoFeature.from_raster(raster, properties=properties)
     feature2 = GeoFeature.from_record(feature.to_record(feature.crs), feature.crs)
     assert feature.raster == feature2.raster
-    assert mapping(feature) == mapping(feature2)
+    assert feature.geometry == feature2.geometry
+    assert feature2.to_record(feature2.crs)['properties'] == feature.to_record(feature.crs)['properties']
     assert feature2.crs == feature2.raster.crs
+
+
+def test_geofeature_from_multi_rasters_returns_a_valid_feature(request):
+    rasters = [request.getfixturevalue("test_raster_with_url"),
+               request.getfixturevalue("test_raster_with_url")]
+    raster = GeoMultiRaster(rasters)
+    properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
+    feature = GeoFeature.from_raster(raster, properties=properties)
+    assert feature.properties == properties
+    assert feature.raster == raster
+    assert feature.raster == GeoRaster2.from_rasters(rasters)
+
+
+def test_geofeature_from_multi_raster_serializes_with_assets(request):
+    rasters = [request.getfixturevalue("test_raster_with_url"),
+               request.getfixturevalue("test_raster_with_url")]
+    raster = GeoMultiRaster(rasters)
+    properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
+    feature = GeoFeature.from_raster(raster, properties=properties)
+    assert mapping(feature)["raster"] == {
+        '0': {'href': rasters[0]._filename, 'bands': rasters[0].band_names},
+        '1': {'href': rasters[1]._filename, 'bands': rasters[1].band_names}
+    }
+
+
+def test_geofeature_from_record_for_a_record_with_multi_raster(request):
+    rasters = [request.getfixturevalue("test_raster_with_url"),
+               request.getfixturevalue("test_raster_with_url")]
+    raster = GeoMultiRaster(rasters)
+    properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
+    feature = GeoFeature.from_raster(raster, properties=properties)
+    feature2 = GeoFeature.from_record(feature.to_record(feature.crs), feature.crs)
+    assert feature.raster == feature2.raster
+    assert feature.geometry == feature2.geometry
+    assert feature2.to_record(feature2.crs)['properties'] == feature.to_record(feature.crs)['properties']
+    assert feature2.crs == feature.crs
 
 
 def test_transform_properties():

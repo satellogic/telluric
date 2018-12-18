@@ -156,7 +156,7 @@ def boundless_vrt_doc(
 
 
 def band_name_to_color_interpretation(band_name):
-    if band_name.lower() in ['red', 'green', 'blue']:
+    if isinstance(band_name, str) and band_name.lower() in ['red', 'green', 'blue']:
         return band_name
     else:
         return 'Gray'
@@ -236,7 +236,6 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None):
             ysize = raster.height * raster.affine.e / affine.e
             dst_window = Window(xoff, yoff, xsize, ysize)
             file_name = raster._filename if relative_to_vrt else os.path.join(os.getcwd(), raster._filename)
-            print(file_name)
             vrt.add_band_simplesource(band_element, band_idx, raster.dtype, relative_to_vrt, file_name,
                                       raster.width, raster.height,
                                       raster.block_shape(i)[1], raster.block_shape(i)[0],

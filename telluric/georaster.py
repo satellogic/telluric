@@ -1175,6 +1175,19 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Without opening image, return size/bitness/bands/geography/...."""
         raise NotImplementedError
 
+    def copy(self, mutable=False):
+        """Return a copy of this GeoRaster with no modifications.
+
+        Can be use to create a Mutable copy of the GeoRaster"""
+
+        if self.not_loaded():
+            _cls = self.__class__
+            if mutable:
+                _cls = MutableGeoRaster
+            return _cls.open(self._filename)
+
+        return self.copy_with(mutable=mutable)
+
     def copy_with(self, mutable=False, **kwargs):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
         init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names}
@@ -1184,9 +1197,11 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         # unless totally necessary
         if 'image' not in init_args:
             init_args['image'] = self.image
-        _cls = self.__class__
         if mutable:
             _cls = MutableGeoRaster
+        else:
+            _cls = GeoRaster2
+
         return _cls(**init_args)
 
     def not_loaded(self):
@@ -1984,6 +1999,18 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 cur_raster = _self.get_window(window)
                 yield RasterChunk(raster=cur_raster, offsets=(col_off, row_off))
 
+    def to_assets(self):
+        return {"0": {"href": self._filename, "bands": self.band_names}}
+
+    @classmethod
+    def from_assets(cls, assets):
+        if not assets:
+            return None
+        elif len(assets) > 1:
+            return GeoMultiRaster.from_assets(assets)
+        raster = assets["0"]
+        return GeoRaster2.open(raster["href"], band_names=raster["bands"])
+
 
 RasterChunk = namedtuple('RasterChunk', ["raster", "offsets"])
 
@@ -2089,3 +2116,28 @@ class Histogram:
         for band in self.hist:
             plt.plot(self.bins, self.hist[band], label=band)
         plt.legend(loc='upper left')
+
+
+class GeoMultiRaster(GeoRaster2):
+    def __init__(self, rasters):
+        assert all(r._filename for r in rasters), "GeoMultiRaster does not supports in-memory rasters"
+        self._rasters = rasters
+        self._vrt = GeoRaster2.from_rasters(rasters)
+        super().__init__(affine=self._vrt.affine, crs=self._vrt.crs,
+                         filename=self._vrt._filename, band_names=self._vrt.band_names,)
+
+    def copy(self):
+        return GeoMultiRaster(self._rasters)
+
+    def to_assets(self):
+        return {str(i): {"href": raster._filename, "bands": raster.band_names}
+                for i, raster in enumerate(self._rasters)
+                }
+
+    @classmethod
+    def from_assets(cls, assets):
+        if len(assets) < 2:
+            return GeoRaster2.from_assets(assets)
+        rasters = [GeoRaster2.open(assets[str(i)]["href"], band_names=assets[str(i)]["bands"]) for
+                   i in range(len(assets))]
+        return cls(rasters)
