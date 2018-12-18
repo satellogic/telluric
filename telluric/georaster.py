@@ -873,7 +873,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                     creation_options["tiled"] = params["tiled"]
                     creation_options["compress"] = params["compress"]
                     rasterio.shutil.copy(self.source_file, filename, creation_options=creation_options)
-                    rasterio.shutil.copy(self.source_file, filename)
                     self._cleanup()
                     with GeoRaster2._raster_opener(filename, "r+",) as r:
                         self._add_overviews_and_tags(r, tags, kwargs)
