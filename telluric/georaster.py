@@ -847,7 +847,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             os.makedirs(folder, exist_ok=True)
 
         internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
-        # nodata_value = kwargs.get('nodata', self.nodata_value)
         nodata_value = kwargs.get('nodata', None)
         compression = kwargs.get('compression', Compression.lzw)
         rasterio_envs = {'GDAL_TIFF_INTERNAL_MASK': internal_mask}
