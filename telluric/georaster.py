@@ -1369,7 +1369,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                      dimensions=dimensions, creation_options=creation_options,
                      src_bounds=src_bounds, dst_bounds=dst_bounds,
                      target_aligned_pixels=target_aligned_pixels,
-                     resampling=resampling, src_nodata=self.nodata_value, **kwargs)
+                     resampling=resampling, **kwargs)
 
             new_raster = self.__class__(filename=tf.name, temporary=True,
                                         band_names=self.band_names)
