@@ -729,7 +729,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     @property
     def nodata_value(self):
-        if self._nodata_value is None:
+        if self._filename is not None and self._nodata_value is None:
             self._populate_from_rasterio_object(read_image=False)
         return self._nodata_value
 
@@ -847,8 +847,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             os.makedirs(folder, exist_ok=True)
 
         internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
-        nodata_value = kwargs.get('nodata', self.nodata_value)
-        # nodata_value = kwargs.get('nodata', None)
+        # nodata_value = kwargs.get('nodata', self.nodata_value)
+        nodata_value = kwargs.get('nodata', None)
         compression = kwargs.get('compression', Compression.lzw)
         rasterio_envs = {'GDAL_TIFF_INTERNAL_MASK': internal_mask}
         if os.environ.get('DEBUG', False):
@@ -1309,32 +1309,22 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             return None
         dst_crs = dst_crs or self.crs
         dtype = dtype or self.image.data.dtype
-        dest_image = np.ma.masked_array(
-            data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
-            mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
-        )
+
+        mask = np.ma.getmaskarray(self.image)
+        alpha = (~mask).astype(np.uint8) * 255
+        src_image = np.concatenate((self.image.data, alpha))
+        alpha_band_idx = self.num_bands + 1
+
+        dest_image = np.zeros([alpha_band_idx, new_height, new_width], dtype=np.float32)
 
         src_transform = self._patch_affine(self.affine)
         dst_transform = self._patch_affine(dest_affine)
-        # first, reproject only data:
-        rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
+
+        rasterio.warp.reproject(src_image, dest_image, src_transform=src_transform,
                                 dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
-                                resampling=resampling)
-
-        # rasterio.reproject has a bug for dtype=bool.
-        # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
-        temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
-
-        # extract the mask, and un-shrink if necessary
-        mask = np.ma.getmaskarray(self.image)
-
-        # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
-        # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
-        # undo the inversion
-        rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
-                                src_transform=src_transform, dst_transform=dst_transform,
-                                src_crs=self.crs, dst_crs=dst_crs, resampling=Resampling.nearest)
-        dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
+                                resampling=resampling, dest_alpha=alpha_band_idx,
+                                init_dest_nodata=False, src_alpha=alpha_band_idx)
+        dest_image = np.ma.masked_array(dest_image[:self.num_bands, :, :], dest_image[self.num_bands, :, :] == 0)
 
         new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
 
@@ -1372,11 +1362,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         ---------
         out: GeoRaster2
         """
-        if not self.not_loaded():
-            with MemoryFile(ext=".tif") as tmp_file:
-                tmp_raster = self.save(tmp_file.name, overviews=False)
-                return tmp_raster.reproject(dst_crs, resolution, dimensions, src_bounds, dst_bounds,
-                                            target_aligned_pixels, resampling, creation_options, **kwargs)
 
         if self._image is None and self._filename is not None:
             # image is not loaded yet
@@ -1385,8 +1370,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                      dimensions=dimensions, creation_options=creation_options,
                      src_bounds=src_bounds, dst_bounds=dst_bounds,
                      target_aligned_pixels=target_aligned_pixels,
-                     resampling=resampling,src_nodata=self.nodata_value
-		     ,**kwargs)
+                     resampling=resampling, src_nodata=self.nodata_value, **kwargs)
 
             new_raster = self.__class__(filename=tf.name, temporary=True,
                                         band_names=self.band_names)
