@@ -6,13 +6,14 @@ from telluric.constants import WEB_MERCATOR_CRS
 
 
 def make_test_raster(value=0, band_names=[], height=3, width=4, dtype=np.uint16,
-                     crs=WEB_MERCATOR_CRS, affine=None):
+                     crs=WEB_MERCATOR_CRS, affine=None, image=None):
     if affine is None:
         affine = Affine.translation(10, 12) * Affine.scale(1, -1)
-    shape = [len(band_names), height, width]
-    array = np.full(shape, value, dtype=dtype)
-    mask = np.full(shape, False, dtype=np.bool)
-    image = np.ma.array(data=array, mask=mask)
+    if image is None:
+        shape = [len(band_names), height, width]
+        array = np.full(shape, value, dtype=dtype)
+        mask = np.full(shape, False, dtype=np.bool)
+        image = np.ma.array(data=array, mask=mask)
     raster = tl.GeoRaster2(image=image, affine=affine, crs=crs, band_names=band_names)
     return raster
 
