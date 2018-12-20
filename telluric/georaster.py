@@ -549,7 +549,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     """
 
     def __init__(self, image=None, affine=None, crs=None,
-                 filename=None, band_names=None, nodata=None, shape=None, footprint=None,
+                 filename=None, band_names=None, nodata=0, shape=None, footprint=None,
                  temporary=False):
         """Create a GeoRaster object
 
@@ -1291,6 +1291,17 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             affine = affine * Affine.translation(eps, eps)
         return affine
 
+    @staticmethod
+    def _max_per_dtype(dtype):
+        ret_val = None
+        if np.issubdtype(dtype, np.integer):
+            ret_val = np.iinfo(dtype).max
+        elif np.issubdtype(dtype, np.float):
+            ret_val = np.finfo(dtype).max
+        return ret_val
+
+
+
     def _reproject(self, new_width, new_height, dest_affine, dtype=None,
                    dst_crs=None, resampling=Resampling.cubic):
         """Return re-projected raster to new raster.
@@ -1310,7 +1321,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         dtype = dtype or self.image.data.dtype
 
         mask = np.ma.getmaskarray(self.image)
-        alpha = (~mask).astype(np.uint8) * 255
+        # mask is interperted to maximal value in alpha band
+        alpha = (~mask).astype(np.uint8) * self._max_per_dtype(self.dtype)
         src_image = np.concatenate((self.image.data, alpha))
         alpha_band_idx = self.num_bands + 1
 
@@ -1318,7 +1330,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         src_transform = self._patch_affine(self.affine)
         dst_transform = self._patch_affine(dest_affine)
-
         rasterio.warp.reproject(src_image, dest_image, src_transform=src_transform,
                                 dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
                                 resampling=resampling, dest_alpha=alpha_band_idx,
