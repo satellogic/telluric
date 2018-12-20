@@ -129,7 +129,6 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
     # Create a list of single band rasters
     all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty,
                                                          resampling=resampling)
-
     assert len(projected_rasters) == len(rasters)
 
     prepared_rasters = _apply_pixel_strategy(projected_rasters, pixel_strategy)
@@ -1202,7 +1201,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def copy_with(self, mutable=False, **kwargs):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
-        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names, "nodata": self.nodata_value}
+        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names, 'nodata': self.nodata_value}
         init_args.update(kwargs)
 
         # The image is a special case because we don't want to make a copy of a possibly big array
@@ -1344,6 +1343,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             band_images.append(dest_image)
         dest_image = np.ma.concatenate(band_images)
         new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
+
         return new_raster
 
     def reproject(self, dst_crs=None, resolution=None, dimensions=None,
@@ -1378,7 +1378,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         ---------
         out: GeoRaster2
         """
-
         if self._image is None and self._filename is not None:
             # image is not loaded yet
             with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tf:
