@@ -10,6 +10,7 @@ from shapely.geometry import Point, Polygon, mapping, LineString, CAP_STYLE
 
 from rasterio.crs import CRS
 from rasterio.errors import CRSError
+from rasterio.warp import transform_bounds
 
 from telluric.vectors import (
     GeoVector,
@@ -105,6 +106,21 @@ def test_geovector_from_xyz():
     assert xmax == 180
     assert ymin == approx(-85.051129)
     assert ymax == approx(85.051129)
+
+
+def test_get_bounding_box():
+    src_crs = CRS(init='epsg:4326')
+    dst_crs = CRS(init='epsg:32718')
+    src_bounds = dict(xmin=-73.309037, ymin=-40.665865,
+                      xmax=-72.723835, ymax=-40.026434)
+
+    gv = GeoVector.from_bounds(crs=src_crs, **src_bounds)
+    bounds = transform_bounds(src_crs=src_crs, dst_crs=dst_crs,
+                              left=src_bounds['xmin'], bottom=src_bounds['ymin'],
+                              right=src_bounds['xmax'], top=src_bounds['ymax'])
+
+    assert gv.get_bounding_box(dst_crs).almost_equals(
+        GeoVector.from_bounds(*bounds, crs=dst_crs))
 
 
 def test_reproject_changes_crs():
