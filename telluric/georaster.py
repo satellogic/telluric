@@ -129,6 +129,7 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
     # Create a list of single band rasters
     all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty,
                                                          resampling=resampling)
+
     assert len(projected_rasters) == len(rasters)
 
     prepared_rasters = _apply_pixel_strategy(projected_rasters, pixel_strategy)
@@ -1319,25 +1320,32 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             return None
         dst_crs = dst_crs or self.crs
         dtype = dtype or self.image.data.dtype
-
-        mask = np.ma.getmaskarray(self.image)
-        # mask is interperted to maximal value in alpha band
-        alpha = (~mask).astype(np.uint8) * self._max_per_dtype(self.dtype)
-        src_image = np.concatenate((self.image.data, alpha))
-        alpha_band_idx = self.num_bands + 1
-
-        dest_image = np.zeros([alpha_band_idx, new_height, new_width], dtype=np.float32)
-
+        max_dtype_value = self._max_per_dtype(self.dtype)
         src_transform = self._patch_affine(self.affine)
         dst_transform = self._patch_affine(dest_affine)
-        rasterio.warp.reproject(src_image, dest_image, src_transform=src_transform,
-                                dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
-                                resampling=resampling, dest_alpha=alpha_band_idx,
-                                init_dest_nodata=False, src_alpha=alpha_band_idx)
-        dest_image = np.ma.masked_array(dest_image[:self.num_bands, :, :], dest_image[self.num_bands, :, :] == 0)
 
+        band_images = []
+
+        # in order to support multiband rasters with different mask I had to split the raster
+        # to single band rasters with alpha band
+
+        for band_name in self.band_names:
+            single_band_raster = self.bands_data([band_name])
+            mask = np.ma.getmaskarray(single_band_raster)
+            # mask is interperted to maximal value in alpha band
+            alpha = (~mask).astype(np.uint8) * max_dtype_value
+            src_image = np.concatenate((single_band_raster.data, alpha))
+            alpha_band_idx = 2
+
+            dest_image = np.zeros([alpha_band_idx, new_height, new_width], dtype=self.dtype)
+            rasterio.warp.reproject(src_image, dest_image, src_transform=src_transform,
+                                    dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
+                                    resampling=resampling, dest_alpha=alpha_band_idx,
+                                    init_dest_nodata=False, src_alpha=alpha_band_idx)
+            dest_image = np.ma.masked_array(dest_image[0:1, :, :], dest_image[1:2, :, :] == 0)
+            band_images.append(dest_image)
+        dest_image = np.ma.concatenate(band_images)
         new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
-
         return new_raster
 
     def reproject(self, dst_crs=None, resolution=None, dimensions=None,
