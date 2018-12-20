@@ -2119,7 +2119,9 @@ class Histogram:
 
 class GeoMultiRaster(GeoRaster2):
     def __init__(self, rasters):
-        assert all(r._filename for r in rasters), "GeoMultiRaster does not supports in-memory rasters"
+        if not rasters:
+            raise GeoRaster2Error("GeoMultiRaster does not supports empty rasters list")
+        assert all(r._filename for r in rasters), GeoRaster2Error("GeoMultiRaster does not supports in-memory rasters")
         self._rasters = rasters
         self._vrt = GeoRaster2.from_rasters(rasters)
         super().__init__(affine=self._vrt.affine, crs=self._vrt.crs,
