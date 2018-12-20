@@ -443,6 +443,10 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         left, bottom, right, top = self.get_shape(crs).bounds
         return Bbox(left, bottom, right, top)
 
+    def get_bounding_box(self, crs):
+        """Gets bounding box as GeoVector in a specified CRS."""
+        return self.from_bounds(*self.get_bounds(crs), crs=crs)
+
     def _repr_svg_(self):
         return self._shape._repr_svg_()
 
