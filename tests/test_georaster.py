@@ -730,6 +730,21 @@ def test_reproject_lazy():
     assert reprojected._temporary
 
 
+def test_reproject_when_having_no_data_values_in_image():
+    shape = (1, 500, 500)
+    arr = np.ones(shape, dtype=np.float32)
+    for i in range(500):
+        for j in range(500):
+            if j % 2 == 0:
+                arr[0,  i, j] = 300
+    arr = np.ma.masked_array(arr, arr == 1)
+    raster = make_test_raster(image=arr)
+    reprojected_raster = raster.reproject(WGS84_CRS, resampling=Resampling.average)
+    counts = np.unique(reprojected_raster.image, return_counts=True)
+    assert counts[0] == 300
+    assert len(counts) == 2
+
+
 def test_georaster_save_unity_affine_emits_warning(recwarn):
     shape = (1, 500, 500)
     arr = np.ones(shape)

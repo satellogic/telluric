@@ -449,6 +449,9 @@ class _Raster:
         else:
             self._dtype = None
 
+    def _build_masked_array(self, image, nodata):
+        return np.ma.masked_array(image, image == nodata)
+
     def _set_image(self, image, nodata=0):
         """
         Set self._image.
@@ -461,7 +464,7 @@ class _Raster:
         if isinstance(image, np.ma.core.MaskedArray):
             masked = image
         elif isinstance(image, np.core.ndarray):
-            masked = np.ma.masked_array(image, image == nodata)
+            masked = self._build_masked_array(image, nodata)
         else:
             raise GeoRaster2NotImplementedError('only ndarray or masked array supported, got %s' % type(image))
 
@@ -567,6 +570,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         self._filename = filename
         self._temporary = temporary
         self._footprint = copy(footprint)
+        self._nodata_value = nodata
 
     def __del__(self):
         try:
@@ -693,6 +697,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                         band_names = json.loads(band_names)
                     self._set_bandnames(band_names)
 
+            if self._nodata_value is None:
+                self._nodata_value = raster.nodata
+
             if read_image:
                 image = np.ma.masked_array(raster.read(), ~raster.read_masks()).copy()
                 self._set_image(image)
@@ -719,6 +726,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         if self._band_names is None:
             self._populate_from_rasterio_object(read_image=False)
         return self._band_names
+
+    @property
+    def nodata_value(self):
+        if self._filename is not None and self._nodata_value is None:
+            self._populate_from_rasterio_object(read_image=False)
+        return self._nodata_value
 
     @property
     def affine(self):
@@ -1107,7 +1120,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         width = right - left
         height = top - bottom
         window = rasterio.windows.Window(col_off=left, row_off=bottom, width=width, height=height)
-
         return bounds, window
 
     def _resolution_to_output_shape(self, bounds, resolution):
@@ -1189,7 +1201,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def copy_with(self, mutable=False, **kwargs):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
-        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names}
+        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names, 'nodata': self.nodata_value}
         init_args.update(kwargs)
 
         # The image is a special case because we don't want to make a copy of a possibly big array
@@ -1279,6 +1291,15 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             affine = affine * Affine.translation(eps, eps)
         return affine
 
+    @staticmethod
+    def _max_per_dtype(dtype):
+        ret_val = None
+        if np.issubdtype(dtype, np.integer):
+            ret_val = np.iinfo(dtype).max
+        elif np.issubdtype(dtype, np.float):
+            ret_val = np.finfo(dtype).max
+        return ret_val
+
     def _reproject(self, new_width, new_height, dest_affine, dtype=None,
                    dst_crs=None, resampling=Resampling.cubic):
         """Return re-projected raster to new raster.
@@ -1296,33 +1317,31 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             return None
         dst_crs = dst_crs or self.crs
         dtype = dtype or self.image.data.dtype
-        dest_image = np.ma.masked_array(
-            data=np.empty([self.num_bands, new_height, new_width], dtype=np.float32),
-            mask=np.empty([self.num_bands, new_height, new_width], dtype=bool)
-        )
-
+        max_dtype_value = self._max_per_dtype(self.dtype)
         src_transform = self._patch_affine(self.affine)
         dst_transform = self._patch_affine(dest_affine)
-        # first, reproject only data:
-        rasterio.warp.reproject(self.image.data, dest_image.data, src_transform=src_transform,
-                                dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
-                                resampling=resampling)
 
-        # rasterio.reproject has a bug for dtype=bool.
-        # to bypass, manually convert mask to uint8, reproject, and convert back to bool:
-        temp_mask = np.empty([self.num_bands, new_height, new_width], dtype=np.uint8)
+        band_images = []
 
-        # extract the mask, and un-shrink if necessary
-        mask = np.ma.getmaskarray(self.image)
+        # in order to support multiband rasters with different mask I had to split the raster
+        # to single band rasters with alpha band
 
-        # rasterio.warp.reproject fills empty space with zeroes, which is the opposite of what
-        # we want. therefore, we invert the mask so 0 is masked and 1 is unmasked, and we later
-        # undo the inversion
-        rasterio.warp.reproject((~mask).astype(np.uint8), temp_mask,
-                                src_transform=src_transform, dst_transform=dst_transform,
-                                src_crs=self.crs, dst_crs=dst_crs, resampling=Resampling.nearest)
-        dest_image = np.ma.masked_array(dest_image.data.astype(dtype), temp_mask != 1)
+        for band_name in self.band_names:
+            single_band_raster = self.bands_data([band_name])
+            mask = np.ma.getmaskarray(single_band_raster)
+            # mask is interperted to maximal value in alpha band
+            alpha = (~mask).astype(np.uint8) * max_dtype_value
+            src_image = np.concatenate((single_band_raster.data, alpha))
+            alpha_band_idx = 2
 
+            dest_image = np.zeros([alpha_band_idx, new_height, new_width], dtype=self.dtype)
+            rasterio.warp.reproject(src_image, dest_image, src_transform=src_transform,
+                                    dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
+                                    resampling=resampling, dest_alpha=alpha_band_idx,
+                                    init_dest_nodata=False, src_alpha=alpha_band_idx)
+            dest_image = np.ma.masked_array(dest_image[0:1, :, :], dest_image[1:2, :, :] == 0)
+            band_images.append(dest_image)
+        dest_image = np.ma.concatenate(band_images)
         new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
 
         return new_raster
@@ -2118,6 +2137,7 @@ class Histogram:
 
 
 class GeoMultiRaster(GeoRaster2):
+
     def __init__(self, rasters):
         if not rasters:
             raise GeoRaster2Error("GeoMultiRaster does not supports empty rasters list")
