@@ -1,7 +1,7 @@
 import pytest
 import os
 from telluric.georaster import (
-    GeoRaster2, GeoMultiRaster
+    GeoRaster2, GeoMultiRaster, GeoRaster2Error
 )
 
 
@@ -72,3 +72,8 @@ def test_pending_for_data_research():
     rastercrop = raster[10:100, 20:200]
     assert (multicrop.image == rastercrop.image).all()
     assert multicrop == rastercrop
+
+
+def test_raises_on_empty_rasters():
+    with pytest.raises(GeoRaster2Error):
+        GeoMultiRaster([])

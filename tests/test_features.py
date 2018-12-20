@@ -11,8 +11,9 @@ from telluric.vectors import (
     GEOM_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
 
-from telluric.features import transform_properties, GeoFeature
-from telluric.georaster import GeoRaster2, GeoMultiRaster
+from telluric.features import transform_properties, GeoFeature, GeoFeatureWithRaster
+from telluric.georaster import GeoRaster2, GeoMultiRaster, GeoRaster2Error
+from telluric.constants import WGS84_CRS
 
 
 def test_geofeature_initializer():
@@ -260,10 +261,22 @@ def test_geofeature_from_record_for_a_record_with_multi_raster(request):
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     feature2 = GeoFeature.from_record(feature.to_record(feature.crs), feature.crs)
+    assert isinstance(feature, GeoFeatureWithRaster)
+    assert isinstance(feature2, GeoFeatureWithRaster)
     assert feature.raster == feature2.raster
     assert feature.geometry == feature2.geometry
     assert feature2.to_record(feature2.crs)['properties'] == feature.to_record(feature.crs)['properties']
     assert feature2.crs == feature.crs
+
+
+def test_geofeature_from_record_with_empty_rasters(request):
+    record = {
+        'geometry': mapping(Point(0.0, 1.1)),
+        'properties': {},
+        'raster': []
+    }
+    feature = GeoFeature.from_record(record, WGS84_CRS)
+    assert isinstance(feature, GeoFeature)
 
 
 def test_transform_properties():
