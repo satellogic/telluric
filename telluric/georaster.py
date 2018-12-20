@@ -1301,8 +1301,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             ret_val = np.finfo(dtype).max
         return ret_val
 
-
-
     def _reproject(self, new_width, new_height, dest_affine, dtype=None,
                    dst_crs=None, resampling=Resampling.cubic):
         """Return re-projected raster to new raster.
@@ -2140,6 +2138,7 @@ class Histogram:
 
 
 class GeoMultiRaster(GeoRaster2):
+
     def __init__(self, rasters):
         if not rasters:
             raise GeoRaster2Error("GeoMultiRaster does not supports empty rasters list")
