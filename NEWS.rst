@@ -1,3 +1,22 @@
+telluric 0.10.0 (TBD)
+=====================
+
+New features
+------------
+
+* Fiona 1.8.4 and Rasterio 1.0.13 compatibility (#207, #208)
+* Support multiple rasters in a single :py:class:`~telluric.features.GeoFeatureWithRaster` (#209)
+* Added new method :py:meth:`telluric.vectors.GeoVector.get_bounding_box` (#213)
+
+Bug fixes
+---------
+
+* Remove hardcoded tile server port (#205)
+* The internal state of the raster is not changed while saving (#210)
+* Fix :py:meth:`telluric.georaster.GeoRaster2.save` (#211)
+* Fix bug in reproject (#212)
+* Better handling of :py:meth:`telluric.features.GeoFeature.from_record` (#214)
+
 telluric 0.9.1 (2018-12-14)
 ===========================
 

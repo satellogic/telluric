@@ -116,6 +116,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
     @classmethod
     def from_record(cls, record, crs, schema=None):
+        """Create GeoFeature from a record."""
         _cls = cls._get_class_from_record(record)
         return _cls._from_record(record, crs, schema)
 
