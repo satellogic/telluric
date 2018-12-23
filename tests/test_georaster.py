@@ -16,6 +16,7 @@ from rasterio.windows import Window
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning, join, MutableGeoRaster
 from telluric.vectors import GeoVector
+from telluric.features import GeoFeature
 
 from common_for_tests import make_test_raster
 
@@ -413,6 +414,12 @@ def test_mask():
     vector = raster.to_world(left_quadrant, dst_crs=raster.crs)
 
     masked = raster.mask(vector)
+    assert not masked.image[:, :w, :h].mask.any()
+    assert masked.image[:, w:, h:].mask.all()
+
+    # masking by GeoFeature
+    feature = GeoFeature(vector, properties={'prop1': 1, 'prop2': 2})
+    masked = raster.mask(feature)
     assert not masked.image[:, :w, :h].mask.any()
     assert masked.image[:, w:, h:].mask.all()
 

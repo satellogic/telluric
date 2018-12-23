@@ -1683,8 +1683,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param mask_shape_nodata: if True - pixels inside shape are set nodata, if False - outside shape is nodata
         :return: GeoRaster2
         """
-        # shape = vector.reproject(self.crs).shape
-        if isinstance(vector, Iterable):
+        from telluric.collections import BaseCollection
+        if isinstance(vector, BaseCollection):
             shapes = [self.to_raster(feature) for feature in vector]
         else:
             shapes = [self.to_raster(vector)]
