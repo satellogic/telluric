@@ -423,6 +423,10 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
     def type(self):
         return self._shape.type
 
+    @property
+    def geometry(self):
+        return self
+
     def to_record(self, crs):
         data = mapping(self.get_shape(crs))
         if data['type'] == 'LinearRing':

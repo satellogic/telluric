@@ -170,7 +170,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def __getattr__(self, item):
         if item in GEOM_PROPERTIES:
             def delegated_(self_):
-                return self_.__class__(getattr(self_.geometry, item), self_.properties)
+                return getattr(self_.geometry, item)
 
             # Use class docstring to properly translate properties, see
             # https://stackoverflow.com/a/38118315/554319
