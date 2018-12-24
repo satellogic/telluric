@@ -2026,7 +2026,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             return None
         elif len(assets) > 1:
             return GeoMultiRaster.from_assets(assets)
-        raster = assets["0"]
+        _, raster = assets.popitem()
         return GeoRaster2.open(raster["href"], band_names=raster["bands"])
 
 
