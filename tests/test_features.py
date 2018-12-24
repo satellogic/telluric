@@ -78,7 +78,6 @@ def test_delegated_properties(property_name):
     )
 
     assert getattr(feature, property_name).geometry == getattr(feature.geometry, property_name)
-    assert getattr(feature, property_name).properties == feature.properties
 
 
 @pytest.mark.parametrize("property_name", ['x', 'y', 'xy'])
