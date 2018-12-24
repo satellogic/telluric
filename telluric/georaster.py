@@ -1073,13 +1073,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
              bands=None, resampling=Resampling.cubic):
         """
         crops raster outside vector (convex hull)
-        :param vector: GeoVector
+        :param vector: GeoVector, GeoFeature, FeatureCollection
         :param resolution: output resolution, None for full resolution
         :param resampling: reprojection resampling method, default `cubic`
 
         :return: GeoRaster
         """
-        bounds, window = self._vector_to_raster_bounds(vector, boundless=self._image is None)
+        bounds, window = self._vector_to_raster_bounds(vector.envelope, boundless=self._image is None)
         if resolution:
             xsize, ysize = self._resolution_to_output_shape(bounds, resolution)
         else:
@@ -1684,10 +1684,9 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :return: GeoRaster2
         """
         from telluric.collections import BaseCollection
-        from telluric.features import GeoFeature
 
         # crop raster to reduce memory footprint
-        cropped = self.crop(vector.envelope)
+        cropped = self.crop(vector)
 
         if isinstance(vector, BaseCollection):
             shapes = [cropped.to_raster(feature) for feature in vector]
