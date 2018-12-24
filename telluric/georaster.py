@@ -2159,6 +2159,6 @@ class GeoMultiRaster(GeoRaster2):
     def from_assets(cls, assets):
         if len(assets) < 2:
             return GeoRaster2.from_assets(assets)
-        rasters = [GeoRaster2.open(assets[str(i)]["href"], band_names=assets[str(i)]["bands"]) for
-                   i in range(len(assets))]
+        rasters = [GeoRaster2.open(asset["href"], band_names=asset["bands"]) for
+                   asset in assets.values()]
         return cls(rasters)
