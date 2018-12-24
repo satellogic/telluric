@@ -1684,13 +1684,18 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :return: GeoRaster2
         """
         from telluric.collections import BaseCollection
-        if isinstance(vector, BaseCollection):
-            shapes = [self.to_raster(feature) for feature in vector]
-        else:
-            shapes = [self.to_raster(vector)]
+        from telluric.features import GeoFeature
 
-        mask = geometry_mask(shapes, (self.height, self.width), Affine.identity(), invert=mask_shape_nodata)
-        masked = self.deepcopy_with()
+        # crop raster to reduce memory footprint
+        cropped = self.crop(vector.envelope)
+
+        if isinstance(vector, BaseCollection):
+            shapes = [cropped.to_raster(feature) for feature in vector]
+        else:
+            shapes = [cropped.to_raster(vector)]
+
+        mask = geometry_mask(shapes, (cropped.height, cropped.width), Affine.identity(), invert=mask_shape_nodata)
+        masked = cropped.deepcopy_with()
         masked.image.mask |= mask
         return masked
 
