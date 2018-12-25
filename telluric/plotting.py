@@ -147,15 +147,21 @@ def plot(feature, mp=None, style_function=None, **map_kwargs):
 
 
 class NotebookPlottingMixin:
+    def _run_in_tileserver(self, capture):
+        TileServer.run_tileserver(self, self.envelope)
+        mp = TileServer.folium_client(self, self.envelope, capture=capture)
+        return mp._repr_html_()
+
     def _repr_html_(self):
         # These imports are here to avoid cyclic references
         from telluric.collections import BaseCollection
         from telluric.features import GeoFeatureWithRaster
         if isinstance(self, BaseCollection):
             if isinstance(self[0], GeoFeatureWithRaster):
-                TileServer.run_tileserver(self, self.envelope)
-                mp = TileServer.folium_client(self, self.envelope, capture="Feature collection of rasters")
-                return mp._repr_html_()
+                return self._run_in_tileserver(capture="Feature collection of rasters")
+        if isinstance(self, GeoFeatureWithRaster):
+            return self._run_in_tileserver(capture="GeoFeature with raster")
+
         warnings.warn(
             "Plotting a limited representation of the data, use the .plot() method for further customization")
         return simple_plot(self)._repr_html_()
