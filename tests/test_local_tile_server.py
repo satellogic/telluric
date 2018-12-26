@@ -19,7 +19,7 @@ class TestFCLocalTileServer(AsyncHTTPTestCase):
 
     def get_app(self):
 
-        self.fc = tl.FeatureCollection([tl.features.GeoFeatureWithRaster(r, {}) for r in rasters])
+        self.fc = tl.FeatureCollection([tl.GeoFeature.from_raster(r, {}) for r in rasters])
         TileServer.add_object(self.fc, self.fc.envelope)
         return make_app(TileServer.objects)
 

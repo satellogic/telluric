@@ -17,7 +17,7 @@ from shapely.prepared import prep
 from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.plotting import NotebookPlottingMixin
 from telluric.vectors import GeoVector
-from telluric.features import GeoFeature, GeoFeatureWithRaster
+from telluric.features import GeoFeature
 from telluric.georaster import GeoRaster2
 
 DRIVERS = {
@@ -330,7 +330,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
     def is_rasters_collection(self):
         if self.is_empty:
             return False
-        return isinstance(self[0], GeoFeatureWithRaster)
+        return any(f.has_raster for f in self)
 
     def apply(self, **kwargs):
         """Return a new FeatureCollection with the results of applying the statements in the arguments to each element.
