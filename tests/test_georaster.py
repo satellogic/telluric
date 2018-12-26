@@ -17,6 +17,7 @@ from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning, join, MutableGeoRaster
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
+from telluric.collections import FeatureCollection
 
 from common_for_tests import make_test_raster
 
@@ -812,6 +813,14 @@ def test_crop_boundless_masked(bounds):
     )
     assert(np.array_equal(raster_w_mask.crop(roi).image.mask,
                           raster_wo_mask.crop(roi).image.mask))
+
+    feature = GeoFeature(roi, properties={'prop1': 1, 'prop2': 2})
+    assert(np.array_equal(raster_w_mask.crop(feature).image.mask,
+                          raster_wo_mask.crop(feature).image.mask))
+
+    collection = FeatureCollection([feature])
+    assert(np.array_equal(raster_w_mask.crop(collection).image.mask,
+                          raster_wo_mask.crop(collection).image.mask))
 
 
 def test_gdal_open_env_when_proxy_is_not_set_and_url_not_with_http():
