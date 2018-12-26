@@ -230,6 +230,14 @@ def test_limit_to_bands():
     assert selected.band_names == bands
 
 
+def test_limit_to_bands_off_memory():
+    r1 = GeoRaster2.open("tests/data/raster/rgb.tif", band_names=['r', 'g', 'b'])
+    r2 = GeoRaster2.open("tests/data/raster/rgb.tif", band_names=['r', 'g', 'b'])
+    r1.image
+    assert r1.limit_to_bands(['b', 'r']) == r2.limit_to_bands(['b', 'r'])
+    assert r1.limit_to_bands(['r', 'b']) != r2.limit_to_bands(['b', 'r'])
+
+
 def test_to_png():
     for raster in [some_raster, some_raster_multiband]:
         png_bytes = raster.to_png(transparent=True, thumbnail_size=512)

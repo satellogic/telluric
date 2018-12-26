@@ -47,7 +47,11 @@ from telluric.util.raster_utils import (
     calc_transform, warp)
 
 from telluric.util.local_tile_server import TileServer
-from telluric.vrt import wms_vrt, raster_list_vrt, raster_collection_vrt
+from telluric.vrt import (
+    boundless_vrt_doc,
+    raster_list_vrt,
+    raster_collection_vrt,
+    wms_vrt)
 
 # for mypy
 import matplotlib.cm
@@ -509,6 +513,15 @@ class _Raster:
         self._band_names = list(band_names)
 
     def bands_data(self, bands):
+        bands_indices = self.bands_indices(bands)
+        bands_data = self.image[bands_indices, :, :]
+        return bands_data
+
+    @property
+    def band_names(self):
+        return self._band_names or []
+
+    def bands_indices(self, bands):
         if isinstance(bands, str):
             bands = bands.split(",")
 
@@ -516,13 +529,7 @@ class _Raster:
         if missing_bands:
             raise GeoRaster2Error('requested bands %s that are not found in raster' % missing_bands)
 
-        bands_indices = [self.band_names.index(band) for band in bands]
-        bands_data = self.image[bands_indices, :, :]
-        return bands_data
-
-    @property
-    def band_names(self):
-        return self._band_names or []
+        return [self.band_names.index(band) for band in bands]
 
     @property
     def image(self):
@@ -598,7 +605,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 raise GeoRaster2IOError(e)
 
     @classmethod
-    def _save_to_destination_file(cls, doc, destination_file):
+    def _save_to_destination_file(cls, doc, destination_file=None):
         if destination_file is None:
             mem_file = MemoryFile(ext=".vrt")
             mem_file.write(doc)
@@ -1514,8 +1521,15 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return mp._repr_html_()
 
     def limit_to_bands(self, bands):
-        bands_data = self.bands_data(bands)
-        return self.copy_with(image=bands_data, band_names=bands)
+        if self._image is not None:
+            bands_data = self.bands_data(bands)
+            return self.copy_with(image=bands_data, band_names=bands)
+        else:
+            indices = self.bands_indices(bands)
+            bidxs = map(lambda idx: idx + 1, indices)
+            doc = boundless_vrt_doc(self._raster_opener(self.source_file), bands=bidxs)
+            filename = self._save_to_destination_file(doc.tostring())
+            return self.__class__(filename=filename, band_names=bands)
 
     def num_pixels(self):
         return self.width * self.height
