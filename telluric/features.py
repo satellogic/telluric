@@ -318,7 +318,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             # default creteria is to return a visual raster
             key = 'product'
             value = 'visual'
-        
+
         rasters = {k: asset for k, asset in self.assets.items() if asset['type'] in raster_types}
         raster_list = list(rasters.values())
         # if there is only a single raster in the assetes and it hase a GeoRaster object serve the object
@@ -327,4 +327,3 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         rasters = {k: r for k, r in rasters.items() if r[key] == value}
         raster = GeoRaster2.from_assets(rasters)
         return raster
-    
