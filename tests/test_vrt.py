@@ -1,5 +1,6 @@
 import os
 import rasterio
+import numpy as np
 from rasterio.io import MemoryFile
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from telluric.util.raster_utils import build_vrt
@@ -79,6 +80,18 @@ def test_boundless_vrt():
     with open("tests/data/raster/overlap2.vrt", 'rb') as expected_src:
         expected = expected_src.read()
         assert expected == doc
+
+
+def test_boundless_vrt_preserves_mask():
+    expected = GeoRaster2.open("tests/data/raster/overlap1.tif")
+    with rasterio.open(expected.source_file) as raster:
+        doc = boundless_vrt_doc(raster, bands=[1, 2]).tostring()
+        with TemporaryDirectory() as d:
+            file_name = os.path.join(d, 'vrt_file.vrt')
+            with open(file_name, 'wb') as f:
+                f.write(doc)
+            raster = GeoRaster2.open(file_name)
+            assert np.array_equal(raster.image.mask, expected.image.mask[:2, :, :])
 
 
 def test_raster_list_vrt_for_single_raster():

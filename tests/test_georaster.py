@@ -231,11 +231,11 @@ def test_limit_to_bands():
 
 
 def test_limit_to_bands_off_memory():
-    r1 = GeoRaster2.open("tests/data/raster/rgb.tif", band_names=['r', 'g', 'b'])
+    r1 = GeoRaster2.open("tests/data/raster/rgb.tif", band_names=['r', 'g', 'b'], lazy_load=False)
     r2 = GeoRaster2.open("tests/data/raster/rgb.tif", band_names=['r', 'g', 'b'])
-    r1.image
     assert r1.limit_to_bands(['b', 'r']) == r2.limit_to_bands(['b', 'r'])
     assert r1.limit_to_bands(['r', 'b']) != r2.limit_to_bands(['b', 'r'])
+    assert r2._image is None
 
 
 def test_to_png():
