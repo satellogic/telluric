@@ -99,7 +99,7 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
 
 def boundless_vrt_doc(
         src_dataset, nodata=None, background=None, hidenodata=False,
-        width=None, height=None, transform=None):
+        width=None, height=None, transform=None, bands=None):
     """Make a VRT XML document.
     Parameters
     ----------
@@ -121,8 +121,12 @@ def boundless_vrt_doc(
 
     vrt = BaseVRT(width, height, src_dataset.crs, transform)
 
-    for bidx, ci, block_shape, dtype in zip(src_dataset.indexes, src_dataset.colorinterp,
-                                            src_dataset.block_shapes, src_dataset.dtypes):
+    bidxs = src_dataset.indexes if bands is None else bands
+    for bidx in bidxs:
+        ci = src_dataset.colorinterp[bidx - 1]
+        block_shape = src_dataset.block_shapes[bidx - 1]
+        dtype = src_dataset.dtypes[bidx - 1]
+
         band_element = vrt.add_band(dtype, bidx, ci.name, nodata=nodata, hidenodata=True)
 
         if background is not None:
