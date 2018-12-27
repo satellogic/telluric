@@ -300,12 +300,13 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def raster(self, *name, **creteria):
         """Generates a GeoRaster2 object based on the asset name(key) or a creteria(protety name and value)."""
         if len(name) > 1:
-            raise GeoFeatureError("raster na receive only one name ans argument")
+            raise GeoFeatureError("raster can receive only one name ans argument")
         elif name:
             asset = self.assets[name[0]]
             if asset["type"] in raster_types:
-                if isinstance(asset.get('__object'), GeoRaster2):
-                    return asset.get('__object')
+                __object = asset.get('__object')
+                if isinstance(__object, GeoRaster2):
+                    return __object
                 else:
                     return GeoRaster2.from_assets([asset])
             else:

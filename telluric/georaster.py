@@ -2035,8 +2035,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 cur_raster = _self.get_window(window)
                 yield RasterChunk(raster=cur_raster, offsets=(col_off, row_off))
 
-    def to_assets(self, **attr):
-        return {"0": dict(href=self._filename, bands=self.band_names, __object=self, type=RASTER_TYPE, **attr)}
+    def to_assets(self, name="0", **attr):
+        return {name: dict(href=self._filename, bands=self.band_names, __object=self, type=RASTER_TYPE, **attr)}
 
     @classmethod
     def from_assets(cls, assets):
