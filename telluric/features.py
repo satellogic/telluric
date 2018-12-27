@@ -73,7 +73,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     """GeoFeature object.
 
     """
-    def __init__(self, geovector, properties, assets={}):
+    def __init__(self, geovector, properties, assets=None):
         """Initialize a GeoFeature object.
 
         Parameters
@@ -86,7 +86,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
         self.geometry = geovector  # type: GeoVector
         self._properties = properties
-        self.assets = assets
+        self.assets = assets or {}
 
     @property
     def crs(self):
