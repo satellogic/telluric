@@ -5,8 +5,9 @@ import telluric as tl
 from telluric.constants import WEB_MERCATOR_CRS
 
 
-def make_test_raster(value=0, band_names=[], height=3, width=4, dtype=np.uint16,
+def make_test_raster(value=0, band_names=None, height=3, width=4, dtype=np.uint16,
                      crs=WEB_MERCATOR_CRS, affine=None, image=None):
+    band_names = band_names or []
     if affine is None:
         affine = Affine.translation(10, 12) * Affine.scale(1, -1)
     if image is None:

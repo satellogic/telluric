@@ -254,7 +254,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def __repr__(self):
         return str(self)
 
-    def copy_with(self, geometry=None, properties={}, assets={}):
+    def copy_with(self, geometry=None, properties=None, assets=None):
         """Generate a new GeoFeature with different geometry or preperties."""
         def copy_assets_object(asset):
             obj = asset.get("__object")
@@ -265,10 +265,13 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
         geometry = geometry or self.geometry.copy()
         new_properties = copy.deepcopy(self.properties)
-        new_properties.update(properties)
+        if properties:
+            new_properties.update(properties)
         if not assets:
             assets = copy.deepcopy(self.assets)
             map(copy_assets_object, assets.values())
+        else:
+            assets = {}
         return self.__class__(geometry, new_properties, assets)
 
     @classmethod
