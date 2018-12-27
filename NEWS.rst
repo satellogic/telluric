@@ -1,3 +1,17 @@
+telluric 0.10.1 (2018-12-27)
+============================
+
+Bug_fixes
+---------
+
+* Fix masking by :py:class:`~telluric.features.GeoFeature` (#216)
+* Fix issue in :py:meth:`GeoRaster.from_asset` (#217, #220)
+* :py:meth:`telluric.features.GeoFeature.envelope` returns instance of
+  :py:class:`~telluric.vectors.GeoVector` (#218)
+* Use local tile server for visualization of :py:class:`~telluric.features.GeoFeatureWithRaster` (#221)
+* :py:meth:`telluric.georaster.GeoRaster2.mask` uses crop internally to reduce memory footprint (#219)
+* :py:meth:`telluric.georaster.GeoRaster2.limit_to_bands` is lazy (#222)
+
 telluric 0.10.0 (2018-12-21)
 ============================
 
