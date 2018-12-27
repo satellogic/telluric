@@ -939,3 +939,8 @@ def test_blockshapes_for_file_raster():
     raster = GeoRaster2.open("tests/data/raster/rgb.tif")
     assert len(raster.blockshapes) == raster.num_bands
     assert raster.blockshapes == [(27, 100), (27, 100), (27, 100)]
+
+
+def test_from_assets_to_assets():
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif")
+    assert raster == GeoRaster2.from_assets(raster.to_assets())
