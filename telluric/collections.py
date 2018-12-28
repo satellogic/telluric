@@ -302,12 +302,15 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
     def _adapt_feature_before_write(self, feature):
         return feature
 
-    def save(self, filename, driver=None):
+    def save(self, filename, driver=None, schema=None):
         """Saves collection to file.
 
         """
         if driver is None:
             driver = DRIVERS.get(os.path.splitext(filename)[-1])
+
+        if schema is None:
+            schema = self.schema
 
         if driver == "GeoJSON":
             # Workaround for https://github.com/Toblerity/Fiona/issues/438
@@ -319,7 +322,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         else:
             crs = self.crs
 
-        with fiona.open(filename, 'w', driver=driver, schema=self.schema, crs=crs) as sink:
+        with fiona.open(filename, 'w', driver=driver, schema=schema, crs=crs) as sink:
             for feature in self:
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
