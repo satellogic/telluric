@@ -381,7 +381,9 @@ class FeatureCollection(BaseCollection):
         if self.schema is not None:
             with MemoryFile() as memfile:
                 with memfile.open(driver="ESRI Shapefile", schema=self.schema) as target:
-                    for item in self._results:
+                    for _item in self._results:
+                        # getting rid of the assets that don't behave well becasue of in memroy rasters
+                        item = GeoFeature(_item.geometry, _item.properties)
                         target.write(item.to_record(item.crs))
 
     def __len__(self):
