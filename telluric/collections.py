@@ -199,7 +199,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
             results.setdefault(value, []).append(feature)
 
-        return _CollectionGroupBy(results)
+        return _CollectionGroupBy(results, self._schema)
 
     def dissolve(self, by=None, aggfunc=None):
         # type: (Optional[str], Optional[Callable]) -> FeatureCollection
@@ -419,10 +419,10 @@ class FeatureCollection(BaseCollection):
                             "Please convert all the appropriate properties to the same type."
                         )
 
-        properties = {
-            k: FIELD_TYPES_MAP_REV.get(v) or 'str'
+        properties = OrderedDict(
+            (k, FIELD_TYPES_MAP_REV.get(v) or 'str')
             for k, v in prop_types_map.items()
-        }
+        )
 
         return properties
 
@@ -581,9 +581,10 @@ class FileCollection(BaseCollection):
 
 class _CollectionGroupBy:
 
-    def __init__(self, groups):
+    def __init__(self, groups, schema=None):
         # type: (Dict) -> None
         self._groups = groups
+        self._schema = schema
 
     def __getitem__(self, key):
         results = OrderedDict.fromkeys(self._groups)
@@ -600,7 +601,7 @@ class _CollectionGroupBy:
 
     def __iter__(self):
         for name, group in self._groups.items():
-            yield name, FeatureCollection(group)
+            yield name, FeatureCollection(group, schema=self._schema)
 
     def agg(self, func):
         # type: (Callable[[BaseCollection], GeoFeature]) -> FeatureCollection

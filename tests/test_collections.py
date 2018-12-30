@@ -563,3 +563,10 @@ def test_feature_collection_with_invalid_schema():
     with pytest.raises(ValueError) as exception:
         fc2 = FeatureCollection(list(fc), schema=schema)
         assert exception.message.startswith("Record does not match collection schema")
+
+
+def test_feature_collection_groupby_preserves_schema():
+    fc = FileCollection.open("tests/data/vector/bsas_barrios_lla.geojson")
+    schema = fc.schema.copy()
+    for group, collection in fc.groupby('COMUNA'):
+        assert schema == collection.schema
