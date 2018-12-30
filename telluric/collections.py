@@ -378,7 +378,7 @@ class FeatureCollection(BaseCollection):
         """
         if schema exists we run shape file validation code of fiona by trying to save to in MemoryFile
         """
-        if self.schema is not None:
+        if self._schema is not None:
             with MemoryFile() as memfile:
                 with memfile.open(driver="ESRI Shapefile", schema=self.schema) as target:
                     for _item in self._results:
