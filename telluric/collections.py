@@ -19,6 +19,7 @@ from telluric.plotting import NotebookPlottingMixin
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.georaster import GeoRaster2
+from fiona.io import MemoryFile
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -354,7 +355,7 @@ class FeatureCollectionIOError(BaseException):
 
 class FeatureCollection(BaseCollection):
 
-    def __init__(self, results):
+    def __init__(self, results, schema=None):
         """Initialize FeatureCollection object.
 
         Parameters
@@ -365,7 +366,18 @@ class FeatureCollection(BaseCollection):
         """
         super().__init__()
         self._results = list(results)
-        self._schema = None
+        self._schema = schema
+        self.validate()
+
+    def validate(self):
+        """
+        if schema exists we run shape file validation code of fiona by trying to save to in MemoryFile
+        """
+        if self.schema is not None:
+            with MemoryFile() as memfile:
+                with memfile.open(driver="ESRI Shapefile", schema=self.schema) as target:
+                    for item in self._results:
+                        target.write(item.to_record(item.crs))
 
     def __len__(self):
         return len(self._results)

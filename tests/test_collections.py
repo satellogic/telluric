@@ -548,3 +548,18 @@ def test_featurecollection_apply_on_rasters_collection():
     fc = FeatureCollection.from_georasters(rasters_list)
     new_fc = fc.apply(prop1=3)
     assert new_fc.is_rasters_collection()
+
+
+def test_feature_collection_with_valid_schema():
+    fc = FileCollection.open("tests/data/vector/bsas_barrios_lla.geojson")
+    fc2 = FeatureCollection(list(fc), schema=fc.schema)
+    assert fc.schema == fc2.schema
+
+
+def test_feature_collection_with_invalid_schema():
+    fc = FileCollection.open("tests/data/vector/bsas_barrios_lla.geojson")
+    schema = fc.schema.copy()
+    schema["properties"] = {}
+    with pytest.raises(ValueError) as exception:
+        fc2 = FeatureCollection(list(fc), schema=schema)
+        assert exception.message.startswith("Record does not match collection schema")
