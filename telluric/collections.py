@@ -199,7 +199,12 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
             results.setdefault(value, []).append(feature)
 
-        return _CollectionGroupBy(results, self._schema)
+        if hasattr(self, "_schema"):
+            # I am doing this to trick mypy, is there a better way?
+            # calling self._schema generates a mypy problem
+            schema = getattr(self, "_schema")
+
+        return _CollectionGroupBy(results, schema=schema)
 
     def dissolve(self, by=None, aggfunc=None):
         # type: (Optional[str], Optional[Callable]) -> FeatureCollection
@@ -582,7 +587,7 @@ class FileCollection(BaseCollection):
 class _CollectionGroupBy:
 
     def __init__(self, groups, schema=None):
-        # type: (Dict) -> None
+        # type: (Dict, Dict) -> None
         self._groups = groups
         self._schema = schema
 
