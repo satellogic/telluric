@@ -417,19 +417,22 @@ class FeatureCollection(BaseCollection):
     @property
     def schema(self):
         if self._schema is None:
-            all_geometries = {feat.geometry.type for feat in self}
-            if len(all_geometries) > 1:
-                raise FeatureCollectionIOError(
-                    "Cannot generate a schema for a heterogeneous FeatureCollection. "
-                    "Please convert all the geometries to the same type."
-                )
-            else:
-                geometry = all_geometries.pop()
+            if not self.is_empty:
+                all_geometries = {feat.geometry.type for feat in self}
+                if len(all_geometries) > 1:
+                    raise FeatureCollectionIOError(
+                        "Cannot generate a schema for a heterogeneous FeatureCollection. "
+                        "Please convert all the geometries to the same type."
+                    )
+                else:
+                    geometry = all_geometries.pop()
 
-            self._schema = {
-                'geometry': geometry,
-                'properties': self._compute_properties()
-            }
+                self._schema = {
+                    'geometry': geometry,
+                    'properties': self._compute_properties()
+                }
+            else:
+                self._schema = {"geometry": None, "properties": {}}
 
         return self._schema
 

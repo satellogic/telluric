@@ -120,6 +120,15 @@ def test_featurecollection_schema_raises_error_for_heterogeneous_geometry_types(
     assert "Cannot generate a schema for a heterogeneous FeatureCollection. " in excinfo.exconly()
 
 
+def test_feature_collection_schema_of_empty_set():
+    fc = FeatureCollection([])
+    assert fc.schema == {"geometry": None, "properties": {}}
+    with tempfile.NamedTemporaryFile(suffix=".json") as target:
+        fc.save(target.name)
+        fc2 = FileCollection.open(target.name)
+        assert fc == fc2
+
+
 def test_featurecollection_schema_raises_error_for_heterogeneous_property_types():
     fc = FeatureCollection([
         GeoFeature(GeoVector(Point(0, 0)), {'prop1': 1}),
