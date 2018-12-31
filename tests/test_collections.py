@@ -550,6 +550,25 @@ def test_featurecollection_apply_on_rasters_collection():
     assert new_fc.is_rasters_collection()
 
 
+def test_feature_collection_apply_appends_new_keys_to_the_end():
+    fc = FileCollection.open("tests/data/vector/bsas_barrios_lla.geojson")
+    fc_expepcted_schema = fc.schema.copy()
+    new_fc = fc.apply(prop1=3)
+    new_expepcted_schema = fc.schema.copy()
+    new_expepcted_schema["properties"]["prop1"] = "int"
+    assert new_fc.schema == new_expepcted_schema
+    assert fc.schema == fc_expepcted_schema
+
+
+def test_feature_collection_apply_preseves_the_order_just_changes_type():
+    fc = FileCollection.open("tests/data/vector/bsas_barrios_lla.geojson")
+    new_fc = fc.apply(COMUNA=None)
+    expected_properties_schema = OrderedDict(
+        [('BARRIO', "str"), ('COMUNA', 'str'), ('PERIMETRO', 'float'), ('AREA', 'float')])
+
+    assert new_fc.schema["properties"] == expected_properties_schema
+
+
 def test_feature_collection_with_valid_schema():
     fc = FileCollection.open("tests/data/vector/bsas_barrios_lla.geojson")
     fc2 = FeatureCollection(list(fc), schema=fc.schema)

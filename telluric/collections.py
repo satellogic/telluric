@@ -349,9 +349,18 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                     properties[prop] = value(f)
                 else:
                     properties[prop] = value
-            return f.copy_with(properties=properties)
 
-        return self.map(_apply)
+            return f.copy_with(properties=properties)
+        new_fc = self.map(_apply)
+        new_schema = self.schema.copy()
+        property_names_set = kwargs.keys()
+        prop_types_map = FeatureCollection.guess_types_by_feature(new_fc[0], property_names_set)
+        for key, value_type in prop_types_map.items():
+            # already defined attribute that we just override will have the same position as before
+            # new attributes will be appened
+            new_schema["properties"][key] = FIELD_TYPES_MAP_REV.get(value_type) or "str"
+        new_fc._schema = new_schema
+        return new_fc
 
 
 class FeatureCollectionIOError(BaseException):
@@ -405,15 +414,20 @@ class FeatureCollection(BaseCollection):
         # Get the CRS from the first feature
         return self._results[0].crs if self._results else None
 
+    @staticmethod
+    def guess_types_by_feature(feature, property_names_set):
+        prop_types_map = dict([
+            (prop_name, type(feature.get(prop_name)))
+            for prop_name in property_names_set])
+        return prop_types_map
+
     def _compute_properties(self):
         property_names_set = set()  # type: Set[str]
         for feat in self:
             property_names_set = property_names_set.union(feat.properties)
 
         # make type mapping based on the first feature
-        prop_types_map = dict([
-            (prop_name, type(self[0].get(prop_name)))
-            for prop_name in property_names_set])
+        prop_types_map = FeatureCollection.guess_types_by_feature(self[0], property_names_set)
 
         for feat in self:
             for prop_name, prop_value in feat.items():
