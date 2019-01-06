@@ -44,7 +44,7 @@ class TileServerHandler(tornado.web.RequestHandler):
             if isinstance(obj.obj, tl.GeoFeature) and obj.obj.has_raster:
                 tile = yield self._get_raster_png_tile(obj.obj.raster(), x, y, z)
             elif isinstance(obj.obj, BaseCollection):
-                tile = yield self._get_collection_png_tile(obj.obj, x, y, z)
+                tile = yield self._get_collection_png_tile(obj.obj(), x, y, z)
 
             if tile:
                 self.set_header("Content-type", "image/png")
