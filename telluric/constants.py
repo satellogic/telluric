@@ -27,3 +27,5 @@ def _MERCATOR_RESOLUTION_MAPPING(zoom_level):
 
 
 MERCATOR_RESOLUTION_MAPPING = dict((i, _MERCATOR_RESOLUTION_MAPPING(i)) for i in range(21))
+
+RASTER_TYPE = 'raster'

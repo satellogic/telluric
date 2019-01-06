@@ -11,9 +11,9 @@ from telluric.vectors import (
     GEOM_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
 
-from telluric.features import transform_properties, GeoFeature, GeoFeatureWithRaster
+from telluric.features import transform_properties, GeoFeature
 from telluric.georaster import GeoRaster2, GeoMultiRaster, GeoRaster2Error
-from telluric.constants import WGS84_CRS
+from telluric.constants import WGS84_CRS, RASTER_TYPE
 
 
 def test_geofeature_initializer():
@@ -57,7 +57,8 @@ def test_geofeature_geo_interface():
     expected_geo_interface = {
         'type': 'Feature',
         'geometry': gv.__geo_interface__,
-        'properties': properties
+        'properties': properties,
+        'assets': {}
     }
 
     feature = GeoFeature(gv, properties)
@@ -202,8 +203,8 @@ def test_geofeature_from_raster_returns_a_valid_feature(raster, request):
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     assert feature.properties == properties
-    assert feature.raster == raster
-    assert feature.raster.footprint() == feature.geometry
+    assert feature.raster() == raster
+    assert feature.raster().footprint() == feature.geometry
 
 
 @pytest.mark.parametrize("raster", [
@@ -213,7 +214,8 @@ def test_geofeature_from_raster_serializes_with_assets(raster, request):
     raster = request.getfixturevalue(raster)
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
-    assert mapping(feature)["raster"] == {'0': {'href': raster._filename, 'bands': raster.band_names}}
+    assert mapping(feature)["assets"] == {'0': {'href': raster._filename, 'bands': raster.band_names,
+                                                'type': RASTER_TYPE, '__object': raster, 'product': 'visual'}}
 
 
 @pytest.mark.parametrize("raster", [
@@ -224,10 +226,10 @@ def test_geofeature_from_record_for_a_record_with_raster(raster, request):
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     feature2 = GeoFeature.from_record(feature.to_record(feature.crs), feature.crs)
-    assert feature.raster == feature2.raster
+    assert feature.raster() == feature2.raster()
     assert feature.geometry == feature2.geometry
     assert feature2.to_record(feature2.crs)['properties'] == feature.to_record(feature.crs)['properties']
-    assert feature2.crs == feature2.raster.crs
+    assert feature2.crs == feature2.raster().crs
 
 
 def test_geofeature_from_multi_rasters_returns_a_valid_feature(request):
@@ -237,8 +239,8 @@ def test_geofeature_from_multi_rasters_returns_a_valid_feature(request):
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     assert feature.properties == properties
-    assert feature.raster == raster
-    assert feature.raster == GeoRaster2.from_rasters(rasters)
+    assert feature.raster() == raster
+    assert feature.raster() == GeoRaster2.from_rasters(rasters)
 
 
 def test_geofeature_from_multi_raster_serializes_with_assets(request):
@@ -247,9 +249,11 @@ def test_geofeature_from_multi_raster_serializes_with_assets(request):
     raster = GeoMultiRaster(rasters)
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
-    assert mapping(feature)["raster"] == {
-        '0': {'href': rasters[0]._filename, 'bands': rasters[0].band_names},
-        '1': {'href': rasters[1]._filename, 'bands': rasters[1].band_names}
+    assert mapping(feature)["assets"] == {
+        '0': {'href': rasters[0]._filename, 'bands': rasters[0].band_names, 'type': RASTER_TYPE,
+              '__object': raster, 'product': 'visual'},
+        '1': {'href': rasters[1]._filename, 'bands': rasters[1].band_names, 'type': RASTER_TYPE,
+              '__object': raster, 'product': 'visual'}
     }
 
 
@@ -260,9 +264,9 @@ def test_geofeature_from_record_for_a_record_with_multi_raster(request):
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     feature2 = GeoFeature.from_record(feature.to_record(feature.crs), feature.crs)
-    assert isinstance(feature, GeoFeatureWithRaster)
-    assert isinstance(feature2, GeoFeatureWithRaster)
-    assert feature.raster == feature2.raster
+    assert feature.has_raster
+    assert feature2.has_raster
+    assert feature.raster() == feature2.raster()
     assert feature.geometry == feature2.geometry
     assert feature2.to_record(feature2.crs)['properties'] == feature.to_record(feature.crs)['properties']
     assert feature2.crs == feature.crs
@@ -307,7 +311,7 @@ def test_geofeature_with_raster_copy_with(request):
     feature = GeoFeature.from_raster(raster, properties=properties)
     feature_copy = feature.copy_with()
     assert feature == feature_copy
-    assert id(feature.raster) != id(feature_copy.raster)
+    assert id(feature.raster()) != id(feature_copy.raster())
     assert id(feature.properties) != id(feature_copy.properties)
 
 
@@ -318,8 +322,8 @@ def test_geofeature_with_raster_copy_with_updates_properties(request):
     new_properties = OrderedDict([('prop2', 1), ('prop3', '2')])
     feature_copy = feature.copy_with(properties=new_properties)
     assert feature != feature_copy
-    assert feature.raster == feature_copy.raster
-    assert id(feature.raster) != id(feature_copy.raster)
+    assert feature.raster() == feature_copy.raster()
+    assert id(feature.raster()) != id(feature_copy.raster())
 
     assert feature_copy.properties == {'prop1': 1, 'prop2': 1, 'prop3': '2'}
 

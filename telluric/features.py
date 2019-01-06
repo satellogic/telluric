@@ -7,13 +7,16 @@ from dateutil.parser import parse as parse_date
 
 from shapely.geometry import shape
 
-from telluric.constants import DEFAULT_CRS, WGS84_CRS
+from telluric.constants import DEFAULT_CRS, WGS84_CRS, RASTER_TYPE
 from telluric.vectors import (
     GeoVector,
     GEOM_PROPERTIES, GEOM_NONVECTOR_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
 from telluric.plotting import NotebookPlottingMixin
 from telluric import GeoRaster2
+
+
+raster_types = [RASTER_TYPE]
 
 
 def transform_properties(properties, schema):
@@ -62,11 +65,15 @@ def serialize_properties(properties):
     return new_properties
 
 
+class GeoFeatureError(Exception):
+    pass
+
+
 class GeoFeature(Mapping, NotebookPlottingMixin):
     """GeoFeature object.
 
     """
-    def __init__(self, geovector, properties):
+    def __init__(self, geovector, properties, assets=None):
         """Initialize a GeoFeature object.
 
         Parameters
@@ -79,6 +86,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
 
         self.geometry = geovector  # type: GeoVector
         self._properties = properties
+        self.assets = assets or {}
 
     @property
     def crs(self):
@@ -105,20 +113,20 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             'type': 'Feature',
             'properties': serialize_properties(self.properties),
             'geometry': self.geometry.to_record(crs),
+            'assets': self.assets
         }
         return ret_val
-
-    @staticmethod
-    def _get_class_from_record(record):
-        if "raster" in record and record['raster']:
-                return GeoFeatureWithRaster
-        return GeoFeature
 
     @classmethod
     def from_record(cls, record, crs, schema=None):
         """Create GeoFeature from a record."""
-        _cls = cls._get_class_from_record(record)
-        return _cls._from_record(record, crs, schema)
+        properties = cls._to_properties(record, schema)
+        vector = GeoVector(shape(record['geometry']), crs)
+        if record.get('raster'):
+            assets = {k: dict(type=RASTER_TYPE, product='visual', **v) for k, v in record.get('raster').items()}
+        else:
+            assets = record.get('assets', {})
+        return cls(vector, properties, assets)
 
     @staticmethod
     def _to_properties(record, schema):
@@ -127,12 +135,6 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         else:
             properties = record["properties"]
         return properties
-
-    @classmethod
-    def _from_record(cls, record, crs, schema=None):
-        properties = cls._to_properties(record, schema)
-        vector = GeoVector(shape(record['geometry']), crs)
-        return cls(vector, properties)
 
     def __len__(self):
         return len(self.properties)
@@ -148,24 +150,6 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
             self.geometry == other.geometry
             and self.properties == other.properties
         )
-
-    @classmethod
-    def from_shape(cls, shape):
-        return cls(GeoVector(shape, DEFAULT_CRS), {})
-
-    @classmethod
-    def from_raster(cls, raster, properties):
-        """Initialize a GeoFeature object with a GeoRaster
-
-        Parameters
-        ----------
-        raster : GeoRaster
-            the raster in the feature
-        properties : dict
-            Properties.
-        """
-
-        return GeoFeatureWithRaster(raster, properties)
 
     def __getattr__(self, item):
         if item in GEOM_PROPERTIES:
@@ -270,67 +254,78 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
     def __repr__(self):
         return str(self)
 
-    def copy_with(self, geometry=None, properties=None):
+    def copy_with(self, geometry=None, properties=None, assets=None):
         """Generate a new GeoFeature with different geometry or preperties."""
+        def copy_assets_object(asset):
+            obj = asset.get("__object")
+            if hasattr("copy", obj):
+                new_obj = obj.copy()
+            if obj:
+                asset["__object"] = new_obj
+
         geometry = geometry or self.geometry.copy()
-        properties = properties or {}
         new_properties = copy.deepcopy(self.properties)
-        new_properties.update(properties)
+        if properties:
+            new_properties.update(properties)
+        if not assets:
+            assets = copy.deepcopy(self.assets)
+            map(copy_assets_object, assets.values())
+        else:
+            assets = {}
+        return self.__class__(geometry, new_properties, assets)
 
-        return self.__class__(geometry, new_properties)
+    @classmethod
+    def from_shape(cls, shape):
+        return cls(GeoVector(shape, DEFAULT_CRS), {})
 
-
-class GeoFeatureWithRaster(GeoFeature):
-
-    def __init__(self, raster, properties):
-        """Initialize a GeoFeature object with a raster,
-           When a GeoFeature has a raster the default behavior is the same as GeoFeature where the geometry
-           is the union of all raster footprint.
-
-           we will override some methods to work differently like:
-           1. reproject (TBD)
-           2. rasterize (from feature collection, TBD)
-           3. to_record
+    @classmethod
+    def from_raster(cls, raster, properties, product='visual'):
+        """Initialize a GeoFeature object with a GeoRaster
 
         Parameters
         ----------
-        raster: GeoRaster2 or GeoMultiRaster object
+        raster : GeoRaster
+            the raster in the feature
         properties : dict
             Properties.
+        product : str
+            product associated to the raster
         """
         footprint = raster.footprint()
-        self.raster = raster
-        super().__init__(footprint, properties)
+        assets = raster.to_assets(product=product)
+        return cls(footprint, properties, assets)
 
-    def to_record(self, crs):
-        if self.raster._filename is None:
-            raise NotImplementedError("Supporting raster that are stored on disk or network")
-        if self.raster.crs != crs:
-            warnings.warn("Raster is not being reprojected to the crs")
-        ret_val = {
-            'type': 'Feature',
-            'properties': serialize_properties(self.properties),
-            'geometry': self.geometry.to_record(crs),
-            'raster': self.raster.to_assets()
-        }
-        return ret_val
+    @property
+    def has_raster(self):
+        """True if any of the assets  is type 'raster'."""
+        return any(asset.get('type') == RASTER_TYPE for asset in self.assets.values())
 
-    def reproject(self, *args, **kwargs):
-        raise NotImplementedError()
+    def raster(self, name=None, **creteria):
+        """Generates a GeoRaster2 object based on the asset name(key) or a creteria(protety name and value)."""
+        if name:
+            asset = self.assets[name]
+            if asset["type"] in raster_types:
+                __object = asset.get('__object')
+                if isinstance(__object, GeoRaster2):
+                    return __object
+                else:
+                    return GeoRaster2.from_assets([asset])
+            else:
+                return None
 
-    @classmethod
-    def _from_record(cls, record, crs, schema=None):
-        properties = cls._to_properties(record, schema)
-        raster = GeoRaster2.from_assets(record.get("raster", {}))
-        return GeoFeatureWithRaster(raster, properties)
+        if creteria:
+            key = next(iter(creteria))
+            value = creteria[key]
+        else:
+            # default creteria is to return a visual raster
+            key = 'product'
+            value = 'visual'
 
-    def copy_with(self, raster=None, properties=None):
-        """Generate a new GeoFeatureWithRaster with different raster or preperties."""
-        if raster is None:
-            raster = self.raster.copy()
-
-        properties = properties or {}
-        new_properties = copy.deepcopy(self.properties)
-        new_properties.update(properties)
-
-        return self.__class__(raster, new_properties)
+        rasters = {k: asset for k, asset in self.assets.items() if asset['type'] in raster_types}
+        raster_list = list(rasters.values())
+        # if there is only a single raster in the assetes and it hase a GeoRaster object serve the object
+        if len(raster_list) == 1 and isinstance(raster_list[0].get('__object'), GeoRaster2):
+            return raster_list[0].get('__object')
+        rasters = {k: r for k, r in rasters.items() if r[key] == value}
+        raster = GeoRaster2.from_assets(rasters)
+        return raster

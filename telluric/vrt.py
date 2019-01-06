@@ -204,14 +204,14 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None):
     """
 
     def max_resolution():
-        max_affine = max(fc, key=lambda f: f.raster.resolution()).raster.affine
+        max_affine = max(fc, key=lambda f: f.raster().resolution()).raster().affine
         return abs(max_affine.a), abs(max_affine.e)
 
     from telluric import rasterization
     from telluric.georaster import band_names_tag
     assert all(fc.crs == f.crs for f in fc), "all rasters should have the same CRS"
 
-    rasters = (f.raster for f in fc)
+    rasters = (f.raster() for f in fc)
     bounds = fc.convex_hull.get_bounds(fc.crs)
     resolution = max_resolution()
     width, height, affine = rasterization.raster_data(bounds, resolution)

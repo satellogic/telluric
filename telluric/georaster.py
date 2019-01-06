@@ -38,7 +38,7 @@ from shapely.geometry import Point, Polygon
 
 from PIL import Image
 
-from telluric.constants import WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING
+from telluric.constants import WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING, RASTER_TYPE
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 from telluric.util.raster_utils import (
@@ -2035,8 +2035,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 cur_raster = _self.get_window(window)
                 yield RasterChunk(raster=cur_raster, offsets=(col_off, row_off))
 
-    def to_assets(self):
-        return {"0": {"href": self._filename, "bands": self.band_names}}
+    def to_assets(self, name="0", **attr):
+        return {name: dict(href=self._filename, bands=self.band_names, __object=self, type=RASTER_TYPE, **attr)}
 
     @classmethod
     def from_assets(cls, assets):
@@ -2168,8 +2168,8 @@ class GeoMultiRaster(GeoRaster2):
     def copy(self):
         return GeoMultiRaster(self._rasters)
 
-    def to_assets(self):
-        return {str(i): {"href": raster._filename, "bands": raster.band_names}
+    def to_assets(self, **attr):
+        return {str(i): dict(href=raster._filename, bands=raster.band_names, __object=raster, type=RASTER_TYPE, **attr)
                 for i, raster in enumerate(self._rasters)
                 }
 

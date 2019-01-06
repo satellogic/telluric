@@ -41,8 +41,8 @@ class TileServerHandler(tornado.web.RequestHandler):
         if tile_vector.intersects(obj.footprint):
             if isinstance(obj.obj, tl.GeoRaster2):
                 tile = yield self._get_raster_png_tile(obj.obj, x, y, z)
-            if isinstance(obj.obj, tl.GeoFeatureWithRaster):
-                tile = yield self._get_raster_png_tile(obj.obj.raster, x, y, z)
+            if isinstance(obj.obj, tl.GeoFeature) and obj.obj.has_raster:
+                tile = yield self._get_raster_png_tile(obj.obj.raster(), x, y, z)
             elif isinstance(obj.obj, BaseCollection):
                 tile = yield self._get_collection_png_tile(obj.obj, x, y, z)
 
@@ -61,7 +61,7 @@ class TileServerHandler(tornado.web.RequestHandler):
 
     @gen.coroutine
     def _get_collection_png_tile(self, fc, x, y, z):
-        rasters = yield gen.multi([self._get_raster_png_tile(f.raster, x, y, z) for f in fc])
+        rasters = yield gen.multi([self._get_raster_png_tile(f.raster(), x, y, z) for f in fc])
         if len(rasters) < 1:
             return None
         tile = yield self._merge_rasters(rasters, z)
