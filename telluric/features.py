@@ -123,7 +123,7 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         properties = cls._to_properties(record, schema)
         vector = GeoVector(shape(record['geometry']), crs)
         if record.get('raster'):
-            assets = {k: dict(type=RASTER_TYPE, **v) for k, v in record.get('raster').items()}
+            assets = {k: dict(type=RASTER_TYPE, product='visual', **v) for k, v in record.get('raster').items()}
         else:
             assets = record.get('assets', {})
         return cls(vector, properties, assets)
