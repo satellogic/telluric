@@ -208,6 +208,18 @@ def test_geofeature_from_raster_returns_a_valid_feature(raster, request):
 
 
 @pytest.mark.parametrize("raster", [
+    "test_raster_with_url", "test_raster_with_no_url"
+])
+def test_geofeature_from_raster_to_record_should_not_have___object(raster, request):
+    raster = request.getfixturevalue(raster)
+    properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
+    feature = GeoFeature.from_raster(raster, properties=properties)
+    feature_record = feature.to_record(feature.crs)
+    for _, asset in feature_record['assets'].items():
+        assert '__object' not in asset
+
+
+@pytest.mark.parametrize("raster", [
     "test_raster_with_url"
 ])
 def test_geofeature_from_raster_serializes_with_assets(raster, request):
@@ -215,7 +227,7 @@ def test_geofeature_from_raster_serializes_with_assets(raster, request):
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     assert mapping(feature)["assets"] == {'0': {'href': raster._filename, 'bands': raster.band_names,
-                                                'type': RASTER_TYPE, '__object': raster, 'product': 'visual'}}
+                                                'type': RASTER_TYPE, 'product': 'visual'}}
 
 
 @pytest.mark.parametrize("raster", [
@@ -250,10 +262,10 @@ def test_geofeature_from_multi_raster_serializes_with_assets(request):
     properties = OrderedDict([('prop1', 1), ('prop2', '2'), ('prop3', datetime(2018, 4, 25, 11, 18))])
     feature = GeoFeature.from_raster(raster, properties=properties)
     assert mapping(feature)["assets"] == {
-        '0': {'href': rasters[0]._filename, 'bands': rasters[0].band_names, 'type': RASTER_TYPE,
-              '__object': raster, 'product': 'visual'},
-        '1': {'href': rasters[1]._filename, 'bands': rasters[1].band_names, 'type': RASTER_TYPE,
-              '__object': raster, 'product': 'visual'}
+        '0': {'href': rasters[0]._filename, 'bands': rasters[0].band_names,
+              'type': RASTER_TYPE, 'product': 'visual'},
+        '1': {'href': rasters[1]._filename, 'bands': rasters[1].band_names,
+              'type': RASTER_TYPE, 'product': 'visual'}
     }
 
 
