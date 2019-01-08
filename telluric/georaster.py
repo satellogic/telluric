@@ -1349,7 +1349,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             dest_image = np.ma.masked_array(dest_image[0:1, :, :], dest_image[1:2, :, :] == 0)
             band_images.append(dest_image)
         dest_image = np.ma.concatenate(band_images)
-        new_raster = self.copy_with(image=dest_image, affine=dst_transform, crs=dst_crs)
+        new_raster = self.copy_with(image=np.ma.masked_array(dest_image.data, np.ma.getmaskarray(dest_image)),
+                                    affine=dst_transform, crs=dst_crs)
 
         return new_raster
 
