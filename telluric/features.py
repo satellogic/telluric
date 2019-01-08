@@ -109,11 +109,16 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         return self.to_record(WGS84_CRS)
 
     def to_record(self, crs):
+        assets = copy.deepcopy(self.assets)
+        # remove the refference to the raster object in the asset entery
+        for asset in assets.values():
+            asset.pop('__object', None)
+
         ret_val = {
             'type': 'Feature',
             'properties': serialize_properties(self.properties),
             'geometry': self.geometry.to_record(crs),
-            'assets': self.assets
+            'assets': assets
         }
         return ret_val
 
