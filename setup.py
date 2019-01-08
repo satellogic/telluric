@@ -41,7 +41,7 @@ setup(
             'mypy',
             'packaging',
             'pycodestyle',
-            'pytest',
+            'pytest>=4',
             'pytest-cov',
             'sphinx',
             'ipython',
