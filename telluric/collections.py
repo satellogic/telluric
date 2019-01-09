@@ -19,6 +19,7 @@ from telluric.plotting import NotebookPlottingMixin
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.georaster import GeoRaster2
+from fiona.io import MemoryFile
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -198,7 +199,12 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
 
             results.setdefault(value, []).append(feature)
 
-        return _CollectionGroupBy(results)
+        if hasattr(self, "_schema"):
+            # I am doing this to trick mypy, is there a better way?
+            # calling self._schema generates a mypy problem
+            schema = getattr(self, "_schema")
+
+        return _CollectionGroupBy(results, schema=schema)
 
     def dissolve(self, by=None, aggfunc=None):
         # type: (Optional[str], Optional[Callable]) -> FeatureCollection
@@ -343,9 +349,18 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                     properties[prop] = value(f)
                 else:
                     properties[prop] = value
-            return f.copy_with(properties=properties)
 
-        return self.map(_apply)
+            return f.copy_with(properties=properties)
+        new_fc = self.map(_apply)
+        new_schema = self.schema.copy()
+        property_names_set = kwargs.keys()
+        prop_types_map = FeatureCollection.guess_types_by_feature(new_fc[0], property_names_set)
+        for key, value_type in prop_types_map.items():
+            # already defined attribute that we just override will have the same position as before
+            # new attributes will be appened
+            new_schema["properties"][key] = FIELD_TYPES_MAP_REV.get(value_type, 'str')
+        new_fc._schema = new_schema
+        return new_fc
 
 
 class FeatureCollectionIOError(BaseException):
@@ -354,7 +369,7 @@ class FeatureCollectionIOError(BaseException):
 
 class FeatureCollection(BaseCollection):
 
-    def __init__(self, results):
+    def __init__(self, results, schema=None):
         """Initialize FeatureCollection object.
 
         Parameters
@@ -365,7 +380,20 @@ class FeatureCollection(BaseCollection):
         """
         super().__init__()
         self._results = list(results)
-        self._schema = None
+        self._schema = schema
+        self.validate()
+
+    def validate(self):
+        """
+        if schema exists we run shape file validation code of fiona by trying to save to in MemoryFile
+        """
+        if self._schema is not None:
+            with MemoryFile() as memfile:
+                with memfile.open(driver="ESRI Shapefile", schema=self.schema) as target:
+                    for _item in self._results:
+                        # getting rid of the assets that don't behave well becasue of in memroy rasters
+                        item = GeoFeature(_item.geometry, _item.properties)
+                        target.write(item.to_record(item.crs))
 
     def __len__(self):
         return len(self._results)
@@ -386,15 +414,20 @@ class FeatureCollection(BaseCollection):
         # Get the CRS from the first feature
         return self._results[0].crs if self._results else None
 
+    @staticmethod
+    def guess_types_by_feature(feature, property_names_set):
+        prop_types_map = dict([
+            (prop_name, type(feature.get(prop_name)))
+            for prop_name in property_names_set])
+        return prop_types_map
+
     def _compute_properties(self):
         property_names_set = set()  # type: Set[str]
         for feat in self:
             property_names_set = property_names_set.union(feat.properties)
 
         # make type mapping based on the first feature
-        prop_types_map = dict([
-            (prop_name, type(self[0].get(prop_name)))
-            for prop_name in property_names_set])
+        prop_types_map = FeatureCollection.guess_types_by_feature(self[0], property_names_set)
 
         for feat in self:
             for prop_name, prop_value in feat.items():
@@ -407,10 +440,10 @@ class FeatureCollection(BaseCollection):
                             "Please convert all the appropriate properties to the same type."
                         )
 
-        properties = {
-            k: FIELD_TYPES_MAP_REV.get(v) or 'str'
+        properties = OrderedDict(
+            (k, FIELD_TYPES_MAP_REV.get(v, 'str'))
             for k, v in prop_types_map.items()
-        }
+        )
 
         return properties
 
@@ -569,9 +602,10 @@ class FileCollection(BaseCollection):
 
 class _CollectionGroupBy:
 
-    def __init__(self, groups):
-        # type: (Dict) -> None
+    def __init__(self, groups, schema=None):
+        # type: (Dict, Dict) -> None
         self._groups = groups
+        self._schema = schema
 
     def __getitem__(self, key):
         results = OrderedDict.fromkeys(self._groups)
@@ -588,7 +622,7 @@ class _CollectionGroupBy:
 
     def __iter__(self):
         for name, group in self._groups.items():
-            yield name, FeatureCollection(group)
+            yield name, FeatureCollection(group, schema=self._schema)
 
     def agg(self, func):
         # type: (Callable[[BaseCollection], GeoFeature]) -> FeatureCollection
