@@ -358,7 +358,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         for key, value_type in prop_types_map.items():
             # already defined attribute that we just override will have the same position as before
             # new attributes will be appened
-            new_schema["properties"][key] = FIELD_TYPES_MAP_REV.get(value_type) or "str"
+            new_schema["properties"][key] = FIELD_TYPES_MAP_REV.get(value_type, 'str')
         new_fc._schema = new_schema
         return new_fc
 
@@ -441,7 +441,7 @@ class FeatureCollection(BaseCollection):
                         )
 
         properties = OrderedDict(
-            (k, FIELD_TYPES_MAP_REV.get(v) or 'str')
+            (k, FIELD_TYPES_MAP_REV.get(v, 'str'))
             for k, v in prop_types_map.items()
         )
 
