@@ -9,11 +9,16 @@ from telluric.constants import WGS84_CRS
 @pytest.mark.parametrize("in_memory", [True, False])
 def test_warp_no_reproject(in_memory):
     """ When called without parameters, output should be same as source """
-    raster = GeoRaster2.open("tests/data/raster/rgb.tif")
-    if in_memory:
-        raster_image = raster.image
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif", lazy_load=not in_memory)
     expected_raster = raster.reproject()
     assert expected_raster == raster
+
+
+@pytest.mark.parametrize("in_memory", [True, False])
+def test_warp_no_shrink_mask(in_memory):
+    raster = GeoRaster2.open("tests/data/raster/rgb.tif", lazy_load=not in_memory)
+    expected_raster = raster.reproject()
+    assert not np.isscalar(expected_raster.image.mask)
 
 
 @pytest.mark.parametrize("in_memory", [True, False])
