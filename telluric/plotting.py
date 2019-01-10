@@ -155,10 +155,16 @@ class NotebookPlottingMixin:
     def _repr_html_(self):
         # These imports are here to avoid cyclic references
         from telluric.collections import BaseCollection
-        if isinstance(self, BaseCollection):
-            if self[0].has_raster:
-                return self._run_in_tileserver(capture="Feature collection of rasters")
-        if self.has_raster:
+        from telluric.features import GeoFeature
+        if (
+            isinstance(self, BaseCollection) and
+            self[0].has_raster
+        ):
+            return self._run_in_tileserver(capture="Feature collection of rasters")
+        elif (
+            isinstance(self, GeoFeature) and
+            self.has_raster
+        ):
             return self._run_in_tileserver(capture="GeoFeature with raster")
 
         warnings.warn(
