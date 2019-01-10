@@ -1,7 +1,25 @@
+telluric 0.10.2 (2019-01-10)
+============================
+
+New features
+------------
+
+* SpatioTemporal Asset Catalog (STAC) compatibility (#223)
+* Support custom schema in :py:meth:`telluric.collections.BaseCollection.save` (#224)
+
+Bug fixes
+---------
+
+* Preserve the original schema while using :py:meth:`telluric.collections.BaseCollection.apply`
+  and :py:meth:`telluric.collections.BaseCollection.groupby` (#225)
+* Better handling of an empty collections (#226)
+* Remove the reference to the raster object in the asset entry (#227)
+* Retrieve mask in a safer way to avoid shrunk masks (#228)
+
 telluric 0.10.1 (2018-12-27)
 ============================
 
-Bug_fixes
+Bug fixes
 ---------
 
 * Fix masking by :py:class:`~telluric.features.GeoFeature` (#216)
