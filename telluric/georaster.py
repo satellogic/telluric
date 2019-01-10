@@ -1805,7 +1805,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
-                   resampling=Resampling.cubic, masked=None, affine=None, lazy=False
+                   resampling=Resampling.cubic, masked=None, affine=None
                    ):
         """Get window from raster.
 
