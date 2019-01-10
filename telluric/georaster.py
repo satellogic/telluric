@@ -887,7 +887,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 if creation_options:
                     params.update(**creation_options)
 
-                if self._image is None and self._filename is not None :#and not self._filename.startswith("/vsimem"):
+                if self._image is None and self._filename is not None:
                     creation_options["blockxsize"] = params["blockxsize"]
                     creation_options["blockysize"] = params["blockysize"]
                     creation_options["tiled"] = params["tiled"]

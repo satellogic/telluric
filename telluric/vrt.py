@@ -241,10 +241,6 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None):
             ysize = raster.height * raster.affine.e / affine.e
             dst_window = Window(xoff, yoff, xsize, ysize)
             file_name = raster.source_file if relative_to_vrt else os.path.join(os.getcwd(), raster.source_file)
-            # if not file_name.startswith("/vsi"):
-                # # then this a file location on disk
-                # if not relative_to_vrt:
-                    # file_name = os.path.join(os.getcwd(), file_name)
 
             vrt.add_band_simplesource(band_element, band_idx, raster.dtype, relative_to_vrt, file_name,
                                       raster.width, raster.height,
@@ -255,9 +251,6 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None):
                                           raster.width, raster.height,
                                           raster.block_shape(i)[1], raster.block_shape(i)[0],
                                           src_window, dst_window)
-
-
-
 
     vrt.add_metadata(items={band_names_tag: json.dumps(band_names)})
     return vrt
