@@ -1,3 +1,11 @@
+telluric 0.10.3 (2019-01-10)
+============================
+
+Bug fixes
+---------
+
+* Fix :py:class:`~telluric.collections.FeatureCollection` plotting (#229)
+
 telluric 0.10.2 (2019-01-10)
 ============================
 
