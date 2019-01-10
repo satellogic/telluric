@@ -96,9 +96,7 @@ def join(rasters):
     """
     This method takes a list of rasters and returns a raster that is constructed of all of them
     """
-    from telluric.collections import FeatureCollection
-    bounds = FeatureCollection.from_geovectors([raster.footprint() for raster in rasters]).convex_hull
-    return merge_all(rasters, roi=bounds)
+    return GeoRaster2.from_rasters(rasters, relative_to_vrt=False)
 
 
 def _dest_resolution(first_raster, crs):
@@ -783,6 +781,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     def source_file(self):
         """ When using open, returns the filename used
         """
+        if self._filename is None:
+            self._filename = self._as_in_memory_geotiff()._filename
         return self._filename
 
     @property
@@ -887,7 +887,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 if creation_options:
                     params.update(**creation_options)
 
-                if self._image is None and self._filename is not None:
+                if self._image is None and self._filename is not None :#and not self._filename.startswith("/vsimem"):
                     creation_options["blockxsize"] = params["blockxsize"]
                     creation_options["blockysize"] = params["blockysize"]
                     creation_options["tiled"] = params["tiled"]
@@ -1805,7 +1805,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
-                   resampling=Resampling.cubic, masked=None, affine=None
+                   resampling=Resampling.cubic, masked=None, affine=None, lazy=False
                    ):
         """Get window from raster.
 
