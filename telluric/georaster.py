@@ -27,7 +27,7 @@ import rasterio
 import rasterio.warp
 import rasterio.shutil
 from rasterio.coords import BoundingBox
-from rasterio.enums import Resampling, Compression
+from rasterio.enums import Resampling, Compression, MaskFlags
 from rasterio.features import geometry_mask
 from rasterio.windows import Window, WindowMethodsMixin
 from rasterio.io import MemoryFile
@@ -98,15 +98,15 @@ def join(rasters):
     """
 
     raster = rasters[0]  # using the first raster to understand what is the type of data we have
-    nodata = raster.nodata_value
     mask_band = None
-    if nodata is None:
-        mask_flags = raster.mask_flag_enums
-        per_dataset_mask = all([rasterio.enums.MaskFlags.per_dataset in flags for flags in mask_flags])
-        if per_dataset_mask:
-            mask_band = 0
-
-    return GeoRaster2.from_rasters(rasters, relative_to_vrt=False, nodata=None, mask_band=mask_band)
+    nodata = None
+    with raster._raster_opener(raster.source_file) as r:
+        nodata = r.nodata
+        mask_flags = r.mask_flag_enums
+    per_dataset_mask = all([rasterio.enums.MaskFlags.per_dataset in flags for flags in mask_flags])
+    if per_dataset_mask and nodata is None:
+        mask_band = 0
+    return GeoRaster2.from_rasters(rasters, relative_to_vrt=False, nodata=nodata, mask_band=mask_band)
 
 
 def _dest_resolution(first_raster, crs):
