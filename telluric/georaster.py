@@ -96,7 +96,17 @@ def join(rasters):
     """
     This method takes a list of rasters and returns a raster that is constructed of all of them
     """
-    return GeoRaster2.from_rasters(rasters, relative_to_vrt=False)
+
+    raster = rasters[0]  # using the first raster to understand what is the type of data we have
+    nodata = raster.nodata_value
+    mask_band = None
+    if nodata is None:
+        mask_flags = raster.mask_flag_enums
+        per_dataset_mask = all([rasterio.enums.MaskFlags.per_dataset in flags for flags in mask_flags])
+        if per_dataset_mask:
+            mask_band = 0
+
+    return GeoRaster2.from_rasters(rasters, relative_to_vrt=False, nodata=None, mask_band=mask_band)
 
 
 def _dest_resolution(first_raster, crs):
@@ -622,12 +632,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return GeoRaster2.open(filename)
 
     @classmethod
-    def from_rasters(cls, rasters, relative_to_vrt=True, destination_file=None, nodata=None):
+    def from_rasters(cls, rasters, relative_to_vrt=True, destination_file=None, nodata=None, mask_band=None):
         """Create georaster out of a list of rasters."""
         if isinstance(rasters, list):
-            doc = raster_list_vrt(rasters, relative_to_vrt, nodata).tostring()
+            doc = raster_list_vrt(rasters, relative_to_vrt, nodata, mask_band).tostring()
         else:
-            doc = raster_collection_vrt(rasters, relative_to_vrt, nodata).tostring()
+            doc = raster_collection_vrt(rasters, relative_to_vrt, nodata, mask_band).tostring()
         filename = cls._save_to_destination_file(doc, destination_file)
         return GeoRaster2.open(filename)
 
