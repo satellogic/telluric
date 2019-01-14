@@ -69,7 +69,7 @@ def test_rasterization_of_line_simple():
 
     expected_crs = DEFAULT_CRS
 
-    expected_result = GeoRaster2(expected_image, expected_affine, expected_crs)
+    expected_result = GeoRaster2(expected_image, expected_affine, expected_crs, nodata=0)
 
     result = fc.rasterize(resolution, polygonize_width=pixels_width, crs=DEFAULT_CRS, bounds=roi)
 
@@ -93,7 +93,7 @@ def test_rasterization_of_line_has_correct_pixel_width(resolution):
 
     expected_crs = DEFAULT_CRS
 
-    expected_result = GeoRaster2(expected_image, expected_affine, expected_crs)
+    expected_result = GeoRaster2(expected_image, expected_affine, expected_crs, nodata=0)
 
     result = fc.rasterize(resolution, polygonize_width=pixels_width, crs=DEFAULT_CRS, bounds=roi)
 
