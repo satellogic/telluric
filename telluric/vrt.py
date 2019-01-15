@@ -166,7 +166,7 @@ def band_name_to_color_interpretation(band_name):
         return 'Gray'
 
 
-def raster_list_vrt(rasters, relative_to_vrt=True, nodata=None):
+def raster_list_vrt(rasters, relative_to_vrt=True, nodata=None, mask_band=None):
     """Make a VRT XML document from a list of GeoRaster2 objects.
     Parameters
     ----------
@@ -176,6 +176,8 @@ def raster_list_vrt(rasters, relative_to_vrt=True, nodata=None):
         If True the bands simple source url will be related to the VRT file
     nodata : int, optional
         If supplied is the note data value to be used
+    mask_band: int, optional
+        If specified detrimes from which band to use the mask
     Returns
     -------
     bytes
@@ -184,10 +186,10 @@ def raster_list_vrt(rasters, relative_to_vrt=True, nodata=None):
 
     from telluric import FeatureCollection
     fc = FeatureCollection.from_georasters(rasters)
-    return raster_collection_vrt(fc, relative_to_vrt, nodata)
+    return raster_collection_vrt(fc, relative_to_vrt, nodata, mask_band)
 
 
-def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None):
+def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None, mask_band=None):
     """Make a VRT XML document from a feature collection of GeoRaster2 objects.
     Parameters
     ----------
@@ -197,6 +199,8 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None):
         If True the bands simple source url will be related to the VRT file
     nodata : int, optional
         If supplied is the note data value to be used
+    mask_band: int, optional
+        If specified detrimes from which band to use the mask
     Returns
     -------
     bytes
@@ -221,6 +225,9 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None):
     vrt = BaseVRT(width, height, fc.crs, affine)
 
     last_band_idx = 0
+    if mask_band is not None:
+        mask_band = vrt.add_mask_band("Byte")
+
     for raster in rasters:
         for i, band_name in enumerate(raster.band_names):
             if band_name in bands:
@@ -239,11 +246,17 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None):
             xsize = raster.width * raster.affine.a / affine.a
             ysize = raster.height * raster.affine.e / affine.e
             dst_window = Window(xoff, yoff, xsize, ysize)
-            file_name = raster._filename if relative_to_vrt else os.path.join(os.getcwd(), raster._filename)
+            file_name = raster.source_file if relative_to_vrt else os.path.join(os.getcwd(), raster.source_file)
+
             vrt.add_band_simplesource(band_element, band_idx, raster.dtype, relative_to_vrt, file_name,
                                       raster.width, raster.height,
                                       raster.block_shape(i)[1], raster.block_shape(i)[0],
                                       src_window, dst_window)
+            if i == mask_band:
+                vrt.add_band_simplesource(mask_band, "mask,%s" % (mask_band + 1), "Byte", relative_to_vrt, file_name,
+                                          raster.width, raster.height,
+                                          raster.block_shape(i)[1], raster.block_shape(i)[0],
+                                          src_window, dst_window)
 
     vrt.add_metadata(items={band_names_tag: json.dumps(band_names)})
     return vrt

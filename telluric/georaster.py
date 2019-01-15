@@ -27,7 +27,7 @@ import rasterio
 import rasterio.warp
 import rasterio.shutil
 from rasterio.coords import BoundingBox
-from rasterio.enums import Resampling, Compression
+from rasterio.enums import Resampling, Compression, MaskFlags
 from rasterio.features import geometry_mask
 from rasterio.windows import Window, WindowMethodsMixin
 from rasterio.io import MemoryFile
@@ -96,9 +96,17 @@ def join(rasters):
     """
     This method takes a list of rasters and returns a raster that is constructed of all of them
     """
-    from telluric.collections import FeatureCollection
-    bounds = FeatureCollection.from_geovectors([raster.footprint() for raster in rasters]).convex_hull
-    return merge_all(rasters, roi=bounds)
+
+    raster = rasters[0]  # using the first raster to understand what is the type of data we have
+    mask_band = None
+    nodata = None
+    with raster._raster_opener(raster.source_file) as r:
+        nodata = r.nodata
+        mask_flags = r.mask_flag_enums
+    per_dataset_mask = all([rasterio.enums.MaskFlags.per_dataset in flags for flags in mask_flags])
+    if per_dataset_mask and nodata is None:
+        mask_band = 0
+    return GeoRaster2.from_rasters(rasters, relative_to_vrt=False, nodata=nodata, mask_band=mask_band)
 
 
 def _dest_resolution(first_raster, crs):
@@ -624,12 +632,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return GeoRaster2.open(filename)
 
     @classmethod
-    def from_rasters(cls, rasters, relative_to_vrt=True, destination_file=None, nodata=None):
+    def from_rasters(cls, rasters, relative_to_vrt=True, destination_file=None, nodata=None, mask_band=None):
         """Create georaster out of a list of rasters."""
         if isinstance(rasters, list):
-            doc = raster_list_vrt(rasters, relative_to_vrt, nodata).tostring()
+            doc = raster_list_vrt(rasters, relative_to_vrt, nodata, mask_band).tostring()
         else:
-            doc = raster_collection_vrt(rasters, relative_to_vrt, nodata).tostring()
+            doc = raster_collection_vrt(rasters, relative_to_vrt, nodata, mask_band).tostring()
         filename = cls._save_to_destination_file(doc, destination_file)
         return GeoRaster2.open(filename)
 
@@ -783,6 +791,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     def source_file(self):
         """ When using open, returns the filename used
         """
+        if self._filename is None:
+            self._filename = self._as_in_memory_geotiff()._filename
         return self._filename
 
     @property
