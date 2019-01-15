@@ -360,6 +360,7 @@ def test_merge_all_non_overlapping_covers_all():
         affine=affine,
         crs=WGS84_CRS,
         band_names=['red'],
+        nodata=0,
     )
 
     rs2 = GeoRaster2(
@@ -370,6 +371,7 @@ def test_merge_all_non_overlapping_covers_all():
         affine=affine,
         crs=WGS84_CRS,
         band_names=['green'],
+        nodata=0,
     )
 
     rs3 = GeoRaster2(
@@ -380,6 +382,7 @@ def test_merge_all_non_overlapping_covers_all():
         affine=affine,
         crs=WGS84_CRS,
         band_names=['red'],
+        nodata=0,
     )
 
     rs4 = GeoRaster2(
@@ -390,6 +393,7 @@ def test_merge_all_non_overlapping_covers_all():
         affine=affine,
         crs=WGS84_CRS,
         band_names=['green'],
+        nodata=0,
     )
 
     expected_image = np.ma.masked_array([
@@ -421,6 +425,7 @@ def test_merge_all_non_overlapping_has_correct_metadata():
         affine=affine,
         crs=WGS84_CRS,
         band_names=['red'],
+        nodata=0,
     )
 
     rs2 = GeoRaster2(
@@ -431,6 +436,7 @@ def test_merge_all_non_overlapping_has_correct_metadata():
         affine=affine,
         crs=WGS84_CRS,
         band_names=['green'],
+        nodata=0,
     )
 
     rs3 = GeoRaster2(
@@ -441,6 +447,7 @@ def test_merge_all_non_overlapping_has_correct_metadata():
         affine=affine,
         crs=WGS84_CRS,
         band_names=['red'],
+        nodata=0,
     )
 
     rs4 = GeoRaster2(
@@ -451,6 +458,7 @@ def test_merge_all_non_overlapping_has_correct_metadata():
         affine=affine,
         crs=WGS84_CRS,
         band_names=['green'],
+        nodata=0,
     )
 
     expected_metadata = GeoRaster2(

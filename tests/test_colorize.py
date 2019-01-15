@@ -14,7 +14,8 @@ def test_colorize_jet():
     raster = tl.GeoRaster2(image=np.array([i / 256 for i in range(256)], dtype=np.float16).reshape((1, 16, 16)),
                            band_names=['red'],
                            crs=WGS84_CRS,
-                           affine=affine.Affine(2, 0, 0, 0, 1, 0))
+                           affine=affine.Affine(2, 0, 0, 0, 1, 0),
+                           nodata=0)
 
     heatmap = raster.colorize('jet')
     assert(np.array_equal(heatmap.band_names, ['red', 'green', 'blue']))
@@ -32,7 +33,8 @@ def test_colorize_jet_with_range():
     raster = tl.GeoRaster2(image=np.array([i / 256 for i in range(256)], dtype=np.float16).reshape((1, 16, 16)),
                            band_names=['red'],
                            crs=WGS84_CRS,
-                           affine=affine.Affine(2, 0, 0, 0, 1, 0))
+                           affine=affine.Affine(2, 0, 0, 0, 1, 0),
+                           nodata=0)
 
     heatmap = raster.colorize('jet', vmin=-1, vmax=1)
     assert(np.array_equal(heatmap.band_names, ['red', 'green', 'blue']))
