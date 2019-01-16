@@ -315,7 +315,7 @@ def test_file_collection_open_save_shapefile():
         fcol_res = FileCollection.open(fp.name)
 
         import time
-        time.sleep(5)
+        time.sleep(1)
         assert fcol_res.crs == WGS84_CRS
         assert fcol == fcol_res.reproject(fcol.crs)
 
