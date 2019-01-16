@@ -65,10 +65,10 @@ def test_merge_multi_band_multi_raster_smaller_roi_returns_itself():
 
 
 def get_rasters():
-    rasters = [black_and_white_raster([1, 2, 3], height=1000, width=1000),
-               black_and_white_raster([1, 2, 3], height=700, width=600),
-               black_and_white_raster([1, 2, 3], height=1300, width=600),
-               black_and_white_raster([1, 2, 3], height=700, width=1600)]
+    rasters = [black_and_white_raster([1, 2, 3], height=100, width=100),
+               black_and_white_raster([1, 2, 3], height=70, width=60),
+               black_and_white_raster([1, 2, 3], height=130, width=60),
+               black_and_white_raster([1, 2, 3], height=70, width=160)]
     return copy.deepcopy(rasters)
 
 
@@ -142,15 +142,15 @@ def test_crop_for_merging(main_r, cropping_r):
 
 
 def test_pixel_crop():
-    rr = black_and_white_raster([1, 2, 3], height=1000, width=1000)
-    out = rr.pixel_crop((0, 0, 1000, 1000))
+    rr = black_and_white_raster([1, 2, 3], height=100, width=100)
+    out = rr.pixel_crop((0, 0, 100, 100))
     assert(rr == out)
+    out = rr.pixel_crop((0, 0, 10, 10), 10, 10, 1)
+    assert(out.shape == (3, 10, 10))
     out = rr.pixel_crop((0, 0, 100, 100), 100, 100, 1)
-    assert(out.shape == (3, 100, 100))
-    out = rr.pixel_crop((0, 0, 1000, 1000), 1000, 1000, 1)
     assert(rr == out)
-    out = rr.pixel_crop((0, 0, 500, 500), 1000, 1000, 1)
-    assert(out.shape == (3, 1000, 1000))
+    out = rr.pixel_crop((0, 0, 50, 50), 100, 100, 1)
+    assert(out.shape == (3, 100, 100))
 
 
 def test_patch_affine():

@@ -44,10 +44,10 @@ tiles = {
     10: (579, 394, 10),
     11: (1159, 789, 11),
     12: (2319, 1578, 12),
-    14: (9277, 6314, 14),
-    15: (18554, 12628, 15),
-    17: (74217, 50514, 17),
-    18: (148434, 101028, 18)
+    14: (9277, 6312, 14),
+    15: (18554, 12624, 15),
+    17: (74216, 50496, 17),
+    18: (148433, 100994, 18)
 }
 
 
@@ -75,39 +75,13 @@ class GeoRaster2TilesTestGeneral(TestCase):
             vr.save_cloud_optimized('dest_file')
 
 
-class GeoRaster2TestGetTile(TestCase):
-    """GeoRaster2 get tile tests."""
-
+class BaseGeoRasterTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
-        path = "/vsimem/raster_for_test.tif"
-        cls.raster_for_test().save(path)
+        path = "./tests/data/raster/raster_for_test.tif"
         cls.read_only_vgr = GeoRaster2.open(path)
-        path = "/vsimem/small_raster.tif"
-        cls.raster_small_for_test().save(path)
-        cls.small_read_only_vgr = GeoRaster2.open(path)
-        path = "/vsimem/raster_wgs84.tif"
-        cls.raster_for_test_wgs84().save(path)
+        path = "./tests/data/raster/raster_wgs84.tif"
         cls.read_only_vgr_wgs84 = GeoRaster2.open(path)
-
-    @classmethod
-    def raster_for_test(cls):
-        # return GeoRaster2(np.random.uniform(0, 256, (3, 7823, 7417)),
-        return GeoRaster2(np.random.uniform(0, 256, (3, 3911, 3708)),
-                          affine=Affine(1.0000252884112817, 0.0, 2653750.345511198,
-                                        0.0, -1.0000599330133702, 4594461.485763356),
-                          crs={'init': 'epsg:3857'})
-
-    @classmethod
-    def raster_for_test_wgs84(cls):
-        return cls.raster_for_test().reproject(dst_crs=WGS84_CRS)
-
-    @classmethod
-    def raster_small_for_test(cls):
-        return GeoRaster2(np.random.uniform(0, 256, (3, 391, 370)),
-                          affine=Affine(1.0000252884112817, 0.0, 2653900.345511198,
-                                        0.0, -1.0000599330133702, 4598361.485763356),
-                          crs={'init': 'epsg:3857'})
 
     def read_only_virtual_geo_raster(self):
         return self.read_only_vgr
@@ -115,14 +89,15 @@ class GeoRaster2TestGetTile(TestCase):
     def read_only_virtual_geo_raster_wgs84(self):
         return self.read_only_vgr_wgs84
 
-    def small_read_only_virtual_geo_raster(self):
-        return self.small_read_only_vgr
+
+class GeoRaster2TestGetTile(BaseGeoRasterTestCase):
+    """GeoRaster2 get tile tests."""
 
     def test_geo_bounding_tile(self):
-        gr = self.raster_for_test()
+        gr = self.read_only_virtual_geo_raster()
         gv = gr.footprint().reproject(CRS({'init': 'epsg:4326'}))
         bounding_tile = mercantile.bounding_tile(*gv.get_shape(gv.crs).bounds)
-        self.assertEqual(bounding_tile, (2319, 1578, 12))
+        self.assertEqual(bounding_tile, (37108, 25248, 16))
 
     def test_fails_with_empty_raster_for_tile_out_of_raster_area(self):
         for raster in [self.read_only_virtual_geo_raster(), self.read_only_virtual_geo_raster_wgs84()]:
@@ -150,21 +125,21 @@ class GeoRaster2TestGetTile(TestCase):
                 self.assertEqual(r.image.shape, (3, 256, 256))
 
     def test_get_tile_from_different_crs_tile_is_not_tilted(self):
-        for raster in [self.read_only_virtual_geo_raster_wgs84()]:
-            r = raster.get_tile(*tiles[18])
-            self.assertEqual(1, len(np.unique(r.image.mask)))
+        raster = self.read_only_virtual_geo_raster_wgs84()
+        r = raster.get_tile(*tiles[18])
+        self.assertEqual(1, len(np.unique(r.image.mask)))
 
     def test_get_tile_from_different_crs_tile_is_not_tilted_with_different_buffer(self):
-        for raster in [self.read_only_virtual_geo_raster_wgs84()]:
-            os.environ["TELLURIC_GET_TILE_BUFFER"] = "0"
-            try:
-                r = raster.get_tile(*tiles[18])
-            except Exception:
-                del os.environ["TELLURIC_GET_TILE_BUFFER"]
-            self.assertEqual(2, len(np.unique(r.image.mask)))
+        raster = self.read_only_virtual_geo_raster_wgs84()
+        os.environ["TELLURIC_GET_TILE_BUFFER"] = "0"
+        try:
+            r = raster.get_tile(*tiles[18])
+        except Exception:
+            del os.environ["TELLURIC_GET_TILE_BUFFER"]
+        self.assertEqual(2, len(np.unique(r.image.mask)))
 
     def test_get_entire_all_raster(self):
-        vr = self.small_read_only_virtual_geo_raster()
+        vr = self.read_only_virtual_geo_raster()
         roi = GeoVector.from_xyz(37108, 25248, 16)
         r = vr.crop(roi)
 
@@ -229,27 +204,13 @@ class GeoRaster2TestGetTile(TestCase):
         self.assertEqual(r.image.shape, (3, expected_height, 1))
 
 
-class GeoRasterCropTest(TestCase):
+class GeoRasterCropTest(BaseGeoRasterTestCase):
     metric_affine = Affine(1, 0.0, 2653750, 0.0, -1, 4594461)
-    metric_crs = CRS({'init': 'epsg:3857'})
-    geographic_affine = Affine(8.03258139076081e-06, 0.0, 23.83904185232179,
-                               0.0, -8.03258139076081e-06, 38.10635414334363)
-    geographic_crs = CRS({'init': 'epsg:4326'})
-
-    def metric_raster(cls):
-        return GeoRaster2(np.random.uniform(0, 256, (3, 3911, 3708)),
-                          affine=cls.metric_affine,
-                          crs=cls.metric_crs)
-
-    def geographic_raster(cls):
-        return GeoRaster2(np.random.uniform(0, 256, (3, 4147, 4147)),
-                          affine=cls.geographic_affine,
-                          crs=cls.geographic_crs)
 
     def test_crop_in_memory_and_off_memory_without_resizing_are_the_same(self):
-        coords = mercantile.xy_bounds(*tiles[15])
+        coords = mercantile.xy_bounds(*tiles[18])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             raster2 = GeoRaster2.open(rf.name)
@@ -263,7 +224,7 @@ class GeoRasterCropTest(TestCase):
     def test_crop_and_get_tile_do_the_same(self):
         coords = mercantile.xy_bounds(*tiles[15])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             raster2 = GeoRaster2.open(rf.name)
@@ -277,7 +238,7 @@ class GeoRasterCropTest(TestCase):
     def test_crop_and_get_tile_do_the_same_when_image_is_populated(self):
         coords = mercantile.xy_bounds(*tiles[15])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             raster = GeoRaster2.open(rf.name)
@@ -292,7 +253,7 @@ class GeoRasterCropTest(TestCase):
         win = rasterio.windows.Window(bounds[0], bounds[1], bounds[2] - bounds[0], bounds[3] - bounds[1])
         xsize = round((bounds[2] - bounds[0]) / 2)
         ysize = round((bounds[3] - bounds[1]) / 2)
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
 
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
@@ -328,7 +289,7 @@ class GeoRasterCropTest(TestCase):
     def test_crop_and_get_tile_do_the_same_when_image_is_populated_first_high_zoom(self):
         coords = mercantile.xy_bounds(*tiles[17])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             raster = GeoRaster2.open(rf.name)
@@ -341,7 +302,7 @@ class GeoRasterCropTest(TestCase):
     def test_crop_and_get_tile_do_the_same_when_image_is_populated_first_mid_zoom(self):
         coords = mercantile.xy_bounds(*tiles[15])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             raster = GeoRaster2.open(rf.name)
@@ -354,7 +315,7 @@ class GeoRasterCropTest(TestCase):
     def test_crop_and_get_tile_do_the_same_when_image_is_populated_first_for_low_zoom(self):
         coords = mercantile.xy_bounds(*tiles[11])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             raster = GeoRaster2.open(rf.name)
@@ -364,9 +325,9 @@ class GeoRasterCropTest(TestCase):
             self.assertEqual(tile11, cropped_11)
 
     def test_crop_image_from_and_get_win_do_the_same_full_resolution(self):
-        bounds = (200, 130, 400, 150)
+        bounds = (20, 13, 40, 15)
         win = rasterio.windows.Window(bounds[0], bounds[1], bounds[2] - bounds[0], bounds[3] - bounds[1])
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             saved_raster = GeoRaster2.open(rf.name)
@@ -378,7 +339,7 @@ class GeoRasterCropTest(TestCase):
     def test_crop_use_crop_image_for_a_loaded_image(self, mock__crop):
         coords = mercantile.xy_bounds(*tiles[15])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
         raster.crop(shape, MERCATOR_RESOLUTION_MAPPING[15])
         assert mock__crop.called_once
 
@@ -386,7 +347,7 @@ class GeoRasterCropTest(TestCase):
     def test_crop_use_get_window_for_a_not_loaded_image(self, mock_get_window):
         coords = mercantile.xy_bounds(*tiles[15])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
         with NamedTemporaryFile(mode='w+b', suffix=".tif") as rf:
             raster.save(rf.name)
             raster = GeoRaster2.open(rf.name)
@@ -396,22 +357,22 @@ class GeoRasterCropTest(TestCase):
     def test_crop_returns_full_resolution_as_default(self):
         coords = mercantile.xy_bounds(*tiles[17])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
-        raster = self.metric_raster()
+        raster = self.read_only_virtual_geo_raster()
         _, win = raster._vector_to_raster_bounds(shape)
         cropped = raster.crop(shape)
         self.assertEqual(cropped.shape, (raster.num_bands, round(win.height), round(win.width)))
         self.assertEqual(cropped.affine[0], raster.affine[0])
 
     def test_memory_crop_returns_resized_resolution(self):
-        coords = mercantile.xy_bounds(*tiles[15])
+        coords = mercantile.xy_bounds(*tiles[18])
         shape = GeoVector(Polygon.from_bounds(*coords), WEB_MERCATOR_CRS)
-        raster = self.metric_raster()
-        cropped = raster.crop(shape, MERCATOR_RESOLUTION_MAPPING[15])
+        raster = self.read_only_virtual_geo_raster()
+        cropped = raster.crop(shape, MERCATOR_RESOLUTION_MAPPING[18])
         self.assertEqual(cropped.shape, (raster.num_bands, 256, 256))
-        self.assertAlmostEqual(cropped.affine[0], MERCATOR_RESOLUTION_MAPPING[15], 2)
+        self.assertAlmostEqual(cropped.affine[0], MERCATOR_RESOLUTION_MAPPING[18], 2)
 
     def test_geographic_crop(self):
-        raster = self.geographic_raster()
+        raster = self.read_only_virtual_geo_raster_wgs84()
         rhombus_on_image = Polygon([[0, 2], [1, 1], [2, 2], [1, 3]])  # in pixels
         rhombus_world = raster.to_world(rhombus_on_image)
         cropped = raster.crop(rhombus_world)
@@ -420,8 +381,8 @@ class GeoRasterCropTest(TestCase):
 
     def test_geographic_crop_with_resize(self):
         coords = mercantile.xy_bounds(*tiles[17])
-        raster = self.geographic_raster()
-        vector = GeoVector(Polygon.from_bounds(*coords), crs=self.metric_crs)
+        raster = self.read_only_virtual_geo_raster_wgs84()
+        vector = GeoVector(Polygon.from_bounds(*coords), crs=WEB_MERCATOR_CRS)
         x_ex_res, y_ex_res = convert_resolution_from_meters_to_deg(
             self.metric_affine[6], MERCATOR_RESOLUTION_MAPPING[17])
         cropped = raster.crop(vector, (x_ex_res, y_ex_res))
@@ -429,8 +390,8 @@ class GeoRasterCropTest(TestCase):
         self.assertAlmostEqual(abs(cropped.affine[4]), y_ex_res, 6)
 
     def test_crop_raises_error_for_impossible_transformation(self):
-        raster = self.metric_raster()
-        vector = GeoVector(Polygon.from_bounds(-180, -90, 180, 90), crs=self.geographic_crs)
+        raster = self.read_only_virtual_geo_raster()
+        vector = GeoVector(Polygon.from_bounds(-180, -90, 180, 90), crs=WGS84_CRS)
         with self.assertRaises(GeoRaster2Error):
             raster.crop(vector)
 
@@ -520,7 +481,7 @@ class GeoRasterMaskedTest(TestCase):
         assert (~cropped.image[:, :, :-1].mask).all()  # The rest is not masked
 
 
-def test_small_geographic_raster_crop():
+def test_small_read_only_virtual_geo_raster_wgs84_crop():
     # See https://github.com/satellogic/telluric/issues/61
     roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=2, ymax=2, crs=WGS84_CRS)
     resolution = 1.0  # deg / px
