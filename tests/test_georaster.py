@@ -444,6 +444,15 @@ def test_mask():
     assert raster.mask(vector, mask_shape_nodata=True) == ~raster.mask(vector)
 
 
+def test_mask_by_value():
+    expected_mask = np.array([
+        [[False, True, False], [False, False, False]],
+        [[False, True, False], [False, False, False]],
+        [[False, True, False], [False, False, False]]], dtype=np.bool)
+
+    assert np.array_equal(expected_mask, some_raster_multiband.mask_by_value(1).image.mask)
+
+
 def test_get_item():
     raster = some_raster.resize(2)
     assert raster[:, :] == raster

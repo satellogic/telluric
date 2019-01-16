@@ -912,14 +912,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
                         # write data:
                         for band in range(self.shape[0]):
-                            if nodata_value is not None:
-                                img = deepcopy(self.image)
-                                # those pixels aren't nodata, make sure they're not set to nodata:
-                                img.data[np.logical_and(img == nodata_value,
-                                                        self.image.mask is False)] = nodata_value + 1
-                                img = np.ma.filled(img, nodata_value)
-                            else:
-                                img = self.image.data
+                            img = self.image.data
                             r.write_band(1 + band, img[band, :, :])
 
                         # write mask:
@@ -1722,6 +1715,16 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         masked = cropped.deepcopy_with()
         masked.image.mask |= mask
         return masked
+
+    def mask_by_value(self, nodata):
+        """
+        Return raster with a mask calculated based on provided value.
+        Only pixels with value=nodata will be masked.
+
+        :param nodata: value of the pixels that should be masked
+        :return: GeoRaster2
+        """
+        return self.copy_with(image=np.ma.masked_array(self.image.data, mask=self.image.data == nodata))
 
     #  vs. GeoRaster:
     def add_raster(self, other, merge_strategy, resampling):
