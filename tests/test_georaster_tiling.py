@@ -47,7 +47,7 @@ tiles = {
     14: (9277, 6312, 14),
     15: (18554, 12624, 15),
     17: (74216, 50496, 17),
-    18: (148433, 100993, 18)
+    18: (148433, 100994, 18)
 }
 
 
@@ -79,27 +79,9 @@ class BaseGeoRasterTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
         path = "./tests/data/raster/raster_for_test.tif"
-        # cls.read_only_virtual_geo_raster().save(path)
         cls.read_only_vgr = GeoRaster2.open(path)
         path = "./tests/data/raster/raster_wgs84.tif"
-        # cls.read_only_virtual_geo_raster_wgs84().save(path)
         cls.read_only_vgr_wgs84 = GeoRaster2.open(path)
-
-    # @classmethod
-    # def read_only_virtual_geo_raster(cls):
-    #     return GeoRaster2(np.random.uniform(0, 256, (3, 391, 370)),
-    #                       affine=Affine(1.0000252884112817, 0.0, 2653900.345511198,
-    #                                     0.0, -1.0000599330133702, 4598361.485763356),
-    #                       crs={'init': 'epsg:3857'})
-
-    #     # return GeoRaster2(np.random.uniform(0, 256, (3, 3911, 3708)),
-    #     #                   affine=Affine(1.0000252884112817, 0.0, 2653750.345511198,
-    #     #                                 0.0, -1.0000599330133702, 4594461.485763356),
-    #     #                   crs={'init': 'epsg:3857'})
-
-    # @classmethod
-    # def read_only_virtual_geo_raster_wgs84(cls):
-    #     return cls.read_only_virtual_geo_raster().reproject(dst_crs=WGS84_CRS)
 
     def read_only_virtual_geo_raster(self):
         return self.read_only_vgr
@@ -145,14 +127,14 @@ class GeoRaster2TestGetTile(BaseGeoRasterTestCase):
 
     def test_get_tile_from_different_crs_tile_is_not_tilted(self):
         raster = self.read_only_virtual_geo_raster_wgs84()
-        r = raster.get_tile(*tiles[15])
+        r = raster.get_tile(*tiles[18])
         self.assertEqual(1, len(np.unique(r.image.mask)))
 
     def test_get_tile_from_different_crs_tile_is_not_tilted_with_different_buffer(self):
         raster = self.read_only_virtual_geo_raster_wgs84()
         os.environ["TELLURIC_GET_TILE_BUFFER"] = "0"
         try:
-            r = raster.get_tile(*tiles[15])
+            r = raster.get_tile(*tiles[18])
         except Exception:
             del os.environ["TELLURIC_GET_TILE_BUFFER"]
         self.assertEqual(2, len(np.unique(r.image.mask)))
