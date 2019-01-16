@@ -119,7 +119,6 @@ class GeoRaster2TestGetTile(BaseGeoRasterTestCase):
     def test_get_tile_for_different_zoom_levels(self):
         for raster in [self.read_only_virtual_geo_raster(), self.read_only_virtual_geo_raster_wgs84()]:
             for zoom in tiles:
-                print('zoom', zoom)
                 r = raster.get_tile(*tiles[zoom])
                 self.assertFalse((r.image.data == 0).all())
                 self.assertFalse((r.image.mask).all())
