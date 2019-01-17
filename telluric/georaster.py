@@ -2055,8 +2055,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             return None
         elif len(assets) > 1:
             return GeoMultiRaster.from_assets(assets)
-        raster = list(assets.values())[0]
-        return GeoRaster2.open(raster["href"], band_names=raster["bands"])
+        if isinstance(assets, dict):
+            raster = list(assets.values())[0]
+        elif isinstance(assets, list):
+            raster = assets[0]
+        return GeoRaster2.open(raster.get("href"), band_names=raster.get("bands") or raster.get("eo:bands"))
 
 
 RasterChunk = namedtuple('RasterChunk', ["raster", "offsets"])
