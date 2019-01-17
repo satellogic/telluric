@@ -16,7 +16,7 @@ from telluric.plotting import NotebookPlottingMixin
 from telluric import GeoRaster2
 
 
-raster_types = [RASTER_TYPE]
+raster_types = [RASTER_TYPE, "image/x.geotiff"]
 
 
 def transform_properties(properties, schema):
@@ -305,12 +305,12 @@ class GeoFeature(Mapping, NotebookPlottingMixin):
         """True if any of the assets  is type 'raster'."""
         return any(asset.get('type') == RASTER_TYPE for asset in self.assets.values())
 
-    def raster(self, name=None, override_type=None, **creteria):
+    def raster(self, name=None, validate_raster_type=True, **creteria):
         """Generates a GeoRaster2 object based on the asset name(key) or a creteria(protety name and value)."""
         if name:
             asset = self.assets[name]
-            asset_type = override_type or asset.get("type")
-            if asset_type in raster_types:
+            asset_type = asset.get("type")
+            if asset_type in raster_types or not validate_raster_type:
                 __object = asset.get('__object')
                 if isinstance(__object, GeoRaster2):
                     return __object
