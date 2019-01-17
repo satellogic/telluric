@@ -139,6 +139,14 @@ def test_read_write_internal_external_mask():
         assert GeoRaster2.open(internal_path) == GeoRaster2.open(external_path)
 
 
+def test_read_respects_nodata():
+    expected_nodata = 100
+    path = '/vsimem/raster_for_test.tif'
+    some_raster.save(path, nodata=expected_nodata)
+
+    assert expected_nodata == GeoRaster2.open(path).nodata_value
+
+
 def test_tags():
     with TemporaryDirectory() as folder:
         path = os.path.join(folder, 'test.tif')

@@ -442,7 +442,7 @@ class _Raster:
 
     _image_readonly = True
 
-    def __init__(self, image=None, band_names=None, shape=None, nodata=0):
+    def __init__(self, image=None, band_names=None, shape=None, nodata=None):
         """Create a GeoRaster object
 
         :param image: optional supported: np.ma.array, np.array, TODO: PIL image
@@ -464,7 +464,7 @@ class _Raster:
     def _build_masked_array(self, image, nodata):
         return np.ma.masked_array(image, image == nodata)
 
-    def _set_image(self, image, nodata=0):
+    def _set_image(self, image, nodata=None):
         """
         Set self._image.
 
@@ -564,7 +564,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     """
 
     def __init__(self, image=None, affine=None, crs=None,
-                 filename=None, band_names=None, nodata=0, shape=None, footprint=None,
+                 filename=None, band_names=None, nodata=None, shape=None, footprint=None,
                  temporary=False):
         """Create a GeoRaster object
 
@@ -1845,15 +1845,9 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
             with self._raster_opener(filename) as raster:  # type: rasterio.io.DatasetReader
                 read_params["masked"] = self._read_with_mask(raster, masked)
                 array = raster.read(bands, **read_params)
+            nodata = 0 if not np.ma.isMaskedArray(array) else None
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
-            raster = self.copy_with(image=array, affine=affine)
-
-            if masked and not raster.image.mask.any():
-                intersection = self.footprint().envelope.intersection(raster.footprint().envelope)
-                if not intersection.is_empty:
-                    raster = raster.mask(intersection)
-                else:
-                    raster.image.mask = True
+            raster = self.copy_with(image=array, affine=affine, nodata=nodata)
 
             return raster
 
