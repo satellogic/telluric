@@ -925,8 +925,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                 "the union of the masked values will be performed.", GeoRaster2Warning
                             )
 
-                        mask = _mask_from_masked_array(self.image)
-                        r.write_mask(mask)
+                        if params.get('masked'):
+                            mask = _mask_from_masked_array(self.image)
+                            r.write_mask(mask)
+
                         self._add_overviews_and_tags(r, tags, kwargs)
 
                 return GeoRaster2.open(filename)
