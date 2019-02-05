@@ -101,11 +101,10 @@ def test_cog_move_telluric_tags_to_general_tags_space():
                          (8000, [2, 4, 8, 16, 32])
                          ])
 def test_cog_calc_overviews_factors(height, factors):
-        image = sample_raster_image(height=height, width=900)
-        raster = tl.GeoRaster2(image, crs=WEB_MERCATOR_CRS,
-                               affine=base_affine)
+    image = sample_raster_image(height=height, width=900)
+    raster = tl.GeoRaster2(image, crs=WEB_MERCATOR_CRS, affine=base_affine)
 
-        assert(_calc_overviews_factors(raster) == factors)
+    assert(_calc_overviews_factors(raster) == factors)
 
 
 def test_cog_mask_from_masked_array():

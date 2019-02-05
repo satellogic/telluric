@@ -12,8 +12,8 @@ from rasterio import shutil as rasterio_sh
 def mercator_upper_zoom_level(raster):
     resolution = raster.resolution()
     for zoom, mercartor_resolution in tl.constants.MERCATOR_RESOLUTION_MAPPING.items():
-            if resolution > mercartor_resolution:
-                return mercartor_resolution
+        if resolution > mercartor_resolution:
+            return mercartor_resolution
     return None
 
 

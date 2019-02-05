@@ -801,7 +801,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return int(self.shape[1])
 
     def _add_overviews_and_tags(self, r, tags, kwargs):
-            # write tags:
+        # write tags:
         tags_to_save = {band_names_tag: json.dumps(self.band_names)}
         if tags:
             tags_to_save.update(tags)
@@ -1218,7 +1218,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         # The image is a special case because we don't want to make a copy of a possibly big array
         # unless totally necessary
-        if 'image' not in init_args:
+        if 'image' not in init_args and not self.not_loaded():
             init_args['image'] = self.image
         if mutable:
             _cls = MutableGeoRaster
