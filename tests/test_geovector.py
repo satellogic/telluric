@@ -35,21 +35,11 @@ def test_geovector_has_given_crs():
     assert gv.crs == crs
 
 
-def test_geovector_respects_safe():
-    crs = CRS(init='EPSG:432600')
-
-    # no errors
-    gv = GeoVector(None, crs=crs)
-
-    with pytest.raises(CRSError):
-        GeoVector(None, crs=crs, safe=False)
-
-
 def test_geovector_representation():
     shape = Point(0.0, 0.0)
     gv = GeoVector(shape)
 
-    assert str(gv) == "GeoVector(shape=POINT (0 0), crs=+init=epsg:4326 +no_defs)"
+    assert str(gv) == "GeoVector(shape=POINT (0 0), crs=EPSG:4326)"
 
 
 def test_geovector_from_bounds_has_proper_shape():

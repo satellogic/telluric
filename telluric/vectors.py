@@ -276,15 +276,12 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         crs : ~rasterio.crs.CRS (optional)
             Coordinate Reference System, default to :py:data:`telluric.constants.DEFAULT_CRS`.
         safe: bool, optional
-            Check method arguments validity (only CRS so far) if False,
+            Check method arguments validity (does nothing so far) if False,
             default to True
 
         """
         self._shape = shape  # type: shapely.geometry.base.BaseGeometry
         self._crs = CRS(crs)
-
-        if not safe:
-            assert self._crs.is_valid
 
     @classmethod
     def from_geojson(cls, filename):
