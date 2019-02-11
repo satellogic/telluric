@@ -689,9 +689,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             if self._crs is None:
                 self._crs = copy(raster.crs)
 
-            with rasterio.Env():
-                assert self._crs.is_valid
-
             # if band_names not provided, try read them from raster tags.
             # if not - leave empty, for default:
             key_name = None
