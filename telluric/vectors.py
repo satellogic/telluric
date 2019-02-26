@@ -431,6 +431,14 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
             data['coordinates'] = (data['coordinates'],)
         return data
 
+    @classmethod
+    def from_record(cls, record, crs):
+        """Load vector from record."""
+        if 'type' not in record:
+            raise TypeError("The record doesn't contain a valid record.")
+
+        return cls(to_shape(record), crs)
+
     def get_shape(self, crs):
         """Gets the underlying Shapely shape in a specified CRS.
 
