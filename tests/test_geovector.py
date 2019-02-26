@@ -85,6 +85,16 @@ def test_geovector_to_from_geojson():
         assert GeoVector.from_geojson(fp.name) == gv
 
 
+def test_geovector_record_transformation():
+    gv = GeoVector.from_geojson("tests/data/vector/simple_vector.json")
+
+    record = gv.to_record(WGS84_CRS)
+
+    gv_deserialized = GeoVector.from_record(record, WGS84_CRS)
+
+    assert gv == gv_deserialized
+
+
 def test_geovector_from_xyz():
     gv = GeoVector.from_xyz(0, 0, 0)
 
