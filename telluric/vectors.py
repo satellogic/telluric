@@ -435,7 +435,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
     def from_record(cls, record, crs):
         """Load vector from record."""
         if 'type' not in record:
-            raise TypeError("The record doesn't contain a valid record.")
+            raise TypeError("The data isn't a valid record.")
 
         return cls(to_shape(record), crs)
 
