@@ -172,7 +172,8 @@ def test_copy_with():
     assert some_raster.copy_with(affine=new_affine).affine == new_affine
 
 
-def test_resize():
+@pytest.mark.parametrize("raster", [some_raster, some_raster.save("/vsimem/test_resize.tif")])
+def test_resize(raster):
     resampling_modes = [m.name for m in Resampling]
     for resampling_name in resampling_modes:
         resampling = Resampling[resampling_name]
@@ -181,25 +182,25 @@ def test_resize():
             print('\nskipping', resampling_name)
             continue
         if resampling_name not in ['bilinear', 'cubic', 'cubic_spline', 'lanczos', 'gauss']:
-            resized_raster = some_raster.resize(2, resampling=resampling).resize(.5, resampling=resampling)
-            assert (some_raster.image == resized_raster.image).all()
-            assert some_raster == resized_raster
+            resized_raster = raster.resize(2, resampling=resampling).resize(.5, resampling=resampling)
+            assert (raster.image == resized_raster.image).all()
+            assert raster == resized_raster
             # continue
         if resampling_name not in ['cubic_spline']:
-            assert some_raster.resize(ratio=1, resampling=resampling) == some_raster
+            assert raster.resize(ratio=1, resampling=resampling) == some_raster
 
-        assert some_raster.resize(ratio=2, resampling=resampling).width == 2 * some_raster.width
-        assert some_raster.resize(ratio=2, resampling=resampling).shape == (1, 4, 6)
-        assert some_raster.resize(dest_height=42, resampling=resampling).height == 42
-        assert some_raster.resize(dest_width=42, resampling=resampling).width == 42
-        assert some_raster.resize(dest_width=42, dest_height=42, resampling=resampling).width == 42
-        assert some_raster.resize(dest_width=42, dest_height=42, resampling=resampling).height == 42
-        assert some_raster.resize(dest_resolution=42, resampling=resampling).resolution() == 42
+        assert raster.resize(ratio=2, resampling=resampling).width == 2 * some_raster.width
+        assert raster.resize(ratio=2, resampling=resampling).shape == (1, 4, 6)
+        assert raster.resize(dest_height=42, resampling=resampling).height == 42
+        assert raster.resize(dest_width=42, resampling=resampling).width == 42
+        assert raster.resize(dest_width=42, dest_height=42, resampling=resampling).width == 42
+        assert raster.resize(dest_width=42, dest_height=42, resampling=resampling).height == 42
+        assert raster.resize(dest_resolution=42, resampling=resampling).resolution() == 42
 
     with pytest.raises(GeoRaster2Error):
-        some_raster.resize(ratio=1, dest_width=2)
+        raster.resize(ratio=1, dest_width=2)
     with pytest.raises(GeoRaster2Error):
-        some_raster.resize(ratio_x=2)
+        raster.resize(ratio_x=2)
 
 
 def test_to_pillow_image():

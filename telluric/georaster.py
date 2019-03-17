@@ -1269,7 +1269,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             ratio = float(dest_height) / self.height
         elif dest_resolution is not None:
             ratio = self.resolution() / dest_resolution
-
         if ratio is not None:
             ratio_x, ratio_y = ratio, ratio
 
@@ -1279,8 +1278,14 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Return raster resized by ratio."""
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
+
         dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
-        return self._reproject(new_width, new_height, dest_affine, resampling=resampling)
+        if self.not_loaded():
+            window = rasterio.windows.Window(0, 0, self.width, self.height)
+            resized_raster = self.get_window(window, xsize=new_width, ysize=new_height, resampling=resampling)
+        else:
+            resized_raster = self._reproject(new_width, new_height, dest_affine, resampling=resampling)
+        return resized_raster
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
