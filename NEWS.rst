@@ -1,3 +1,23 @@
+telluric 0.10.4 (2019-03-17)
+============================
+
+Bug fixes
+---------
+
+* Prevent image loading while copying (#235)
+
+New features
+------------
+
+* Refactored raster join implementation (#230)
+* Changed default value of "nodata" in :py:class:`~telluric.georaster.GeoRaster2`
+  constructor, now it is :code:`None` (#231)
+* Accelerate tests (#232)
+* Added new method :py:meth:`telluric.georaster.GeoRaster2.mask_by_value` (#233)
+* Added new method :py:meth:`telluric.vectors.GeoVector.from_record` (#238)
+* Rasterio 1.0.21 compatibility (#239)
+* Adding support to lazy resize that can use overviews if exist (#240)
+
 telluric 0.10.3 (2019-01-10)
 ============================
 
