@@ -288,6 +288,14 @@ def test_delegated_binary_predicates(predicate_name):
             getattr(vector_1.get_shape(vector_1.crs), predicate_name)(vector_2.get_shape(vector_2.crs)))
 
 
+@pytest.mark.parametrize("predicate_name", ["intersects"])
+def test_delegated_binary_predicates_for_impossible_transformations(predicate_name):
+    vector_1 = GeoVector.from_bounds(-180, -90, 180, 90, crs=CRS(init='epsg:4326'))
+    vector_2 = GeoVector.from_bounds(-1000, -1000, 1000, 1000, crs=CRS(init='epsg:3857'))
+
+    assert getattr(vector_2, predicate_name)(vector_1)
+
+
 @pytest.mark.parametrize("operation_name", GEOM_BINARY_OPERATIONS)
 def test_delegated_operations(operation_name):
     vector_1 = GeoVector(Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]))

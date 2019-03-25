@@ -219,8 +219,20 @@ class _GeoVectorDelegator:
 
         elif item in GEOM_BINARY_PREDICATES:
             def delegated_predicate(self_, other):
-                return getattr(self_.get_shape(self_.crs), item)(
-                    other.get_shape(self_.crs))
+                relationship = getattr(
+                    self_.get_shape(self_.crs), item
+                )(other.get_shape(self_.crs))
+                if item not in ['intersects']:
+                    return relationship
+                else:
+                    # workaround to overcome issue of impossible transformation
+                    if relationship:
+                        return relationship
+                    else:
+                        relationship = getattr(
+                            self_.get_shape(other.crs), item
+                        )(other.get_shape(other.crs))
+                    return relationship
 
             delegated_predicate.__doc__ = getattr(self._shape, item).__doc__
 
