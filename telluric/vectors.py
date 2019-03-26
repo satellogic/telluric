@@ -222,17 +222,14 @@ class _GeoVectorDelegator:
                 relationship = getattr(
                     self_.get_shape(self_.crs), item
                 )(other.get_shape(self_.crs))
-                if item not in ['intersects']:
+                # workaround to overcome issue of impossible transformation
+                if relationship:
                     return relationship
                 else:
-                    # workaround to overcome issue of impossible transformation
-                    if relationship:
-                        return relationship
-                    else:
-                        relationship = getattr(
-                            self_.get_shape(other.crs), item
-                        )(other.get_shape(other.crs))
-                    return relationship
+                    relationship = getattr(
+                        self_.get_shape(other.crs), item
+                    )(other.get_shape(other.crs))
+                return relationship
 
             delegated_predicate.__doc__ = getattr(self._shape, item).__doc__
 
