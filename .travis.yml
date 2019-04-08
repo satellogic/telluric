@@ -15,7 +15,7 @@ matrix:
   - python: "nightly"
 
 before_install:
-  - pip install pycodestyle mypy
+  - pip install pycodestyle mypy==0.670 # See https://github.com/python/mypy/issues/6564
   - pycodestyle . --count
   - mypy --ignore-missing-imports --check-untyped-defs telluric/
 
