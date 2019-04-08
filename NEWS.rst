@@ -1,3 +1,11 @@
+telluric 0.10.5 (2019-04-08)
+============================
+
+Bug fixes
+---------
+
+* Workaround to overcome impossible transformations (#241)
+
 telluric 0.10.4 (2019-03-17)
 ============================
 
