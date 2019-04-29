@@ -56,6 +56,7 @@ from telluric.vrt import (
 # for mypy
 import matplotlib.cm
 from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple, Any
+import glob
 
 
 dtype_map = {
@@ -719,6 +720,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 self._set_shape((raster.count, raster.shape[0], raster.shape[1]))
 
             self._blockshapes = raster.block_shapes
+            self.mask_flags = raster.mask_flag_enums
 
     @classmethod
     def tags(cls, filename, namespace=None):
@@ -835,6 +837,21 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             return self.blockshapes[band]
         return self.blockshapes
 
+    def _convert_to_internal_mask(self, destination_file, chunk_size=4096):
+        """
+        reads the raster chunk by chunk and converts the mask to an internal band_names_tag
+        destination_file - to where the file should be saved
+        chunk_size - the shape of the chunk that should be loaded to memory
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            for raster, offsets in self.chunks(shape=chunk_size):
+                raster.save("%s/%s_%s.tif" % (directory, offsets[0], offsets[1]))
+        agg = GeoRaster2.from_rasters([GeoRaster2.open(rc) for rc in glob.glob("%s/*" % directory)],
+                                      destination_file="%s/vrt.vrt" % (directory),
+                                      mask_band=0)
+        agg.save(destination_file)
+
+
     def save(self, filename, tags=None, **kwargs):
         """
         Save GeoRaster to a file.
@@ -899,7 +916,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                     creation_options["blockysize"] = params["blockysize"]
                     creation_options["tiled"] = params["tiled"]
                     creation_options["compress"] = params["compress"]
-                    rasterio.shutil.copy(self.source_file, filename, creation_options=creation_options)
+                    nodata_mask = all([rasterio.enums.MaskFlags.nodata in flags for flags in self.mask_flags])
+
+                    if params.get('masked') and nodata_mask:
+                        self._convert_to_internal_mask(filename)
+                    else:
+                        rasterio.shutil.copy(self.source_file, filename, creation_options=creation_options)
                     self._cleanup()
                     with GeoRaster2._raster_opener(filename, "r+",) as r:
                         self._add_overviews_and_tags(r, tags, kwargs)
@@ -1782,11 +1804,14 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                               notice that you can't override tiled=True, and the blocksize
                               the list of creation_options can be found here https://www.gdal.org/frmt_gtiff.html
         :return: new GeoRaster of the tiled object
+
         """
 
         src = self  # GeoRaster2.open(self._filename)
 
         with tempfile.NamedTemporaryFile(suffix='.tif') as tf:
+            with self._raster_opener(self.source_file) as r:
+                nodata = r.nodata
             src.save(tf.name, overviews=False)
             convert_to_cog(tf.name, dest_url, resampling, blocksize, overview_blocksize, creation_options)
 
