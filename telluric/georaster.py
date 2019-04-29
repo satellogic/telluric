@@ -845,11 +845,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """
         with tempfile.TemporaryDirectory() as directory:
             for raster, offsets in self.chunks(shape=chunk_size):
-                raster.save("%s/%s_%s.tif" % (directory, offsets[0], offsets[1]))
-        agg = GeoRaster2.from_rasters([GeoRaster2.open(rc) for rc in glob.glob("%s/*" % directory)],
-                                      destination_file="%s/vrt.vrt" % (directory),
-                                      mask_band=0)
-        agg.save(destination_file)
+                filename = "%s/%s_%s.tif" % (directory, offsets[0], offsets[1])
+                raster.save(filename)
+            agg = GeoRaster2.from_rasters([GeoRaster2.open(rc) for rc in glob.glob("%s/*.tif" % directory)],
+                                          destination_file="%s/vrt.vrt" % (directory),
+                                          mask_band=0)
+            agg.save(destination_file)
 
 
     def save(self, filename, tags=None, **kwargs):
