@@ -24,7 +24,7 @@ setup(
         'fiona>=1.8.4,<2.*',
         'folium>=0.6.0',
         'ipyleaflet!=0.8.2',
-        'pyproj==1.9.6',
+        'pyproj',
         'shapely>=1.6.3,<2.*',
         'rasterio>=1.0.21,<2.*',
         'pillow',
