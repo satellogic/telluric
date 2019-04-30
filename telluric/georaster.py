@@ -852,7 +852,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                           mask_band=0)
             agg.save(destination_file)
 
-
     def save(self, filename, tags=None, **kwargs):
         """
         Save GeoRaster to a file.
