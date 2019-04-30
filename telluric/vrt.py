@@ -226,7 +226,7 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None, mask_band=None)
 
     last_band_idx = 0
     if mask_band is not None:
-        mask_band = vrt.add_mask_band("Byte")
+        mask_band_elem = vrt.add_mask_band("Byte")
 
     for raster in rasters:
         for i, band_name in enumerate(raster.band_names):
@@ -253,7 +253,10 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None, mask_band=None)
                                       raster.block_shape(i)[1], raster.block_shape(i)[0],
                                       src_window, dst_window)
             if i == mask_band:
-                vrt.add_band_simplesource(mask_band, "mask,%s" % (mask_band + 1), "Byte", relative_to_vrt, file_name,
+                vrt.add_band_simplesource(mask_band_elem, "mask,%s" % (mask_band + 1),
+                                          "Byte",
+                                          relative_to_vrt,
+                                          file_name,
                                           raster.width, raster.height,
                                           raster.block_shape(i)[1], raster.block_shape(i)[0],
                                           src_window, dst_window)
