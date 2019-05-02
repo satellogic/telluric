@@ -1,3 +1,12 @@
+telluric 0.10.6 (2019-05-02)
+============================
+
+New features
+------------
+
+* Creating COG with internal mask (#244)
+* Removed pinning for pyproj (#245)
+
 telluric 0.10.5 (2019-04-08)
 ============================
 
