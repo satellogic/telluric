@@ -469,12 +469,11 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         return self._shape._repr_svg_()
 
     def reproject(self, new_crs):
-        with fiona.Env():
-            if new_crs == self.crs:
-                return self
-            else:
-                new_shape = transform(self._shape, self._crs, new_crs)
-                return self.__class__(new_shape, new_crs)
+        if new_crs == self.crs:
+            return self
+        else:
+            new_shape = transform(self._shape, self._crs, new_crs)
+            return self.__class__(new_shape, new_crs)
 
     def rasterize(self, dest_resolution, *, fill_value=None, bounds=None, dtype=None, crs=None, **kwargs):
         # Import here to avoid circular imports
