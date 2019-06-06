@@ -246,7 +246,12 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None, mask_band=None)
             xsize = raster.width * raster.affine.a / affine.a
             ysize = raster.height * raster.affine.e / affine.e
             dst_window = Window(xoff, yoff, xsize, ysize)
-            file_name = raster.source_file if relative_to_vrt else os.path.join(os.getcwd(), raster.source_file)
+            if raster.source_file.startswith("http"):
+                file_name = "/vsicurl/%s" % raster.source_file
+            elif relative_to_vrt:
+                file_name = raster.source_file
+            else:
+                file_name = os.path.join(os.getcwd(), raster.source_file)
 
             vrt.add_band_simplesource(band_element, band_idx, raster.dtype, relative_to_vrt, file_name,
                                       raster.width, raster.height,
