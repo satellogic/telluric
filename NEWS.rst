@@ -1,3 +1,16 @@
+telluric 0.10.7 (2019-06-06)
+============================
+
+New features
+------------
+
+* Adding support of resources accesed through HTTP and HTTPS to VRT (#248)
+
+Big fixes
+---------
+
+* Remove unnecessary call of :py:class:`fiona.Env` (#247)
+
 telluric 0.10.6 (2019-05-02)
 ============================
 
