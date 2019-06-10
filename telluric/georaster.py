@@ -931,7 +931,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
                         # write data:
                         for band in range(self.shape[0]):
-                            img = self.image.filled(0)
+                            img = self.image.filled(nodata_value or 0)
                             r.write_band(1 + band, img[band, :, :])
 
                         # write mask:
