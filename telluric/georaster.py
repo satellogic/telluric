@@ -899,7 +899,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                     'driver': driver, 'width': size[2], 'height': size[1], 'count': size[0],
                     'dtype': dtype_map[self.dtype.type],
                     'nodata': nodata_value,
-                    'masked': True,
+                    # 'masked': True,
                     'blockxsize': min(blockxsize, size[2]),
                     'blockysize': min(blockysize, size[1]),
                     'tiled': tiled,
@@ -931,7 +931,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
                         # write data:
                         for band in range(self.shape[0]):
-                            img = self.image.data
+                            img = self.image.filled(0)
                             r.write_band(1 + band, img[band, :, :])
 
                         # write mask:
@@ -1233,6 +1233,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     def copy_with(self, mutable=False, **kwargs):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
         init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names, 'nodata': self.nodata_value}
+
         init_args.update(kwargs)
 
         # The image is a special case because we don't want to make a copy of a possibly big array
