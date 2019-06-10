@@ -899,7 +899,6 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                     'driver': driver, 'width': size[2], 'height': size[1], 'count': size[0],
                     'dtype': dtype_map[self.dtype.type],
                     'nodata': nodata_value,
-                    # 'masked': True,
                     'blockxsize': min(blockxsize, size[2]),
                     'blockysize': min(blockysize, size[1]),
                     'tiled': tiled,
@@ -931,7 +930,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
                         # write data:
                         for band in range(self.shape[0]):
-                            img = self.image.filled(nodata_value or 0)
+                            img = self.image.filled(nodata_value)
                             r.write_band(1 + band, img[band, :, :])
 
                         # write mask:
