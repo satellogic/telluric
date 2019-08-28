@@ -1,11 +1,11 @@
 # Development environment for telluric
 # Analyzed with https://www.fromlatest.io/
-FROM debian:jessie-backports
+FROM debian:stretch
 LABEL maintainer="Juan Luis Cano <juanlu@satellogic.com>"
 
 RUN set -x \
     && apt-get update \
-    && apt-get install --no-install-recommends -t jessie-backports -y \
+    && apt-get install --no-install-recommends -y \
     wget python3-all-dev python3-all python3-tk  \
     ca-certificates wget build-essential \
     && rm -rf /var/lib/apt/lists/* \
