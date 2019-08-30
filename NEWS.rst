@@ -1,3 +1,11 @@
+telluric 0.10.8 (2019-08-30)
+============================
+
+Bug fixes
+---------
+
+* Now reprojection retains nodata values
+
 telluric 0.10.7 (2019-06-06)
 ============================
 
