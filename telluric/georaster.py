@@ -1374,7 +1374,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             rasterio.warp.reproject(src_image, dest_image, src_transform=src_transform,
                                     dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
                                     resampling=resampling, dest_alpha=alpha_band_idx,
-                                    init_dest_nodata=False, src_alpha=alpha_band_idx)
+                                    init_dest_nodata=False, src_alpha=alpha_band_idx,
+                                    src_nodata=self.nodata_value)
             dest_image = np.ma.masked_array(dest_image[0:1, :, :], dest_image[1:2, :, :] == 0)
             band_images.append(dest_image)
         dest_image = np.ma.concatenate(band_images)
