@@ -1,3 +1,5 @@
+import os
+from tempfile import TemporaryDirectory
 from common_for_tests import multi_raster_16b
 from telluric import GeoRaster2, MutableGeoRaster, GeoVector
 from telluric.constants import MERCATOR_RESOLUTION_MAPPING, WGS84_CRS
@@ -94,6 +96,27 @@ def test_changing_bandnames_and_image():
     raster.set_image(raster.image[0:1, 50:, 50:], new_band_names)
     assert (1, width-50, height-50) == raster.shape
     assert raster.band_names == new_band_names
+
+
+def test_modify_inplace():
+    override_value = 1400000
+    raster = GeoRaster2.open("tests/data/raster/overlap2.tif")
+    with TemporaryDirectory() as folder:
+        path = os.path.join(folder, 'overlap2.tif')
+        raster.save(path)
+        # load mutable
+        raster = GeoRaster2.open(path, mutable=True)  #, lazy_load=False)
+        # modify
+        data = list(raster.affine)
+        data[2] = override_value
+        affine = Affine(*data[:6])
+        assert raster.affine != affine
+        raster.affine = affine
+        # save
+        raster.save(raster._filename)
+        # verify saved data
+        raster = GeoRaster2.open(path)
+        assert raster.affine == affine
 
 
 def test_set_crs():
