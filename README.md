@@ -7,6 +7,7 @@ and easy way.
 
 [![Build Status](https://travis-ci.org/satellogic/telluric.svg?branch=master)](https://travis-ci.org/satellogic/telluric)
 [![Coverage](https://codecov.io/gh/satellogic/telluric/branch/master/graph/badge.svg)](https://codecov.io/gh/satellogic/telluric)
+[![Chat](https://img.shields.io/matrix/telluric-dev:matrix.org.svg?style=flat-square)](https://riot.im/app/#/room/#telluric-dev:matrix.org)
 
 Opening a raster is as simple as:
 
@@ -61,3 +62,7 @@ for testing single tests do:
 $ make dockershell
 docker$ python -m pytest TEST_FILE::TEST_NAME
 ```
+
+## Support
+
+Join our [Matrix chat](https://riot.im/app/#/room/#telluric-dev:matrix.org) to ask all sorts of questions!

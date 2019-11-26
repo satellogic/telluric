@@ -10,10 +10,11 @@ telluric is a Python library to manage vector and raster geospatial data in an i
 and easy way.
 
 The `source code`_ and `issue tracker`_ are hosted on GitHub, and all contributions and
-feedback are more than welcome.
+feedback are more than welcome. There is a `public chat`_ for users and developers too.
 
 .. _`source code`: https://github.com/satellogic/telluric
 .. _`issue tracker`: https://github.com/satellogic/telluric/issues
+.. _`public chat`: https://riot.im/app/#/room/#telluric-dev:matrix.org
 
 Installation
 ------------
