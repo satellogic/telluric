@@ -2099,6 +2099,7 @@ class MutableGeoRaster(GeoRaster2):
        * band_names - the band_names count and the shape of the image must be consistent
        * affine
        * crs - we don't validate consistentency between affine and crs
+       * nodata_value
 
     When mutable raster make sense:
        * When you need to alter the the image and copying the image doesn't make sense
@@ -2130,6 +2131,14 @@ class MutableGeoRaster(GeoRaster2):
     def band_names(self, value):
         self._validate_shape_and_band_consitency(self.shape, value)
         self._set_bandnames(value)
+
+    @property
+    def nodata_value(self):
+        return super().nodata_value
+
+    @nodata_value.setter
+    def nodata_value(self, value):
+        self._nodata_value = value
 
     @property
     def crs(self):
