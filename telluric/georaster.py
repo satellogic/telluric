@@ -1934,10 +1934,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         """
 
-        src = self  # GeoRaster2.open(self._filename)
-
         with tempfile.NamedTemporaryFile(suffix='.tif') as tf:
-            src.save(tf.name, overviews=False)
+            self.save(tf.name, overviews=False)
             convert_to_cog(tf.name, dest_url, resampling, blocksize, overview_blocksize, creation_options)
 
         geotiff = GeoRaster2.open(dest_url)
