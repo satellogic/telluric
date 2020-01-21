@@ -2,7 +2,6 @@ language: python
 dist: xenial
 
 python:
-  - "3.4"
   - "3.5"
   - "3.6"
   - "3.7"
@@ -18,12 +17,9 @@ matrix:
   - python: "nightly"
 
 before_install:
-  - pip install pycodestyle
+  - pip install pycodestyle mypy
   - pycodestyle . --count
-  - if [[ $TRAVIS_PYTHON_VERSION != "3.4" ]]; then
-      pip install mypy;
-      mypy --ignore-missing-imports --check-untyped-defs telluric/;
-    fi
+  - mypy --ignore-missing-imports --check-untyped-defs telluric/
 
 install:
   - pip install numpy  # Required
