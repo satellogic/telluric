@@ -15,7 +15,7 @@ WEB_MERCATOR_CRS = CRS.from_epsg(WEB_MERCATOR_SRID)
 # http://icaci.org/documents/ICC_proceedings/ICC2001/icc2001/file/f24014.doc
 # (found on https://en.wikipedia.org/wiki/Winkel_tripel_projection#Comparison_with_other_projections)
 #: Eckert IV CRS.
-EQUAL_AREA_CRS = CRS({'proj': 'eck4'})
+EQUAL_AREA_CRS = CRS({'proj': 'eck4', 'lon_0': 0, 'x_0': 0, 'y_0': 0, 'ellps': 'WGS84', 'units': 'm', 'no_defs': True})
 
 DEFAULT_SRID = WGS84_SRID
 #: Default CRS, set to :py:data:`~telluric.constants.WGS84_CRS`.
