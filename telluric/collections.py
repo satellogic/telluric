@@ -41,7 +41,7 @@ def dissolve(collection, aggfunc=None):
     if aggfunc:
         temp_properties = defaultdict(list)  # type: DefaultDict[Any, Any]
         for feature in collection:
-            for key, value in feature.attributes.items():
+            for key, value in feature.properties.items():
                 temp_properties[key].append(value)
 
         for key, values in temp_properties.items():
