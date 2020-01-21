@@ -15,7 +15,8 @@ def generate_transform(source_crs, destination_crs):
 
     transformation = partial(
         pyproj.transform,
-        original, destination
+        original, destination,
+        always_xy=True,
     )
 
     return partial(ops.transform, transformation)
