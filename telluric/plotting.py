@@ -1,7 +1,6 @@
 """Code for interactive vector plots.
 
 """
-from typing import Any
 import warnings
 from copy import copy
 from statistics import median_low
@@ -148,11 +147,11 @@ def plot(feature, mp=None, style_function=None, **map_kwargs):
 
 
 class NotebookPlottingMixin:
-    envelope: Any
-
     def _run_in_tileserver(self, capture):
-        TileServer.run_tileserver(self, self.envelope)
-        mp = TileServer.folium_client(self, self.envelope, capture=capture)
+        # Variable annotation syntax is only available in Python >= 3.6,
+        # so we cannot declare an envelope property here
+        TileServer.run_tileserver(self, self.envelope)  # type: ignore
+        mp = TileServer.folium_client(self, self.envelope, capture=capture)  # type: ignore
         return mp._repr_html_()
 
     def _repr_html_(self):
