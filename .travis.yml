@@ -18,9 +18,12 @@ matrix:
   - python: "nightly"
 
 before_install:
-  - pip install pycodestyle mypy
+  - pip install pycodestyle
   - pycodestyle . --count
-  - mypy --python-version "$TRAVIS_PYTHON_VERSION" --ignore-missing-imports --check-untyped-defs telluric/
+  - if [[ $TRAVIS_PYTHON_VERSION != "3.4" ]]; then
+      pip install mypy
+      mypy --ignore-missing-imports --check-untyped-defs telluric/
+    fi
 
 install:
   - pip install numpy  # Required
