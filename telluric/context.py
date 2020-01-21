@@ -4,13 +4,12 @@ Inspired by rasterio, (c) MapBox, MIT License
 """
 import logging
 import threading
-from typing import Optional
 
 
 class ThreadContext(threading.local):
     def __init__(self):
         # Initializes in each thread
-        self._options = None  # type: Optional[dict]
+        self._options = {}
 
     def get(self, key, default=None):
         return self._options.get(key, default)
@@ -104,7 +103,7 @@ class TelluricContext(object):
     def __enter__(self):
         log.debug("Entering env context: %r", self)
         # No parent TelluricContext exists.
-        if local_context._options is None:
+        if not local_context._options:
             log.debug("Starting outermost env")
             self._has_parent_env = False
 
@@ -157,4 +156,4 @@ def del_context():
     """Delete options in the existing context."""
     if not local_context._options:
         raise TelluricContextError("TelluricContext context not exists")
-    local_context._options = None
+    local_context._options.clear()

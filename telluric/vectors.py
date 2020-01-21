@@ -463,7 +463,8 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
 
     def get_bounding_box(self, crs):
         """Gets bounding box as GeoVector in a specified CRS."""
-        return self.from_bounds(*self.get_bounds(crs), crs=crs)
+        # https://github.com/python/mypy/issues/6799
+        return self.from_bounds(*self.get_bounds(crs), crs=crs)  # type: ignore
 
     def _repr_svg_(self):
         return self._shape._repr_svg_()

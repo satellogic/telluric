@@ -7,7 +7,7 @@ def test_context_in_one_level():
         assert local_context.get('b') == 2
         assert local_context.get('c') == 'stam'
         assert local_context.get('d') == {'a': 'a', 'b': 'b'}
-    assert local_context._options is None
+    assert local_context._options == {}
 
 
 def test_context_in_two_level():
@@ -23,7 +23,7 @@ def test_context_in_two_level():
         assert local_context.get('b') == 2
         assert local_context.get('c') == 'stam'
         assert local_context.get('d') == {'a': 'a', 'b': 'b'}
-    assert local_context._options is None
+    assert local_context._options == {}
 
 
 def test_different_context_on_different_threads():
@@ -39,7 +39,7 @@ def test_different_context_on_different_threads():
             assert local_context.get('d') == {'a': 'a', 'b': 'b'}
             assert local_context.get('x') is None
             assert local_context.get('y') is None
-        assert local_context._options is None
+        assert local_context._options == {}
 
     def thread_test_2():
         with TelluricContext(a=4, b=5, x='something', y=13):
@@ -50,13 +50,13 @@ def test_different_context_on_different_threads():
             assert local_context.get('c') is None
             assert local_context.get('d') is None
             sleep(0.1)
-        assert local_context._options is None
+        assert local_context._options == {}
 
     t1 = threading.Thread(target=thread_test_1)
     t2 = threading.Thread(target=thread_test_2)
     t1.start()
     t2.start()
-    assert local_context._options is None
+    assert local_context._options == {}
     t1.join()
     t2.join()
-    assert local_context._options is None
+    assert local_context._options == {}
