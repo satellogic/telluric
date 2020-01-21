@@ -10,8 +10,8 @@ from telluric.constants import WGS84_CRS
 
 
 def generate_transform(source_crs, destination_crs):
-    original = pyproj.Proj(dict(source_crs), preserve_units=True)
-    destination = pyproj.Proj(dict(destination_crs), preserve_units=True)
+    original = pyproj.Proj(source_crs)
+    destination = pyproj.Proj(destination_crs)
 
     transformation = partial(
         pyproj.transform,
