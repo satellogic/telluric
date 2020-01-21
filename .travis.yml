@@ -18,9 +18,9 @@ matrix:
   - python: "nightly"
 
 before_install:
-  - pip install pycodestyle mypy==0.670 # See https://github.com/python/mypy/issues/6564
+  - pip install pycodestyle mypy
   - pycodestyle . --count
-  - mypy --ignore-missing-imports --check-untyped-defs telluric/
+  - mypy --python-version "$TRAVIS_PYTHON_VERSION" --ignore-missing-imports --check-untyped-defs telluric/
 
 install:
   - pip install numpy  # Required
