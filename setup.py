@@ -17,7 +17,7 @@ setup(
     ),
     packages=find_packages(),
     include_package_data=True,
-    python_requires=">=3.4",
+    python_requires=">=3.5",
     install_requires=[
         'affine',
         'dsnparse',
@@ -36,7 +36,6 @@ setup(
         "lxml"
     ],
     extras_require={
-        ':python_version<="3.4"': ['typing', 'pandas<0.21.0'],
         'dev': [
             'coverage',
             'mypy',
@@ -57,7 +56,6 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
