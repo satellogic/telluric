@@ -173,7 +173,7 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
                 return feature[by]
 
         sorted_features = sorted(list(self), reverse=desc, key=key)
-        return self.__class__(sorted_features)
+        return FeatureCollection(sorted_features)
 
     def groupby(self, by):
         # type: (Union[str, Callable[[GeoFeature], str]]) -> _CollectionGroupBy
