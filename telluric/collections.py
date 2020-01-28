@@ -319,11 +319,6 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             schema = self.schema
 
         if driver == "GeoJSON":
-            # Workaround for https://github.com/Toblerity/Fiona/issues/438
-            # https://stackoverflow.com/a/27045091/554319
-            with contextlib.suppress(FileNotFoundError):
-                os.remove(filename)
-
             crs = WGS84_CRS
         else:
             crs = self.crs
