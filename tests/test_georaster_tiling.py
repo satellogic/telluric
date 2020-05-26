@@ -95,7 +95,7 @@ class GeoRaster2TestGetTile(BaseGeoRasterTestCase):
 
     def test_geo_bounding_tile(self):
         gr = self.read_only_virtual_geo_raster()
-        gv = gr.footprint().reproject(CRS({'init': 'epsg:4326'}))
+        gv = gr.footprint().reproject(WGS84_CRS)
         bounding_tile = mercantile.bounding_tile(*gv.get_shape(gv.crs).bounds)
         self.assertEqual(bounding_tile, (37108, 25248, 16))
 
@@ -417,6 +417,9 @@ class GeoRasterCropTest(BaseGeoRasterTestCase):
 
         # r1c == r2c  # doesn't work, see https://github.com/satellogic/telluric/issues/79
         # currently this is the only way to test the result is the same
+
+        # This also fails!
+        # assert r2c.colorize("gray").to_png() == r1c.colorize("gray").to_png()
         assert r2c.to_png() == r1c.to_png()
 
 

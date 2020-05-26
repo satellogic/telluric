@@ -249,6 +249,9 @@ def test_limit_to_bands_off_memory():
 
 def test_to_png():
     for raster in [some_raster, some_raster_multiband]:
+        if raster.num_bands != 3:
+            raster = raster.colorize("gray")
+
         png_bytes = raster.to_png(transparent=True, thumbnail_size=512)
         img = Image.frombytes('RGBA', (raster.width, raster.height), png_bytes)
         assert img.size == raster.to_pillow_image().size

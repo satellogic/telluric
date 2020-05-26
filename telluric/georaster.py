@@ -1332,7 +1332,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         ret_val = None
         if np.issubdtype(dtype, np.integer):
             ret_val = np.iinfo(dtype).max
-        elif np.issubdtype(dtype, np.float):
+        elif np.issubdtype(dtype, np.floating):
             ret_val = np.finfo(dtype).max
         return ret_val
 

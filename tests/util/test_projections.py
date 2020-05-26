@@ -1,10 +1,11 @@
 from shapely.geometry import Point
 from affine import Affine
 
+from telluric.constants import WGS84_CRS
 from telluric.util import projections
 
 
-source_crs = {'init': 'epsg:4326'}
+source_crs = WGS84_CRS
 source_shape = Point(0.0, 0.0)
 
 
