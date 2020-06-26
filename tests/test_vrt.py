@@ -3,7 +3,7 @@ import pytest
 import pyproj
 import rasterio
 import numpy as np
-from distutils.version import LooseVersion as V
+from packaging import version
 from rasterio.io import MemoryFile
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from telluric.util.raster_utils import build_vrt
@@ -46,7 +46,7 @@ record = {
 
 
 @pytest.mark.skipif(
-    V(pyproj.__version__) < V('2.0.0'),
+    version.parse(pyproj.__version__) < version.parse('2.0.0'),
     reason="pyproj >= 2 is required",
 )
 def test_wms_vrt():

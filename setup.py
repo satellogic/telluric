@@ -42,7 +42,7 @@ setup(
             'packaging',
             'pycodestyle',
             'pytest>=4',
-            'pytest-cov',
+            'pytest-cov<=2.8.1',
             'sphinx',
             'ipython',
             'nbsphinx',

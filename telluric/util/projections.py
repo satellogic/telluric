@@ -49,7 +49,8 @@ def transform(shape, source_crs, destination_crs=None, src_affine=None, dst_affi
     if src_affine is not None:
         shape = ops.transform(lambda r, q: ~src_affine * (r, q), shape)
 
-    shape = generate_transform(source_crs, destination_crs)(shape)
+    if source_crs != destination_crs:
+        shape = generate_transform(source_crs, destination_crs)(shape)
 
     if dst_affine is not None:
         shape = ops.transform(lambda r, q: dst_affine * (r, q), shape)
