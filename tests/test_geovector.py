@@ -519,7 +519,7 @@ def test_polygonize_line():
 
 @pytest.mark.skipif(
     version.parse(shapely.__version__) >= version.parse('1.7b1'),
-    reason="Shapely < 1.7b1 is required",
+    reason="Shapely < 1.7b1 is required, https://github.com/satellogic/telluric/issues/269",
 )
 def test_polygonize_line_square_cap_style():
     diag = 1 / math.sqrt(2)
