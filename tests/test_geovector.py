@@ -2,6 +2,8 @@ import math
 import tempfile
 
 import pytest
+import shapely
+from packaging import version
 from unittest import mock
 from numpy.testing import assert_array_almost_equal
 from pytest import approx
@@ -515,6 +517,10 @@ def test_polygonize_line():
     assert result == expected_result
 
 
+@pytest.mark.skipif(
+    version.parse(shapely.__version__) >= version.parse('1.7b1'),
+    reason="Shapely < 1.7b1 is required, https://github.com/satellogic/telluric/issues/269",
+)
 def test_polygonize_line_square_cap_style():
     diag = 1 / math.sqrt(2)
 
