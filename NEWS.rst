@@ -1,3 +1,13 @@
+telluric 0.11.1 (2020-06-27)
+============================
+
+Bug fixes
+---------
+
+* Fix :py:meth:`telluric.collections.FileCollection.sort` (#259)
+* Fix potential bug in :py:class:`~telluric.context.ThreadContext` when it is uninitialized (#259)
+* Disable transformation if source CRS equals to destination (#270)
+
 telluric 0.11.0 (2019-12-02)
 ============================
 
