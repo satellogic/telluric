@@ -1,3 +1,4 @@
+import io
 import os
 from collections import OrderedDict
 from datetime import date
@@ -325,6 +326,19 @@ def test_file_collection_open_shapefile_with_no_proj():
     assert fcol.crs == WGS84_CRS
     for feature in fcol:
         assert feature.crs == WGS84_CRS
+
+
+def test_file_collection_bytesio():
+    with open("tests/data/vector/bsas_barrios_lla.geojson", "rb") as f:
+        data = io.BytesIO(f.read())
+        fcol = FileCollection.open(data)
+        assert [feature for feature in fcol]
+
+
+def test_file_collection_filelike():
+    with open("tests/data/vector/bsas_barrios_lla.geojson", "rb") as f:
+        fcol = FileCollection.open(f)
+        assert [feature for feature in fcol]
 
 
 def test_feature_collection_with_dates_serializes_correctly():
