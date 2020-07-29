@@ -147,6 +147,14 @@ def test_read_respects_nodata():
     assert expected_nodata == GeoRaster2.open(path).nodata_value
 
 
+def test_save_preserves_nodata():
+    expected_nodata = 200
+    path = '/vsimem/raster_for_test.tif'
+    raster_nodata = GeoRaster2(some_array, nodata=expected_nodata, affine=some_affine, crs=some_crs)
+    raster_nodata.save(path)
+    assert expected_nodata == GeoRaster2.open(path).nodata_value
+
+
 def test_tags():
     with TemporaryDirectory() as folder:
         path = os.path.join(folder, 'test.tif')
