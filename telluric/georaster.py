@@ -878,7 +878,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             os.makedirs(folder, exist_ok=True)
 
         internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
-        nodata_value = kwargs.get('nodata', None)
+        nodata_value = kwargs.get('nodata', self.nodata_value)
         compression = kwargs.get('compression', Compression.lzw)
         rasterio_envs = {'GDAL_TIFF_INTERNAL_MASK': internal_mask}
         if os.environ.get('DEBUG', False):
@@ -1332,7 +1332,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         ret_val = None
         if np.issubdtype(dtype, np.integer):
             ret_val = np.iinfo(dtype).max
-        elif np.issubdtype(dtype, np.float):
+        elif np.issubdtype(dtype, np.floating):
             ret_val = np.finfo(dtype).max
         return ret_val
 
