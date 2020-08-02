@@ -502,7 +502,7 @@ class FileCollection(BaseCollection):
 
         """
         super().__init__()
-        self._filename = filename
+        self._fp = filename
         self._crs = crs
         self._schema = schema
         self._length = length
@@ -548,7 +548,9 @@ class FileCollection(BaseCollection):
         return self._length
 
     def __iter__(self):
-        with fiona.open(self._filename, 'r') as source:
+        if hasattr(self._fp, 'seek'):
+            self._fp.seek(0)
+        with fiona.open(self._fp, 'r') as source:
             for record in source:
                 yield GeoFeature.from_record(record, self.crs, source.schema)
 
