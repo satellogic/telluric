@@ -1,3 +1,12 @@
+telluric 0.12.0 (2020-08-02)
+============================
+
+New features
+------------
+
+* Preserve nodata value while saving rasters (#271)
+* FileCollection created out of file-like object can be iterated (#272)
+
 telluric 0.11.1 (2020-06-27)
 ============================
 
