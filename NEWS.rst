@@ -1,3 +1,12 @@
+telluric 0.12.1 (2020-08-10)
+============================
+
+Bug fixes
+---------
+
+* Check if the raster's footprint intersects the tile's footprint in
+  :py:meth:`telluric.georaster.GeoRaster2.get_tile` (#273)
+
 telluric 0.12.0 (2020-08-02)
 ============================
 
