@@ -99,13 +99,15 @@ class GeoRaster2TestGetTile(BaseGeoRasterTestCase):
         bounding_tile = mercantile.bounding_tile(*gv.get_shape(gv.crs).bounds)
         self.assertEqual(bounding_tile, (37108, 25248, 16))
 
-    def test_fails_with_empty_raster_for_tile_out_of_raster_area(self):
+    @patch.object(GeoRaster2, 'crop')
+    def test_fails_with_empty_raster_for_tile_out_of_raster_area(self, mock__crop):
         for raster in [self.read_only_virtual_geo_raster(), self.read_only_virtual_geo_raster_wgs84()]:
             r = raster.get_tile(16384, 16383, 15)
             self.assertTrue((r.image.data == 0).all())
             self.assertTrue((r.image.mask).all())
             self.assertEqual(r.image.shape, (3, 256, 256))
             self.assertEqual(r.crs, WEB_MERCATOR_CRS)
+            mock__crop.assert_not_called()
 
     def test_get_all_raster_in_a_single_tile(self):
         for raster in [self.read_only_virtual_geo_raster(), self.read_only_virtual_geo_raster_wgs84()]:

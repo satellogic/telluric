@@ -1928,11 +1928,22 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         the vector you should fetch when using this method on a raster that is not in WEB_MERCATOR_CRS
         default to 10
         """
+        roi = GeoVector.from_xyz(x_tile, y_tile, zoom)
+        left, bottom, right, top = roi.get_bounds(WEB_MERCATOR_CRS)
+        resolution = MERCATOR_RESOLUTION_MAPPING[zoom]
+
+        # Return raster with fully masked image in case of footprint of the raster and
+        # footrpint of the tile are not intersected
+        if not roi.intersects(self.footprint().reproject(WEB_MERCATOR_CRS)):
+            return self.copy_with(
+                crs=WEB_MERCATOR_CRS,
+                affine=Affine(resolution, 0.0, left, 0.0, -resolution, top),
+                image=np.ma.array(np.zeros((self.num_bands, 256, 256)), dtype=self.dtype, mask=True)
+            )
+
         if self.crs == WEB_MERCATOR_CRS:
             return self._get_tile_when_web_mercator_crs(x_tile, y_tile, zoom, bands, masked, resampling)
 
-        roi = GeoVector.from_xyz(x_tile, y_tile, zoom)
-        left, bottom, right, top = roi.get_bounds(WEB_MERCATOR_CRS)
         new_affine = rasterio.warp.calculate_default_transform(WEB_MERCATOR_CRS, self.crs,
                                                                256, 256, left, bottom, right, top)[0]
         new_resolution = resolution_from_affine(new_affine)
@@ -1940,7 +1951,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         roi_buffer = roi.buffer(math.sqrt(roi.area * buffer_ratio / 100))
         raster = self.crop(roi_buffer, resolution=new_resolution, masked=masked,
                            bands=bands, resampling=resampling)
-        raster = raster.reproject(dst_crs=WEB_MERCATOR_CRS, resolution=MERCATOR_RESOLUTION_MAPPING[zoom],
+        raster = raster.reproject(dst_crs=WEB_MERCATOR_CRS, resolution=resolution,
                                   dst_bounds=roi_buffer.get_bounds(WEB_MERCATOR_CRS),
                                   resampling=Resampling.cubic_spline)
         # raster = raster.get_tile(x_tile, y_tile, zoom, bands, masked, resampling)
