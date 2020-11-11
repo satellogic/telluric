@@ -253,7 +253,7 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None, mask_band=None)
             else:
                 file_name = os.path.join(os.getcwd(), raster.source_file)
 
-            vrt.add_band_simplesource(band_element, band_idx, raster.dtype, relative_to_vrt, file_name,
+            vrt.add_band_simplesource(band_element, i+1, raster.dtype, relative_to_vrt, file_name,
                                       raster.width, raster.height,
                                       raster.block_shape(i)[1], raster.block_shape(i)[0],
                                       src_window, dst_window)
