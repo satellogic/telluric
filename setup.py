@@ -25,7 +25,7 @@ setup(
         'folium>=0.6.0',
         'ipyleaflet!=0.8.2',
         'pyproj<2; python_version<="3.4"',
-        'pyproj; python_version>="3.5"',
+        'pyproj<3; python_version>="3.5"',
         'shapely>=1.6.3,<2.*',
         'rasterio>=1.0.21,<2.*',
         'pillow',
