@@ -40,6 +40,7 @@ celerybeat-schedule
 static
 venv
 .tags
+*sublime*
 
 # Jupyter notebooks
 .ipynb_checkpoints

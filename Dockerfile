@@ -23,4 +23,4 @@ RUN cp /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt
 WORKDIR /usr/src
 COPY . /usr/src
 
-RUN pip3 install --editable .[dev]
+RUN pip3 install --editable .[dev,vis]

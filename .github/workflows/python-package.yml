@@ -28,7 +28,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install pycodestyle pytest
         python -m pip install --prefer-binary .  # Test installation correctness
-        python -m pip install .[dev]  # Test development dependencies
+        python -m pip install .[dev,vis]  # Test extra dependencies
     - name: Lint with pycodestyle and mypy
       run: |
         pycodestyle . --count
