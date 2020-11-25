@@ -16,8 +16,18 @@ from rasterio.crs import CRS
 from typing import Tuple, Iterator
 
 from telluric.constants import DEFAULT_CRS, EQUAL_AREA_CRS, WGS84_CRS, WEB_MERCATOR_CRS
-from telluric.plotting import NotebookPlottingMixin
 from telluric.util.projections import transform
+try:
+    from telluric.plotting import NotebookPlottingMixin
+except ImportError:
+    warnings.warn(
+        "Visualization dependencies not available, plotting will not work",
+        ImportWarning,
+        stacklevel=2,
+    )
+
+    class NotebookPlottingMixin:  # type: ignore
+        pass
 
 
 # From shapely.geometry.base.BaseGeometry

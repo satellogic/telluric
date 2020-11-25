@@ -15,9 +15,20 @@ from rasterio.crs import CRS
 from shapely.prepared import prep
 
 from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
-from telluric.plotting import NotebookPlottingMixin
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
+try:
+    from telluric.plotting import NotebookPlottingMixin
+except ImportError:
+    warnings.warn(
+        "Visualization dependencies not available, plotting will not work",
+        ImportWarning,
+        stacklevel=2,
+    )
+
+    class NotebookPlottingMixin:  # type: ignore
+        pass
+
 
 DRIVERS = {
     '.json': 'GeoJSON',
