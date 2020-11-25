@@ -61,7 +61,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'telluric'
-copyright = '2019, Satellogic'
+copyright = '2020, Satellogic'
 author = 'Juan Luis Cano, Guy Doulberg, Slava Kerner, Lucio Torre, Ariel Zerahia, Denis Rykov'
 
 # The version info for the project you're documenting, acts as replacement for
