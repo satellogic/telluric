@@ -5,16 +5,14 @@ import uuid
 import math
 import tempfile
 import contextlib
-
+from typing import Union, Iterable, List, Optional, Tuple
+import glob
 from functools import reduce
 from types import SimpleNamespace
 from enum import Enum
 from collections import namedtuple
-
 from copy import copy, deepcopy
-
 from itertools import groupby
-
 import warnings
 
 import numpy as np
@@ -22,12 +20,14 @@ import imageio
 
 from boltons.setutils import IndexedSet
 
+import matplotlib.cm
+
 from rasterio.crs import CRS
 import rasterio
 import rasterio.warp
 import rasterio.shutil
 from rasterio.coords import BoundingBox
-from rasterio.enums import Resampling, Compression, MaskFlags
+from rasterio.enums import Resampling, Compression
 from rasterio.features import geometry_mask
 from rasterio.windows import Window, WindowMethodsMixin
 from rasterio.io import MemoryFile
@@ -53,10 +53,6 @@ from telluric.vrt import (
     raster_collection_vrt,
     wms_vrt)
 
-# for mypy
-import matplotlib.cm
-from typing import Callable, Union, Iterable, Dict, List, Optional, Tuple, Any
-import glob
 
 
 dtype_map = {

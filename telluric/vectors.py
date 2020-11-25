@@ -1,6 +1,5 @@
 import json
 import warnings
-import fiona
 import numpy as np
 
 import shapely.geometry
@@ -14,7 +13,7 @@ from shapely.geometry import (
 from mercantile import Bbox, xy_bounds, tiles
 
 from rasterio.crs import CRS
-from typing import Tuple, Iterator, List
+from typing import Tuple, Iterator
 
 from telluric.constants import DEFAULT_CRS, EQUAL_AREA_CRS, WGS84_CRS, WEB_MERCATOR_CRS
 from telluric.plotting import NotebookPlottingMixin

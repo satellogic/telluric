@@ -1,7 +1,6 @@
-from os import path
 from unittest import mock
 from common_for_tests import make_test_raster
-from tornado.testing import gen_test, AsyncHTTPTestCase
+from tornado.testing import AsyncHTTPTestCase
 from tornado.concurrent import Future
 
 import telluric as tl
