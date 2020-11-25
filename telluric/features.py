@@ -1,7 +1,7 @@
 import copy
 import warnings
 from datetime import datetime
-from collections import Mapping
+from collections.abc import Mapping
 
 from dateutil.parser import parse as parse_date
 

@@ -2,7 +2,8 @@ import os
 import copy
 import os.path
 import warnings
-from collections import Sequence, OrderedDict, defaultdict
+from collections.abc import Sequence
+from collections import OrderedDict, defaultdict
 from functools import partial
 from itertools import islice, chain
 from typing import Set, Iterator, Dict, Callable, Optional, Any, Union, DefaultDict
