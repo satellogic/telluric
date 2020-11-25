@@ -1,3 +1,12 @@
+telluric 0.13.1 (2020-11-26)
+============================
+
+Changes
+-------
+
+* Fix imports when visualization dependencies are not installed (#281)
+* Remove several deprecation warnings (#281)
+
 telluric 0.13.0 (2020-11-25)
 ============================
 
