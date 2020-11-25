@@ -37,7 +37,7 @@ and all contributions and feedback are more than welcome.
 You can install telluric using pip:
 
 ```
-pip install telluric
+pip install telluric[vis]
 ```
 
 Read more complete installation instructions at [our documentation](http://telluric.readthedocs.io/).

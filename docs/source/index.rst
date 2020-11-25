@@ -21,7 +21,7 @@ Installation
 
 You can install telluric using pip::
 
-  pip install telluric
+  pip install telluric[vis]
 
 telluric is a pure Python library, and therefore should work on Linux, OS X and Windows
 provided that you can install its dependencies. If you find any problem,
