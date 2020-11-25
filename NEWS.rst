@@ -1,3 +1,11 @@
+telluric 0.13.0 (2020-11-25)
+============================
+
+Changes
+-------
+
+* Make visualization dependencies optional (#260)
+
 telluric 0.12.1 (2020-08-10)
 ============================
 
