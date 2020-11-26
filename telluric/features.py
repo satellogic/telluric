@@ -13,17 +13,7 @@ from telluric.vectors import (
     GEOM_PROPERTIES, GEOM_NONVECTOR_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
 from telluric import GeoRaster2
-try:
-    from telluric.plotting import NotebookPlottingMixin
-except ImportError:
-    warnings.warn(
-        "Visualization dependencies not available, plotting will not work",
-        ImportWarning,
-        stacklevel=2,
-    )
-
-    class NotebookPlottingMixin:  # type: ignore
-        pass
+from telluric.plotting import NotebookPlottingMixin
 
 
 raster_types = [RASTER_TYPE]

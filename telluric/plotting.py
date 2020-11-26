@@ -8,11 +8,18 @@ from statistics import median_low
 import mercantile
 from shapely.geometry import mapping
 
-import folium
-from ipyleaflet import (
-    Map, GeoJSON,
-    basemaps
-)
+try:
+    import folium
+    from ipyleaflet import (
+        Map, GeoJSON,
+        basemaps
+    )
+except ImportError:
+    warnings.warn(
+        "Visualization dependencies not available, plotting will not work",
+        ImportWarning,
+        stacklevel=2,
+    )
 
 from telluric.constants import WGS84_CRS
 from telluric.util.local_tile_server import TileServer
