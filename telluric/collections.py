@@ -2,24 +2,24 @@ import os
 import copy
 import os.path
 import warnings
-import contextlib
-from collections import Sequence, OrderedDict, defaultdict
+from collections.abc import Sequence
+from collections import OrderedDict, defaultdict
 from functools import partial
 from itertools import islice, chain
 from typing import Set, Iterator, Dict, Callable, Optional, Any, Union, DefaultDict
 
 import fiona
+from fiona.io import MemoryFile
 from fiona.schema import FIELD_TYPES_MAP_REV
 from shapely.geometry import CAP_STYLE
 from rasterio.crs import CRS
 from shapely.prepared import prep
 
-from telluric.constants import DEFAULT_CRS, WEB_MERCATOR_CRS, WGS84_CRS
-from telluric.plotting import NotebookPlottingMixin
+from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
-from telluric.georaster import GeoRaster2
-from fiona.io import MemoryFile
+from telluric.plotting import NotebookPlottingMixin
+
 
 DRIVERS = {
     '.json': 'GeoJSON',
@@ -41,7 +41,7 @@ def dissolve(collection, aggfunc=None):
     if aggfunc:
         temp_properties = defaultdict(list)  # type: DefaultDict[Any, Any]
         for feature in collection:
-            for key, value in feature.attributes.items():
+            for key, value in feature.properties.items():
                 temp_properties[key].append(value)
 
         for key, values in temp_properties.items():

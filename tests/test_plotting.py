@@ -1,6 +1,8 @@
 import pytest
 from unittest import mock
 
+pytest.importorskip("folium")  # noqa: E402
+
 from shapely.geometry import shape, Polygon, Point
 from ipyleaflet import Map
 

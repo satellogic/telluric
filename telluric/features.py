@@ -1,7 +1,7 @@
 import copy
 import warnings
 from datetime import datetime
-from collections import Mapping
+from collections.abc import Mapping
 
 from dateutil.parser import parse as parse_date
 
@@ -12,8 +12,8 @@ from telluric.vectors import (
     GeoVector,
     GEOM_PROPERTIES, GEOM_NONVECTOR_PROPERTIES, GEOM_UNARY_PREDICATES, GEOM_BINARY_PREDICATES, GEOM_BINARY_OPERATIONS
 )
-from telluric.plotting import NotebookPlottingMixin
 from telluric import GeoRaster2
+from telluric.plotting import NotebookPlottingMixin
 
 
 raster_types = [RASTER_TYPE]
