@@ -52,13 +52,20 @@ from telluric.util.raster_utils import (
     convert_to_cog, _calc_overviews_factors,
     _mask_from_masked_array, _join_masks_from_masked_array,
     calc_transform, warp)
-from telluric.util.local_tile_server import TileServer
 from telluric.vrt import (
     boundless_vrt_doc,
     raster_list_vrt,
     raster_collection_vrt,
     wms_vrt)
 
+try:
+    from telluric.util.local_tile_server import TileServer
+except ImportError:
+    warnings.warn(
+        "Visualization dependencies not available, local tile server will not work",
+        ImportWarning,
+        stacklevel=2,
+    )
 
 dtype_map = {
     np.uint8: rasterio.uint8,

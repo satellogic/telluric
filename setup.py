@@ -48,6 +48,7 @@ setup(
             'ipyleaflet!=0.8.2',
             'matplotlib',
             'folium>=0.6.0',
+            'tornado',
         ]
     },
     classifiers=[
