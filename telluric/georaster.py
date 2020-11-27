@@ -20,7 +20,14 @@ import imageio
 
 from boltons.setutils import IndexedSet
 
-import matplotlib.cm
+try:
+    import matplotlib
+except ImportError:
+    warnings.warn(
+        "Visualization dependencies not available, colorize will not work",
+        ImportWarning,
+        stacklevel=2,
+    )
 
 from rasterio.crs import CRS
 import rasterio
