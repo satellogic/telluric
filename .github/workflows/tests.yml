@@ -16,6 +16,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.5, 3.6, 3.7, 3.8]
+        extra-deps: ['vis', '']
 
     steps:
     - uses: actions/checkout@v2
@@ -27,8 +28,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install pycodestyle pytest
-        python -m pip install --prefer-binary .  # Test installation correctness
-        python -m pip install .[dev,vis]  # Test extra dependencies
+        python -m pip install --prefer-binary .[dev]  # Test installation correctness
+        if [ -n "$EXTRA_DEPS" ]; then python -m pip install ".[$EXTRA_DEPS]"; fi
+      env:
+        EXTRA_DEPS: ${{ matrix.extra-deps }}
     - name: Lint with pycodestyle and mypy
       run: |
         pycodestyle . --count
