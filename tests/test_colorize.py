@@ -1,10 +1,12 @@
 import pytest
 
+pytest.importorskip("matplotlib")  # noqa: E402
+
 import numpy as np
 import affine
+import matplotlib.pyplot as plt
 import telluric as tl
 from telluric.constants import WGS84_CRS
-import matplotlib.pyplot as plt
 from common_for_tests import (multi_raster_16b, multi_raster_8b,
                               hyper_raster, hyper_raster_with_no_data,
                               multi_raster_with_no_data)
