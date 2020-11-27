@@ -29,7 +29,8 @@ setup(
         'mercantile>=0.10.0',
         'boltons',
         'imageio',
-        "lxml"
+        "lxml",
+        'python-dateutil',
     ],
     extras_require={
         'dev': [
@@ -48,6 +49,7 @@ setup(
             'ipyleaflet!=0.8.2',
             'matplotlib',
             'folium>=0.6.0',
+            'tornado',
         ]
     },
     classifiers=[

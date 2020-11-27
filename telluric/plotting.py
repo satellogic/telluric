@@ -22,7 +22,14 @@ except ImportError:
     )
 
 from telluric.constants import WGS84_CRS
-from telluric.util.local_tile_server import TileServer
+try:
+    from telluric.util.local_tile_server import TileServer
+except ImportError:
+    warnings.warn(
+        "Visualization dependencies not available, local tile server will not work",
+        ImportWarning,
+        stacklevel=2,
+    )
 
 
 SIMPLE_PLOT_MAX_ROWS = 200
