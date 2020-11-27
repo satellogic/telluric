@@ -29,7 +29,8 @@ setup(
         'mercantile>=0.10.0',
         'boltons',
         'imageio',
-        "lxml"
+        "lxml",
+        'python-dateutil',
     ],
     extras_require={
         'dev': [
