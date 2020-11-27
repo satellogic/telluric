@@ -1,6 +1,5 @@
 import asyncio
 import os
-import folium
 import concurrent.futures
 from threading import Thread, Lock
 from collections import namedtuple
@@ -9,6 +8,16 @@ from tornado import gen
 from tornado.ioloop import IOLoop
 from tornado.httpserver import HTTPServer
 from tornado.concurrent import run_on_executor
+
+try:
+    import folium
+except ImportError:
+    import warnings
+    warnings.warn(
+        "Visualization dependencies not available, folium client will not work",
+        ImportWarning,
+        stacklevel=2,
+    )
 
 import rasterio
 from rasterio.enums import Resampling

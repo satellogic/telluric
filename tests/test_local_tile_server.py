@@ -1,7 +1,10 @@
-from os import path
+import pytest
 from unittest import mock
+
+pytest.importorskip("folium")  # noqa: E402
+
 from common_for_tests import make_test_raster
-from tornado.testing import gen_test, AsyncHTTPTestCase
+from tornado.testing import AsyncHTTPTestCase
 from tornado.concurrent import Future
 
 import telluric as tl
