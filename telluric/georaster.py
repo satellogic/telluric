@@ -155,9 +155,9 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
     # Create a list of single band rasters
     if not crop:
         warnings.warn(
-            "The option to disable crop has been added to overcome rare issues that happen \
-        while working with rotated rasters and it is not yet covered with tests!",
-            GeoRaster2Warning,
+            "The option to disable crop has been added to overcome rare issues that happen "
+            "while working with rotated rasters and it is not yet covered with tests!",
+            stacklevel=2
         )
 
     all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty,
