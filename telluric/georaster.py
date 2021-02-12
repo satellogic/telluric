@@ -475,13 +475,12 @@ class _Raster:
         self._band_names = None
         self._blockshapes = None
         self._shape = copy(shape)
+        self._dtype = None
         if band_names:
             self._set_bandnames(copy(band_names))
         if image is not None:
             self._set_image(image.copy(), nodata)
             self._dtype = np.dtype(image.dtype)
-        else:
-            self._dtype = None
 
     def _build_masked_array(self, image, nodata):
         return np.ma.masked_array(image, image == nodata)
@@ -497,7 +496,7 @@ class _Raster:
         # convert to masked array:
         if isinstance(image, np.ma.core.MaskedArray):
             masked = image
-        elif isinstance(image, np.core.ndarray):
+        elif isinstance(image, np.ndarray):
             masked = self._build_masked_array(image, nodata)
         else:
             raise GeoRaster2NotImplementedError('only ndarray or masked array supported, got %s' % type(image))
@@ -1114,7 +1113,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 conversion_gain = (omax - omin) / (imax - imin)
 
             # temp conversion, to handle saturation
-            dst_array = conversion_gain * (self.image.astype(np.float) - imin) + omin
+            dst_array = conversion_gain * (self.image.astype(np.float_) - imin) + omin
             dst_array = np.clip(dst_array, omin, omax)
         else:
             dst_array = self.image
