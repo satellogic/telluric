@@ -156,7 +156,7 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
     if not crop:
         warnings.warn(
             "The option to disable crop has been added to overcome rare issues that happen "
-            "while working with rotated rasters and it is not yet covered with tests!",
+            "while working with rotated rasters and it is not yet well tested.",
             stacklevel=2
         )
 

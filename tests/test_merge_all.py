@@ -482,7 +482,8 @@ def test_merge_all_non_overlapping_has_correct_metadata():
     assert metadata == expected_metadata
 
 
-def test_merge_all_different_crs():
+@pytest.mark.parametrize("crop", [True, False])
+def test_merge_all_different_crs(crop):
     roi = GeoVector(Polygon.from_bounds(-6321833, -3092272, -6319273, -3089712), WEB_MERCATOR_CRS)
     affine = Affine.translation(-57, -26) * Affine.scale(0.00083, -0.00083)
     expected_resolution = 10
@@ -490,7 +491,7 @@ def test_merge_all_different_crs():
 
     # from memory
     raster_0 = make_test_raster(1, [1], height=1200, width=1200, affine=affine, crs=WGS84_CRS)
-    result_0 = merge_all([raster_0], roi=roi, dest_resolution=expected_resolution, crs=expected_crs)
+    result_0 = merge_all([raster_0], roi=roi, dest_resolution=expected_resolution, crs=expected_crs, crop=crop)
     assert(result_0.resolution() == expected_resolution)
     assert(result_0.crs == expected_crs)
     assert(result_0.footprint().envelope.almost_equals(roi.envelope, decimal=3))
@@ -499,7 +500,7 @@ def test_merge_all_different_crs():
     path = "/vsimem/raster_for_test.tif"
     result_0.save(path)
     raster_1 = GeoRaster2.open(path)
-    result_1 = merge_all([raster_1], roi=roi, dest_resolution=expected_resolution, crs=expected_crs)
+    result_1 = merge_all([raster_1], roi=roi, dest_resolution=expected_resolution, crs=expected_crs, crop=crop)
 
     assert(result_1.resolution() == expected_resolution)
     assert(result_1.crs == expected_crs)
@@ -508,5 +509,5 @@ def test_merge_all_different_crs():
 
     # preserve the original resolution if dest_resolution is not provided
     raster_2 = make_test_raster(1, [1], height=1200, width=1200, affine=affine, crs=WGS84_CRS)
-    result_2 = merge_all([raster_2], roi=roi, crs=expected_crs)
+    result_2 = merge_all([raster_2], roi=roi, crs=expected_crs, crop=crop)
     assert pytest.approx(result_2.resolution()) == 97.9691
