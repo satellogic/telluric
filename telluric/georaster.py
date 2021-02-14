@@ -233,8 +233,14 @@ def _merge_common_bands(rasters):
     return rasters_final
 
 
-def _prepare_rasters(rasters, merge_strategy, first, resampling=Resampling.nearest, crop=True):
-    # type: (List[GeoRaster2], MergeStrategy, GeoRaster2, Resampling, bool) -> Tuple[IndexedSet[str], List[Optional[_Raster]]]  # noqa
+def _prepare_rasters(
+    rasters,  # type: List[GeoRaster2]
+    merge_strategy,  # type: MergeStrategy
+    first,  # type: GeoRaster2
+    resampling=Resampling.nearest,  # type: Resampling
+    crop=True,  # type: bool
+):
+    # type: (...) -> Tuple[IndexedSet[str], List[Optional[_Raster]]]
     """Prepares the rasters according to the baseline (first) raster and the merge strategy.
 
     The baseline (first) raster is used to crop and reproject the other rasters,
