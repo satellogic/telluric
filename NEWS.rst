@@ -1,3 +1,12 @@
+telluric 0.13.3 (2021-02-15)
+============================
+
+Changes
+-------
+
+* Add :code:`crop` parameter to  :py:func:`telluric.georaster.merge_all`
+  function (#288)
+
 telluric 0.13.2 (2020-11-27)
 ============================
 
