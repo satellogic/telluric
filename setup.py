@@ -24,7 +24,7 @@ setup(
         'fiona>=1.8.4,<2.*',
         'pyproj<3; python_version>="3.5"',
         'shapely>=1.6.3,<2.*',
-        'rasterio>=1.0.21,<2.*',
+        'rasterio>=1.0.21,< 1.2.0',
         'pillow',
         'mercantile>=0.10.0',
         'boltons',

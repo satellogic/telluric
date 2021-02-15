@@ -28,7 +28,7 @@ def _join_masks_from_masked_array(data):
     """Union of masks."""
     if not isinstance(data.mask, np.ndarray):
         # workaround to handle mask compressed to single value
-        mask = np.empty(data.data.shape, dtype=np.bool)
+        mask = np.empty(data.data.shape, dtype=np.bool_)
         mask.fill(data.mask)
         return mask
     mask = data.mask[0].copy()

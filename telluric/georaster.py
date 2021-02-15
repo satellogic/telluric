@@ -128,11 +128,16 @@ def _dest_resolution(first_raster, crs):
 
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
               shape=None, ul_corner=None, crs=None, pixel_strategy=PixelStrategy.FIRST,
-              resampling=Resampling.nearest):
-    """Merge a list of rasters, cropping by a region of interest.
+              resampling=Resampling.nearest, crop=True):
+    """Merge a list of rasters, cropping (optional) by a region of interest.
        There are cases that the roi is not precise enough for this cases one can use,
        the upper left corner the shape and crs to precisely define the roi.
-       When roi is provided the ul_corner, shape and crs are ignored
+       When roi is provided the ul_corner, shape and crs are ignored.
+
+       NB: Reading rotated rasters with GDAL (and rasterio) gives unpredictable result
+       and in order to overcome this you must use the warping algorithm to apply the rotation (it
+       might be acomplished by using gdalwarp utility). Hence we should have the possibility to
+       disable cropping, otherwise calling merge_all on rotated rasters may cause fails.
     """
 
     first_raster = rasters[0]
@@ -148,8 +153,15 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
         dtype=first_raster.dtype, shape=shape, ul_corner=ul_corner, crs=crs)
 
     # Create a list of single band rasters
+    if not crop:
+        warnings.warn(
+            "The option to disable crop has been added to overcome rare issues that happen "
+            "while working with rotated rasters and it is not yet well tested.",
+            stacklevel=2
+        )
+
     all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty,
-                                                         resampling=resampling)
+                                                         resampling=resampling, crop=crop)
     assert len(projected_rasters) == len(rasters)
 
     prepared_rasters = _apply_pixel_strategy(projected_rasters, pixel_strategy)
@@ -221,8 +233,14 @@ def _merge_common_bands(rasters):
     return rasters_final
 
 
-def _prepare_rasters(rasters, merge_strategy, first, resampling=Resampling.nearest):
-    # type: (List[GeoRaster2], MergeStrategy, GeoRaster2, Resampling) -> Tuple[IndexedSet[str], List[Optional[_Raster]]]
+def _prepare_rasters(
+    rasters,  # type: List[GeoRaster2]
+    merge_strategy,  # type: MergeStrategy
+    first,  # type: GeoRaster2
+    resampling=Resampling.nearest,  # type: Resampling
+    crop=True,  # type: bool
+):
+    # type: (...) -> Tuple[IndexedSet[str], List[Optional[_Raster]]]
     """Prepares the rasters according to the baseline (first) raster and the merge strategy.
 
     The baseline (first) raster is used to crop and reproject the other rasters,
@@ -234,7 +252,7 @@ def _prepare_rasters(rasters, merge_strategy, first, resampling=Resampling.neare
     all_band_names = IndexedSet(first.band_names)
     projected_rasters = []
     for raster in rasters:
-        projected_raster = _prepare_other_raster(first, raster, resampling=resampling)
+        projected_raster = _prepare_other_raster(first, raster, resampling=resampling, crop=crop)
 
         # Modify the bands only if an intersecting raster was returned
         if projected_raster:
@@ -265,22 +283,23 @@ def _explode_raster(raster, band_names=[]):
     return [_Raster(image=raster.bands_data([band_name]), band_names=[band_name]) for band_name in band_names]
 
 
-def _prepare_other_raster(one, other, resampling=Resampling.nearest):
-    # type: (GeoRaster2, GeoRaster2, Resampling) -> Union[_Raster, None]
-    # Crop and reproject the second raster, if necessary
+def _prepare_other_raster(one, other, resampling=Resampling.nearest, crop=True):
+    # type: (GeoRaster2, GeoRaster2, Resampling, bool) -> Union[_Raster, None]
+    # Crop and reproject the second raster, if necessary.
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
-            if one.crs != other.crs:
-                src_bounds = one.footprint().get_bounds(other.crs)
-                src_vector = GeoVector(Polygon.from_bounds(*src_bounds), other.crs)
-                src_width, src_height = (
-                    src_bounds.right - src_bounds.left,
-                    src_bounds.top - src_bounds.bottom)
-                buffer_ratio = int(os.environ.get("TELLURIC_MERGE_CROP_BUFFER", 10))
-                buffer_size = max(src_width, src_height) * (buffer_ratio / 100)
-                other = other.crop(src_vector.buffer(buffer_size))
-            else:
-                other = other.crop(one.footprint(), resolution=one.resolution())
+            if crop:
+                if one.crs != other.crs:
+                    src_bounds = one.footprint().get_bounds(other.crs)
+                    src_vector = GeoVector(Polygon.from_bounds(*src_bounds), other.crs)
+                    src_width, src_height = (
+                        src_bounds.right - src_bounds.left,
+                        src_bounds.top - src_bounds.bottom)
+                    buffer_ratio = int(os.environ.get("TELLURIC_MERGE_CROP_BUFFER", 10))
+                    buffer_size = max(src_width, src_height) * (buffer_ratio / 100)
+                    other = other.crop(src_vector.buffer(buffer_size))
+                else:
+                    other = other.crop(one.footprint(), resolution=one.resolution())
 
             other = other._reproject(new_width=one.width, new_height=one.height,
                                      dest_affine=one.affine, dst_crs=one.crs,
@@ -462,13 +481,12 @@ class _Raster:
         self._band_names = None
         self._blockshapes = None
         self._shape = copy(shape)
+        self._dtype = None
         if band_names:
             self._set_bandnames(copy(band_names))
         if image is not None:
             self._set_image(image.copy(), nodata)
             self._dtype = np.dtype(image.dtype)
-        else:
-            self._dtype = None
 
     def _build_masked_array(self, image, nodata):
         return np.ma.masked_array(image, image == nodata)
@@ -484,7 +502,7 @@ class _Raster:
         # convert to masked array:
         if isinstance(image, np.ma.core.MaskedArray):
             masked = image
-        elif isinstance(image, np.core.ndarray):
+        elif isinstance(image, np.ndarray):
             masked = self._build_masked_array(image, nodata)
         else:
             raise GeoRaster2NotImplementedError('only ndarray or masked array supported, got %s' % type(image))
@@ -1101,7 +1119,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 conversion_gain = (omax - omin) / (imax - imin)
 
             # temp conversion, to handle saturation
-            dst_array = conversion_gain * (self.image.astype(np.float) - imin) + omin
+            dst_array = conversion_gain * (self.image.astype(np.float_) - imin) + omin
             dst_array = np.clip(dst_array, omin, omax)
         else:
             dst_array = self.image
