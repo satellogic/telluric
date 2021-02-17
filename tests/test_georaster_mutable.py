@@ -130,3 +130,9 @@ def test_set_affine_immutable():
 def test_reporject_of_mutable():
     raster = GeoRaster2.open("tests/data/raster/overlap2.tif", mutable=True).reproject(dst_crs=WGS84_CRS)
     assert isinstance(raster, MutableGeoRaster)
+
+
+def test_image_setter_dtype():
+    raster = GeoRaster2.open("tests/data/raster/overlap2.tif", mutable=True)
+    raster.image = raster.image.astype('uint16')
+    assert raster.dtype == raster.image.dtype
