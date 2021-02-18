@@ -2159,6 +2159,7 @@ class MutableGeoRaster(GeoRaster2):
         if band_names is not None:
             self._set_bandnames(band_names)
         self._set_shape(image.shape)
+        self._dtype = np.dtype(image.dtype)
 
     @property
     def band_names(self):
