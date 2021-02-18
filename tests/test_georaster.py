@@ -975,6 +975,7 @@ def test_from_assets_to_assets():
 def test_empty_crs():
     raster = GeoRaster2.open("tests/data/raster/no_georef.png")
     assert raster.crs == CRS()
+    assert raster.crs.is_valid is False
 
 
 def test_copy_raster_without_crs():
