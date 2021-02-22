@@ -128,7 +128,7 @@ def _dest_resolution(first_raster, crs):
 
 def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrategy.UNION,
               shape=None, ul_corner=None, crs=None, pixel_strategy=PixelStrategy.FIRST,
-              resampling=Resampling.nearest, crop=True):
+              resampling=Resampling.nearest, crop=True, num_threads=1, warp_mem_limit=0):
     """Merge a list of rasters, cropping (optional) by a region of interest.
        There are cases that the roi is not precise enough for this cases one can use,
        the upper left corner the shape and crs to precisely define the roi.
@@ -161,7 +161,8 @@ def merge_all(rasters, roi=None, dest_resolution=None, merge_strategy=MergeStrat
         )
 
     all_band_names, projected_rasters = _prepare_rasters(rasters, merge_strategy, empty,
-                                                         resampling=resampling, crop=crop)
+                                                         resampling=resampling, crop=crop,
+                                                         num_threads=num_threads, warp_mem_limit=warp_mem_limit)
     assert len(projected_rasters) == len(rasters)
 
     prepared_rasters = _apply_pixel_strategy(projected_rasters, pixel_strategy)
@@ -239,6 +240,8 @@ def _prepare_rasters(
     first,  # type: GeoRaster2
     resampling=Resampling.nearest,  # type: Resampling
     crop=True,  # type: bool
+    num_threads=1,  # type: int
+    warp_mem_limit=0,  # type: int
 ):
     # type: (...) -> Tuple[IndexedSet[str], List[Optional[_Raster]]]
     """Prepares the rasters according to the baseline (first) raster and the merge strategy.
@@ -252,7 +255,8 @@ def _prepare_rasters(
     all_band_names = IndexedSet(first.band_names)
     projected_rasters = []
     for raster in rasters:
-        projected_raster = _prepare_other_raster(first, raster, resampling=resampling, crop=crop)
+        projected_raster = _prepare_other_raster(first, raster, resampling=resampling, crop=crop,
+                                                 num_threads=num_threads, warp_mem_limit=warp_mem_limit)
 
         # Modify the bands only if an intersecting raster was returned
         if projected_raster:
@@ -283,8 +287,8 @@ def _explode_raster(raster, band_names=[]):
     return [_Raster(image=raster.bands_data([band_name]), band_names=[band_name]) for band_name in band_names]
 
 
-def _prepare_other_raster(one, other, resampling=Resampling.nearest, crop=True):
-    # type: (GeoRaster2, GeoRaster2, Resampling, bool) -> Union[_Raster, None]
+def _prepare_other_raster(one, other, resampling=Resampling.nearest, crop=True, num_threads=1, warp_mem_limit=0):
+    # type: (GeoRaster2, GeoRaster2, Resampling, bool, int, int) -> Union[_Raster, None]
     # Crop and reproject the second raster, if necessary.
     if not (one.crs == other.crs and one.affine.almost_equals(other.affine) and one.shape == other.shape):
         if one.footprint().intersects(other.footprint()):
@@ -303,7 +307,7 @@ def _prepare_other_raster(one, other, resampling=Resampling.nearest, crop=True):
 
             other = other._reproject(new_width=one.width, new_height=one.height,
                                      dest_affine=one.affine, dst_crs=one.crs,
-                                     resampling=resampling)
+                                     resampling=resampling, num_threads=num_threads, warp_mem_limit=warp_mem_limit)
 
         else:
             return None
@@ -390,8 +394,9 @@ def _stack_bands(one, other):
     return _Raster(image=new_image, band_names=new_bands)
 
 
-def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False, pixel_strategy=PixelStrategy.FIRST):
-    # type: (GeoRaster2, GeoRaster2, MergeStrategy, bool, PixelStrategy) -> GeoRaster2
+def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False, pixel_strategy=PixelStrategy.FIRST,
+              num_threads=1, warp_mem_limit=0):
+    # type: (GeoRaster2, GeoRaster2, MergeStrategy, bool, PixelStrategy, int, int) -> GeoRaster2
     """Merge two rasters into one.
 
     Parameters
@@ -406,13 +411,19 @@ def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False, pixe
         Whether to raise errors or return some result, default to False (raise errors).
     pixel_strategy: PixelStrategy, optional
         Pixel strategy, from :py:data:`telluric.georaster.PixelStrategy` (default to "top").
+    num_threads: Int, optional
+        Number of threads to be used by rasterio.warp.reproject method
+    warp_mem_limit: Int, optional
+        The warp operation memory limit in MB. Larger values allow the warp operation to be
+        carried out in fewer chunks. The amount of memory required to warp a 3-band uint8 2000 row x 2000 col
+        raster to a destination of the same size is approximately 56 MB. The default (0) means 64 MB with GDAL 2.2
 
     Returns
     -------
     GeoRaster2
 
     """
-    other_res = _prepare_other_raster(one, other)
+    other_res = _prepare_other_raster(one, other, num_threads=num_threads, warp_mem_limit=warp_mem_limit)
     if other_res is None:
         if silent:
             return one
@@ -424,7 +435,8 @@ def merge_two(one, other, merge_strategy=MergeStrategy.UNION, silent=False, pixe
 
     # Create a list of single band rasters
     # Cropping won't happen twice, since other was already cropped
-    all_band_names, projected_rasters = _prepare_rasters([other], merge_strategy, first=one)
+    all_band_names, projected_rasters = _prepare_rasters([other], merge_strategy, first=one,
+                                                         num_threads=num_threads, warp_mem_limit=warp_mem_limit)
 
     if not all_band_names and not silent:
         raise ValueError("rasters have no bands in common, use another merge strategy")
@@ -1258,7 +1270,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def copy_with(self, mutable=False, **kwargs):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
-        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names, 'nodata': self.nodata_value}
+        init_args = {'affine': self.affine, 'crs': self.crs,
+                     'band_names': self.band_names, 'nodata': self.nodata_value}
         init_args.update(kwargs)
 
         # The image is a special case because we don't want to make a copy of a possibly big array
@@ -1296,7 +1309,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return abs(self.affine[0]), abs(self.affine[4])
 
     def resize(self, ratio=None, ratio_x=None, ratio_y=None, dest_width=None, dest_height=None, dest_resolution=None,
-               resampling=Resampling.cubic):
+               resampling=Resampling.cubic, num_threads=1, warp_mem_limit=0):
         """
         Provide either ratio, or ratio_x and ratio_y, or dest_width and/or dest_height.
 
@@ -1320,9 +1333,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         if ratio is not None:
             ratio_x, ratio_y = ratio, ratio
 
-        return self._resize(ratio_x, ratio_y, resampling)
+        return self._resize(ratio_x, ratio_y, resampling, num_threads=num_threads, warp_mem_limit=warp_mem_limit)
 
-    def _resize(self, ratio_x, ratio_y, resampling):
+    def _resize(self, ratio_x, ratio_y, resampling, num_threads=1, warp_mem_limit=0):
         """Return raster resized by ratio."""
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
@@ -1332,7 +1345,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             window = rasterio.windows.Window(0, 0, self.width, self.height)
             resized_raster = self.get_window(window, xsize=new_width, ysize=new_height, resampling=resampling)
         else:
-            resized_raster = self._reproject(new_width, new_height, dest_affine, resampling=resampling)
+            resized_raster = self._reproject(new_width, new_height, dest_affine, resampling=resampling,
+                                             num_threads=num_threads, warp_mem_limit=warp_mem_limit)
         return resized_raster
 
     def to_pillow_image(self, return_mask=False):
@@ -1363,7 +1377,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return ret_val
 
     def _reproject(self, new_width, new_height, dest_affine, dtype=None,
-                   dst_crs=None, resampling=Resampling.cubic):
+                   dst_crs=None, resampling=Resampling.cubic, num_threads=1, warp_mem_limit=0):
         """Return re-projected raster to new raster.
 
         :param new_width: new raster width in pixels
@@ -1372,7 +1386,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param dtype: new raster dtype, default current dtype
         :param dst_crs: new raster crs, default current crs
         :param resampling: reprojection resampling method, default `cubic`
-
+        :param num_threads: number of threads to be used by rasterio.warp.reproject method
+        :param warp_mem_limit: The warp operation memory limit in MB. Larger values allow the warp operation to be
+            carried out in fewer chunks. The amount of memory required to warp a 3-band uint8 2000 row x 2000 col
+            raster to a destination of the same size is approximately 56 MB. The default (0) means 64 MB with GDAL 2.2
         :return GeoRaster2
         """
         if new_width == 0 or new_height == 0:
@@ -1401,7 +1418,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                     dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
                                     resampling=resampling, dest_alpha=alpha_band_idx,
                                     init_dest_nodata=False, src_alpha=alpha_band_idx,
-                                    src_nodata=self.nodata_value)
+                                    src_nodata=self.nodata_value, num_threads=num_threads,
+                                    warp_mem_limit=warp_mem_limit,)
             dest_image = np.ma.masked_array(dest_image[0:1, :, :], dest_image[1:2, :, :] == 0)
             band_images.append(dest_image)
         dest_image = np.ma.concatenate(band_images)
@@ -1412,7 +1430,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def reproject(self, dst_crs=None, resolution=None, dimensions=None,
                   src_bounds=None, dst_bounds=None, target_aligned_pixels=False,
-                  resampling=Resampling.cubic, creation_options=None, **kwargs):
+                  resampling=Resampling.cubic, creation_options=None, num_threads=1, warp_mem_limit=0, **kwargs):
         """Return re-projected raster to new raster.
 
         Parameters
@@ -1435,6 +1453,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             Reprojection resampling method. Default is `cubic`.
         creation_options: dict, optional
             Custom creation options.
+        num_threads: int, optional: number of threads to be used by rasterio.warp.reproject method
+            Default is 1
+        warp_mem_limit: int, optional: the warp operation memory limit in MB. Larger values allow the warp operation to
+            be carried out in fewer chunks. The amount of memory required to warp a 3-band uint8 2000 row x 2000 col
+            raster to a destination of the same size is approximately 56 MB. The default (0) means 64 MB with GDAL 2.2
+            Default is 0
         kwargs: optional
             Additional arguments passed to transformation function.
 
@@ -1465,7 +1489,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 target_aligned_pixels=target_aligned_pixels,
                 src_bounds=src_bounds, dst_bounds=dst_bounds)
             new_raster = self._reproject(dst_width, dst_height, dst_transform,
-                                         dst_crs=dst_crs, resampling=resampling)
+                                         dst_crs=dst_crs, resampling=resampling, num_threads=num_threads,
+                                         warp_mem_limit=warp_mem_limit)
 
         return new_raster
 
@@ -1744,7 +1769,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def __invert__(self):
         """Invert mask."""
-        return self.copy_with(image=np.ma.masked_array(self.image.data, np.logical_not(np.ma.getmaskarray(self.image))))
+        return self.copy_with(image=np.ma.masked_array(
+            self.image.data, np.logical_not(np.ma.getmaskarray(self.image))))
 
     def mask(self, vector, mask_shape_nodata=False):
         """
@@ -1939,7 +1965,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         return self.get_window(window, bands=bands, xsize=256, ysize=256, masked=masked, affine=affine)
 
     def get_tile(self, x_tile, y_tile, zoom,
-                 bands=None, masked=None, resampling=Resampling.cubic):
+                 bands=None, masked=None, resampling=Resampling.cubic, num_threads=1, warp_mem_limit=0):
         """Convert mercator tile to raster window.
 
         :param x_tile: x coordinate of tile
@@ -1947,6 +1973,10 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param zoom: zoom level
         :param bands: list of indices of requested bands, default None which returns all bands
         :param resampling: reprojection resampling method, default `cubic`
+        :param num_threads: number of threads to be used by rasterio.warp.reproject method
+        :param warp_mem_limit: The warp operation memory limit in MB. Larger values allow the warp operation to be
+            carried out in fewer chunks. The amount of memory required to warp a 3-band uint8 2000 row x 2000 col
+            raster to a destination of the same size is approximately 56 MB. The default (0) means 64 MB with GDAL 2.2
 
         :return: GeoRaster2 of tile in WEB_MERCATOR_CRS
 
@@ -1979,7 +2009,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                            bands=bands, resampling=resampling)
         raster = raster.reproject(dst_crs=WEB_MERCATOR_CRS, resolution=resolution,
                                   dst_bounds=roi_buffer.get_bounds(WEB_MERCATOR_CRS),
-                                  resampling=Resampling.cubic_spline)
+                                  resampling=Resampling.cubic_spline, num_threads=num_threads,
+                                  warp_mem_limit=warp_mem_limit)
         # raster = raster.get_tile(x_tile, y_tile, zoom, bands, masked, resampling)
         raster = raster.crop(roi).resize(dest_width=256, dest_height=256)
         return raster
