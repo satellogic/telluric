@@ -608,7 +608,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """
         super().__init__(image=image, band_names=band_names, shape=shape, nodata=nodata)
         self._affine = deepcopy(affine)
-        self._crs = CRS(copy(crs)) if crs else None  # type: Union[None, CRS]
+        self._crs = None if crs is None else CRS(crs)  # type: Union[None, CRS]
         self._filename = filename
         self._temporary = temporary
         self._footprint = copy(footprint)
@@ -714,7 +714,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 self._affine = copy(raster.transform)
 
             if self._crs is None:
-                self._crs = copy(raster.crs)
+                self._crs = CRS() if raster.crs is None else copy(raster.crs)
 
             # if band_names not provided, try read them from raster tags.
             # if not - leave empty, for default:

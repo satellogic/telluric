@@ -970,3 +970,15 @@ def test_blockshapes_for_file_raster():
 def test_from_assets_to_assets():
     raster = GeoRaster2.open("tests/data/raster/rgb.tif")
     assert raster == GeoRaster2.from_assets(raster.to_assets())
+
+
+def test_empty_crs():
+    raster = GeoRaster2.open("tests/data/raster/no_georef.png")
+    assert raster.crs == CRS()
+    assert raster.crs.is_valid is False
+
+
+def test_copy_raster_without_crs():
+    raster = GeoRaster2.open("tests/data/raster/no_georef.png")
+    raster_copy = raster.copy_with()
+    assert raster_copy.crs == CRS()
