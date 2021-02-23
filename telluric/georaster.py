@@ -1337,9 +1337,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         new_height = int(np.ceil(self.height * ratio_y))
         dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
 
-        raster = self._raster_backed_by_a_file()
         window = rasterio.windows.Window(0, 0, self.width, self.height)
-        resized_raster = raster.get_window(
+        resized_raster = self.get_window(
             window=window,
             xsize=new_width,
             ysize=new_height,
