@@ -186,7 +186,7 @@ def test_resize(raster):
     for resampling_name in resampling_modes:
         resampling = Resampling[resampling_name]
         print('\nresampling name:', resampling_name)
-        if resampling_name == 'gauss':
+        if resampling_name in ['min', 'max', 'med', 'q1', 'q3']:
             print('\nskipping', resampling_name)
             continue
         if resampling_name not in ['bilinear', 'cubic', 'cubic_spline', 'lanczos', 'gauss']:
