@@ -994,4 +994,3 @@ def test_virtual_filesystem_raster():
     in_memory_raster2 = GeoRaster2.open(virtual_path)
     with pytest.raises(GeoRaster2IOError):
         _ = in_memory_raster2.shape
-

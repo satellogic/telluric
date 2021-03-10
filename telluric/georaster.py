@@ -879,7 +879,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                           destination_file="%s/vrt.vrt" % (directory),
                                           mask_band=0)
             agg.save(destination_file)
-            
+
     def _get_save_params(self, extension, nodata, tiled, blockxsize, blockysize, compression):
         """ Get params dict needed for saving the raster"""
         driver = gdal_drivers[extension]
