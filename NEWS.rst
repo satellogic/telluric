@@ -1,3 +1,15 @@
+telluric 0.13.4 (2021-02-23)
+============================
+
+Changes
+-------
+
+* Set :code:`_dtype` attribute in image setter for
+  :py:class:`~telluric.georaster.MutableGeoRaster` (#289)
+* Set :code:`crs` as empty :code:`rasterio.crs.CRS()` instance instead of :code:`None`
+  when image file has no CRS (#292)
+* Make :py:meth:`telluric.georaster.GeoRaster2.resize` faster (#293)
+
 telluric 0.13.3 (2021-02-15)
 ============================
 

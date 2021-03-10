@@ -1302,6 +1302,15 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         :return: GeoRaster2
         """
+        if resampling in [
+            Resampling.min,
+            Resampling.max,
+            Resampling.med,
+            Resampling.q1,
+            Resampling.q3,
+        ]:
+            raise GeoRaster2Error("Resampling {!r} can't be used for resize".format(resampling))
+
         # validate input:
         if sum([ratio is not None, ratio_x is not None and ratio_y is not None,
                 dest_height is not None or dest_width is not None, dest_resolution is not None]) != 1:
@@ -1326,13 +1335,17 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Return raster resized by ratio."""
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
-
         dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
-        if self.not_loaded():
-            window = rasterio.windows.Window(0, 0, self.width, self.height)
-            resized_raster = self.get_window(window, xsize=new_width, ysize=new_height, resampling=resampling)
-        else:
-            resized_raster = self._reproject(new_width, new_height, dest_affine, resampling=resampling)
+
+        window = rasterio.windows.Window(0, 0, self.width, self.height)
+        resized_raster = self.get_window(
+            window=window,
+            xsize=new_width,
+            ysize=new_height,
+            resampling=resampling,
+            affine=dest_affine,
+        )
+
         return resized_raster
 
     def to_pillow_image(self, return_mask=False):
