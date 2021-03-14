@@ -1,7 +1,6 @@
 import os
 import io
 import json
-import uuid
 import math
 import tempfile
 import contextlib
@@ -613,6 +612,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         self._temporary = temporary
         self._footprint = copy(footprint)
         self._nodata_value = nodata
+        self._opened_files = []
 
     def __del__(self):
         try:
@@ -700,6 +700,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                        dtype=dtype, shape=shape, ul_corner=ul_corner, raster_cls=cls)
 
     def _cleanup(self):
+        for f in self._opened_files:
+            f.close()
         if self._filename is not None and self._temporary:
             with contextlib.suppress(FileNotFoundError):
                 os.remove(self._filename)
@@ -878,6 +880,43 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                           mask_band=0)
             agg.save(destination_file)
 
+    def _get_save_params(self, extension, nodata, tiled, blockxsize, blockysize, compression):
+        """ Get params dict needed for saving the raster"""
+        driver = gdal_drivers[extension]
+        return {
+            'mode': "w", 'transform': self.affine, 'crs': self.crs,
+            'driver': driver, 'width': self.shape[2], 'height': self.shape[1], 'count': self.shape[0],
+            'dtype': dtype_map[self.dtype.type],
+            'nodata': nodata,
+            'masked': True,
+            'blockxsize': min(blockxsize, self.shape[2]),
+            'blockysize': min(blockysize, self.shape[1]),
+            'tiled': tiled,
+            'compress': compression.name if compression in Compression else compression,
+        }
+
+    def _write_to_opened_raster(self, raster, params, tags, kwargs):
+        """Given a handler to an opened Raster, write this instance info to it"""
+        for band in range(self.shape[0]):
+            img = self.image.data
+            raster.write_band(1 + band, img[band, :, :])
+
+        # write mask:
+        if not (
+                np.ma.getmaskarray(self.image) ==
+                np.ma.getmaskarray(self.image)[0]
+        ).all():
+            warnings.warn(
+                "Saving different masks per band is not supported, "
+                "the union of the masked values will be performed.", GeoRaster2Warning
+            )
+
+        if params.get('masked'):
+            mask = _mask_from_masked_array(self.image)
+            raster.write_mask(mask)
+
+        self._add_overviews_and_tags(raster, tags, kwargs)
+
     def save(self, filename, tags=None, **kwargs):
         """
         Save GeoRaster to a file.
@@ -911,26 +950,14 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             rasterio_envs['CPL_DEBUG'] = True
         with rasterio.Env(**rasterio_envs):
             try:
-                size = self.shape
                 extension = os.path.splitext(filename)[1].lower()[1:]
-                driver = gdal_drivers[extension]
 
                 # tiled
                 tiled = kwargs.get('tiled', False)
                 blockxsize = kwargs.get('blockxsize', 256)
                 blockysize = kwargs.get('blockysize', 256)
 
-                params = {
-                    'mode': "w", 'transform': self.affine, 'crs': self.crs,
-                    'driver': driver, 'width': size[2], 'height': size[1], 'count': size[0],
-                    'dtype': dtype_map[self.dtype.type],
-                    'nodata': nodata_value,
-                    'masked': True,
-                    'blockxsize': min(blockxsize, size[2]),
-                    'blockysize': min(blockysize, size[1]),
-                    'tiled': tiled,
-                    'compress': compression.name if compression in Compression else compression,
-                }
+                params = self._get_save_params(extension, nodata_value, tiled, blockxsize, blockysize, compression)
                 # additional creation options
                 # -co COPY_SRC_OVERVIEWS=YES  -co COMPRESS=DEFLATE -co PHOTOMETRIC=MINISBLACK
                 creation_options = kwargs.get('creation_options', {})
@@ -954,27 +981,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
                 else:
                     with GeoRaster2._raster_opener(filename, **params) as r:
-
-                        # write data:
-                        for band in range(self.shape[0]):
-                            img = self.image.data
-                            r.write_band(1 + band, img[band, :, :])
-
-                        # write mask:
-                        if not (
-                            np.ma.getmaskarray(self.image) ==
-                            np.ma.getmaskarray(self.image)[0]
-                        ).all():
-                            warnings.warn(
-                                "Saving different masks per band is not supported, "
-                                "the union of the masked values will be performed.", GeoRaster2Warning
-                            )
-
-                        if params.get('masked'):
-                            mask = _mask_from_masked_array(self.image)
-                            r.write_mask(mask)
-
-                        self._add_overviews_and_tags(r, tags, kwargs)
+                        self._write_to_opened_raster(r, params, tags, kwargs)
 
                 return GeoRaster2.open(filename)
 
@@ -2061,10 +2068,34 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
         return self.copy_with(image=array, band_names=['red', 'green', 'blue'])
 
-    def _as_in_memory_geotiff(self):
-        temp_path = "/vsimem/%s.tif" % (uuid.uuid4())
-        self.save(temp_path)
-        return GeoRaster2.open(temp_path)
+    def _as_in_memory_geotiff(self, tags=None, extension="tif", **kwargs):
+        """Write this raster as an image to a virtual file system and return a GeoRaster2 instance of it"""
+        internal_mask = kwargs.get('GDAL_TIFF_INTERNAL_MASK', True)
+        nodata_value = kwargs.get('nodata', self.nodata_value)
+        compression = kwargs.get('compression', Compression.lzw)
+        rasterio_envs = {'GDAL_TIFF_INTERNAL_MASK': internal_mask}
+        if os.environ.get('DEBUG', False):
+            rasterio_envs['CPL_DEBUG'] = True
+        with rasterio.Env(**rasterio_envs):
+            try:
+                # tiled
+                tiled = kwargs.get('tiled', False)
+                blockxsize = kwargs.get('blockxsize', 256)
+                blockysize = kwargs.get('blockysize', 256)
+
+                params = self._get_save_params(extension, nodata_value, tiled, blockxsize, blockysize, compression)
+                params.pop("mode")
+
+                memfile = MemoryFile()
+
+                with memfile.open(**params) as raster:
+                    self._write_to_opened_raster(raster, params, tags, kwargs)
+                    self._opened_files.append(memfile)
+
+                return GeoRaster2.open(memfile.name)
+
+            except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_BaseError, KeyError) as e:
+                raise GeoRaster2IOError(e)
 
     def _raster_backed_by_a_file(self):
         if self._filename is None:

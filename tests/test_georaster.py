@@ -14,7 +14,8 @@ from rasterio.crs import CRS
 from rasterio.errors import NotGeoreferencedWarning
 from rasterio.windows import Window
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
-from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning, join, MutableGeoRaster
+from telluric.georaster import GeoRaster2, GeoRaster2Error, GeoRaster2Warning, join, MutableGeoRaster, \
+    GeoRaster2IOError
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.collections import FeatureCollection
@@ -982,3 +983,14 @@ def test_copy_raster_without_crs():
     raster = GeoRaster2.open("tests/data/raster/no_georef.png")
     raster_copy = raster.copy_with()
     assert raster_copy.crs == CRS()
+
+
+def test_virtual_filesystem_raster():
+    raster_copy = some_raster.copy()
+    in_memory_raster = raster_copy._as_in_memory_geotiff()
+    assert len(raster_copy._opened_files) > 0
+    virtual_path = in_memory_raster.source_file
+    del raster_copy
+    in_memory_raster2 = GeoRaster2.open(virtual_path)
+    with pytest.raises(GeoRaster2IOError):
+        _ = in_memory_raster2.shape
