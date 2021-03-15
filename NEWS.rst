@@ -1,3 +1,12 @@
+telluric 0.13.5 (2021-03-15)
+============================
+
+Changes
+-------
+
+* Fix memory leak in temporal rasters creation and deletion of
+  :py:meth:`telluric.georaster.GeoRaster2._as_in_memory_geotiff` (#294)
+
 telluric 0.13.4 (2021-02-23)
 ============================
 
