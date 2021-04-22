@@ -511,3 +511,11 @@ def test_merge_all_different_crs(crop):
     raster_2 = make_test_raster(1, [1], height=1200, width=1200, affine=affine, crs=WGS84_CRS)
     result_2 = merge_all([raster_2], roi=roi, crs=expected_crs, crop=crop)
     assert pytest.approx(result_2.resolution()) == 97.9691
+
+
+def test_raster_closer_than_resolution_to_roi():
+    raster1 = GeoRaster2.open("./tests/data/raster/raster_close_to_roi.tif", lazy_load=False)
+    raster2 = GeoRaster2.open("./tests/data/raster/raster_intersecting_roi.tif", lazy_load=False)
+    roi = GeoVector.from_geojson("./tests/data/vector/roi.geojson")
+    roi = GeoVector(roi.get_shape(raster1.crs), crs=raster1.crs)
+    merge_all([raster1, raster2], roi=roi, dest_resolution=(1, 1), merge_strategy=MergeStrategy.INTERSECTION)
