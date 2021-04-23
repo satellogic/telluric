@@ -6,6 +6,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from affine import Affine
 from shapely.geometry import Polygon
+from rasterio.crs import CRS
 
 from telluric import FeatureCollection, GeoFeature
 from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
@@ -514,8 +515,28 @@ def test_merge_all_different_crs(crop):
 
 
 def test_raster_closer_than_resolution_to_roi():
-    raster1 = GeoRaster2.open("./tests/data/raster/raster_close_to_roi.tif", lazy_load=False)
-    raster2 = GeoRaster2.open("./tests/data/raster/raster_intersecting_roi.tif", lazy_load=False)
-    roi = GeoVector.from_geojson("./tests/data/vector/roi.geojson")
-    roi = GeoVector(roi.get_shape(raster1.crs), crs=raster1.crs)
-    merge_all([raster1, raster2], roi=roi, dest_resolution=(1, 1), merge_strategy=MergeStrategy.INTERSECTION)
+    raster_close_to_roi = make_test_raster(
+        1,
+        [1],
+        height=2255,
+        width=6500,
+        affine=Affine(1.000056241624503, -0.0001677700491717716, 251130.52371896777,
+                      -0.00011325628093143738, -1.0000703876618153, 2703061.4308057753),
+        crs=CRS.from_epsg(32613),
+    )
+    raster_intersecting_roi = make_test_raster(
+        1,
+        [1],
+        height=3515,
+        width=6497,
+        affine=Affine(1.000063460933417, -2.935588943753421e-05, 250953.40276071787,
+                      -3.26265458078499e-05, -1.000053742629815, 2703428.138070052),
+        crs=CRS.from_epsg(32613),
+    )
+    roi = GeoVector.from_bounds(251726, 2696110, 256422, 2700806, CRS.from_epsg(32613))
+    merge_all(
+        [raster_close_to_roi, raster_intersecting_roi],
+        roi=roi,
+        dest_resolution=(1, 1),
+        merge_strategy=MergeStrategy.INTERSECTION,
+    )
