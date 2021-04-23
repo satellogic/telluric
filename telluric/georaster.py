@@ -300,6 +300,9 @@ def _prepare_other_raster(one, other, resampling=Resampling.nearest, crop=True):
                 else:
                     other = other.crop(one.footprint(), resolution=one.resolution())
 
+            if other.height == 0 or other.width == 0:
+                return None
+
             other = other._reproject(new_width=one.width, new_height=one.height,
                                      dest_affine=one.affine, dst_crs=one.crs,
                                      resampling=resampling)
