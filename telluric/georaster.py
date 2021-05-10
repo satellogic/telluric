@@ -251,7 +251,10 @@ def _prepare_rasters(
     all_band_names = IndexedSet(first.band_names)
     projected_rasters = []
     for raster in rasters:
-        projected_raster = _prepare_other_raster(first, raster, resampling=resampling, crop=crop)
+        try:
+            projected_raster = _prepare_other_raster(first, raster, resampling=resampling, crop=crop)
+        except ValueError:
+            projected_raster = None
 
         # Modify the bands only if an intersecting raster was returned
         if projected_raster:
