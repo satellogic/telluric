@@ -553,4 +553,5 @@ def test_rasters_close_than_resolution_to_roi_2():
     one = make_test_raster(1, [1], height=4696, width=4696, affine=one_affine, crs=CRS.from_epsg(32641))
     other = make_test_raster(2, [1], height=2616, width=5402, affine=other_affine, crs=CRS.from_epsg(32641))
     roi = GeoVector.from_bounds(598847.0000000002, 3466365.999999999, 603542.9999999995, 3471062, crs=one.crs)
-    _ = merge_all([one, other], dest_resolution=(1, 1), roi=roi)
+    merged = merge_all([one, other], dest_resolution=(1, 1), roi=roi)
+    assert merged == one
