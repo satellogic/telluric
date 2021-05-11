@@ -540,3 +540,18 @@ def test_raster_closer_than_resolution_to_roi():
         dest_resolution=(1, 1),
         merge_strategy=MergeStrategy.INTERSECTION,
     )
+
+
+def test_rasters_close_than_resolution_to_roi_2():
+    one_affine = Affine(1, 0, 598847, 0, -1, 3471062)
+    other_affine = Affine(0.9998121393135052104028,
+                          -0.000563382202975665213,
+                          596893.24732190347276628,
+                          -0.000249934917683214408,
+                          -1.000473374252140335016,
+                          3466367.0648421039804816)
+    one = make_test_raster(1, [1], height=4696, width=4696, affine=one_affine, crs=CRS.from_epsg(32641))
+    other = make_test_raster(2, [1], height=2616, width=5402, affine=other_affine, crs=CRS.from_epsg(32641))
+    roi = GeoVector.from_bounds(598847.0000000002, 3466365.999999999, 603542.9999999995, 3471062, crs=one.crs)
+    merged = merge_all([one, other], dest_resolution=(1, 1), roi=roi)
+    assert merged == one
