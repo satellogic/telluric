@@ -1,3 +1,13 @@
+telluric 0.13.7 (2021-05-12)
+============================
+
+Changes
+-------
+
+* Add :code:`try - except` clauses in the call to :py:func:`telluric.georaster._prepare_other_raster` inside
+  :py:func:`telluric.georaster._prepare_rasters` to let the rest of the rasters merge even if an exception
+  is raised because some rasters footprints intersect but they can't be cropped (#299)
+
 telluric 0.13.6 (2021-04-23)
 ============================
 
