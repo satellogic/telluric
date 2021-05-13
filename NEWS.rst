@@ -1,4 +1,4 @@
-telluric 0.13.7 (2021-05-12)
+telluric 0.13.7 (2021-05-13)
 ============================
 
 Changes
@@ -14,7 +14,7 @@ telluric 0.13.6 (2021-04-23)
 Changes
 -------
 
-* Check before calling :code_:`reproject` if the cropped raster has 0 width or height
+* Check before calling :code:`reproject` if the cropped raster has 0 width or height
   in :py:meth:`telluric.georaster._prepare_other_raster` to avoid an exception for
   some corner cases when calling :py:meth:`telluric.georaster.merge_all` (#296)
 
