@@ -980,7 +980,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                     if params.get('masked') and nodata_mask:
                         self._convert_to_internal_mask(filename)
                     else:
-                        rasterio.shutil.copy(self.source_file, filename, creation_options=creation_options)
+                        rasterio.shutil.copy(self.source_file, filename, **creation_options)
                     self._cleanup()
                     with GeoRaster2._raster_opener(filename, "r+",) as r:
                         self._add_overviews_and_tags(r, tags, kwargs)
