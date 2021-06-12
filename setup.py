@@ -36,6 +36,8 @@ setup(
         'dev': [
             'coverage',
             'mypy',
+            'types-python-dateutil',
+            'types-pkg_resources',
             'packaging',
             'pycodestyle',
             'pytest>=4',
