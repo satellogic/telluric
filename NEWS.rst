@@ -1,3 +1,12 @@
+telluric 0.13.8 (2021-06-13)
+============================
+
+Changes
+-------
+
+* Fix :py:meth:`telluric.georaster.GeoRaster2.save` in order to take into account :code:`creation_options`
+  argument (#301)
+
 telluric 0.13.7 (2021-05-13)
 ============================
 
