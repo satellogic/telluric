@@ -190,7 +190,7 @@ def _apply_pixel_strategy(rasters, pixel_strategy):
                 new_image = np.ma.masked_array(
                     np.full_like(raster.image.data, ii, dtype=int),
                     raster.image.mask
-                )
+                )  # type: np.ndarray
                 new_rasters.append(_Raster(image=new_image, band_names=raster.band_names))
 
         return new_rasters
@@ -386,7 +386,7 @@ def _stack_bands(one, other):
             other.image.data
         ]),
         mask=[new_mask] * (one.image.shape[0] + other.image.shape[0])
-    )
+    )  # type: np.ndarray
     new_bands = one.band_names + other.band_names
 
     # We don't copy image and mask here, due to performance issues,
@@ -1162,11 +1162,11 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         # self.window expects to receive the arguments west, south, east, north,
         # so for positive e in affine we should swap top and bottom
         if self.affine[4] > 0:
-            window = self.window(bounds[0], bounds[3], bounds[2], bounds[1], precision=6)
+            window = self.window(bounds[0], bounds[3], bounds[2], bounds[1])
         else:
-            window = self.window(*bounds, precision=6)
+            window = self.window(*bounds)
         if to_round:
-            window = window.round_offsets().round_shape(op='ceil', pixel_precision=3)
+            window = window.round_offsets(pixel_precision=0).round_shape(op='ceil')
         return window
 
     def _vector_to_raster_bounds(self, vector, boundless=False):
