@@ -22,7 +22,7 @@ setup(
         'affine',
         'dsnparse',
         'fiona>=1.8.4,<2.*',
-        'pyproj<3; python_version>="3.5"',
+        'pyproj>=3.0.1,<3.1.0',
         'shapely>=1.6.3,<2.*',
         'rasterio>=1.2.0,< 1.3.0',
         'pillow',
