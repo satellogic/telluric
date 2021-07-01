@@ -109,7 +109,7 @@ def test_rasterization_point_single_pixel():
     expected_image = np.ma.masked_array(data, mask)
 
     fc = FeatureCollection.from_geovectors([
-        GeoVector(Point(2, 2), crs=WEB_MERCATOR_CRS)]
+        GeoVector(Point(2.5, 2.5), crs=WEB_MERCATOR_CRS)]
     )
 
     roi = GeoVector.from_bounds(xmin=0, ymin=0, xmax=5, ymax=5, crs=WEB_MERCATOR_CRS)
