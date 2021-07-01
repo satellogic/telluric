@@ -17,7 +17,7 @@ setup(
     ),
     packages=find_packages(),
     include_package_data=True,
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     install_requires=[
         'affine',
         'dsnparse',
