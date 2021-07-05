@@ -1269,8 +1269,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         return self.copy_with(mutable=mutable)
 
-    def copy_with(self, mutable=False, **kwargs):
+    def copy_with(self, mutable=None, **kwargs):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
+        if mutable is None:
+            mutable = isinstance(self, MutableGeoRaster)
         init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names, 'nodata': self.nodata_value}
         init_args.update(kwargs)
 

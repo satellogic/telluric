@@ -136,3 +136,19 @@ def test_image_setter_dtype():
     raster = GeoRaster2.open("tests/data/raster/overlap2.tif", mutable=True)
     raster.image = raster.image.astype('uint16')
     assert raster.dtype == raster.image.dtype
+
+
+def test_conserved_mutability():
+    def _mutable(raster):
+        return isinstance(raster, MutableGeoRaster)
+
+    raster = multi_raster_16b()
+    assert not _mutable(raster)
+    mutable_raster = raster.as_mutable()
+    assert _mutable(mutable_raster)
+
+    for r in [raster, mutable_raster]:
+        copied = r.copy_with()
+        assert _mutable(copied) == _mutable(r)
+        resized = r.resize(1.0)
+        assert _mutable(resized) == _mutable(r)
