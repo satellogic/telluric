@@ -425,6 +425,10 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
         return self.get_shape(EQUAL_AREA_CRS).area
 
     @property
+    def geoms(self):
+        return [GeoVector(g, self.crs) for g in self._shape.geoms]
+
+    @property
     def type(self):
         return self._shape.type
 
