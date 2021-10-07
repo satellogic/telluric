@@ -218,13 +218,12 @@ class _GeoVectorDelegator:
 
         elif item in GEOM_BINARY_PREDICATES:
             def delegated_predicate(self_, other):
-                relationship = getattr(
-                    self_.get_shape(self_.crs), item
-                )(other.get_shape(self_.crs))
-                # workaround to overcome issue of impossible transformation
-                if relationship:
-                    return relationship
-                else:
+                try:
+                    relationship = getattr(
+                        self_.get_shape(self_.crs), item
+                    )(other.get_shape(self_.crs))
+                except ValueError:
+                    # workaround to overcome issue of impossible transformation
                     relationship = getattr(
                         self_.get_shape(other.crs), item
                     )(other.get_shape(other.crs))

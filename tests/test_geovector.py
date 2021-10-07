@@ -104,8 +104,8 @@ def test_geovector_from_xyz():
 
     xmin, ymin, xmax, ymax = gv.get_bounds(WGS84_CRS)
 
-    assert xmin == -180
-    assert xmax == 180
+    assert xmin == approx(-180)
+    assert xmax == approx(180)
     assert ymin == approx(-85.051129)
     assert ymax == approx(85.051129)
 

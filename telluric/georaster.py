@@ -1171,8 +1171,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def _vector_to_raster_bounds(self, vector, boundless=False):
         # bounds = tuple(round(bb) for bb in self.to_raster(vector).bounds)
-        vector_bounds = vector.get_bounds(self.crs)
-        if any(map(math.isinf, vector_bounds)):
+        try:
+            vector_bounds = vector.get_bounds(self.crs)
+        except ValueError:
             raise GeoRaster2Error('bounds %s cannot be transformed from %s to %s' % (
                 vector.get_shape(vector.crs).bounds, vector.crs, self.crs))
         window = self._window(vector_bounds)
