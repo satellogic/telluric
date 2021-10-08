@@ -3,9 +3,9 @@
 """
 from functools import partial
 
-from fiona.transform import transform_geom
+from rasterio.warp import transform_geom
 from shapely import ops
-from shapely.geometry import mapping, shape as make_shape
+from shapely.geometry import shape as make_shape
 
 from telluric.constants import WGS84_CRS
 
@@ -39,11 +39,7 @@ def transform(shape, source_crs, destination_crs=None, src_affine=None, dst_affi
         shape = ops.transform(lambda r, q: ~src_affine * (r, q), shape)
 
     if source_crs != destination_crs:
-        shape = make_shape(
-            transform_geom(
-                source_crs.to_dict(), destination_crs.to_dict(), mapping(shape)
-            )
-        )
+        shape = make_shape(transform_geom(source_crs, destination_crs, shape))
 
     if dst_affine is not None:
         shape = ops.transform(lambda r, q: dst_affine * (r, q), shape)

@@ -33,6 +33,7 @@ import rasterio
 import rasterio.warp
 import rasterio.shutil
 from rasterio.coords import BoundingBox
+from rasterio._err import CPLE_AppDefinedError
 from rasterio.enums import Resampling, Compression
 from rasterio.features import geometry_mask
 from rasterio.windows import Window, WindowMethodsMixin
@@ -1173,7 +1174,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         # bounds = tuple(round(bb) for bb in self.to_raster(vector).bounds)
         try:
             vector_bounds = vector.get_bounds(self.crs)
-        except ValueError:
+        except CPLE_AppDefinedError:
             raise GeoRaster2Error('bounds %s cannot be transformed from %s to %s' % (
                 vector.get_shape(vector.crs).bounds, vector.crs, self.crs))
         window = self._window(vector_bounds)
