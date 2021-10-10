@@ -1,3 +1,13 @@
+telluric 0.13.10 (2021-10-10)
+============================
+
+Changes
+-------
+
+* Add Python 3.9 support (#303)
+* Make :py:meth:`telluric.georaster.GeoRaster2.copy_with` and dependant methods conserve mutability by default (#305)
+* Remove pyproj dependency (#307)
+
 telluric 0.13.9 (2021-07-01)
 ============================
 
