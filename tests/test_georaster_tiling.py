@@ -95,7 +95,7 @@ class GeoRaster2TestGetTile(BaseGeoRasterTestCase):
 
     def test_geo_bounding_tile(self):
         gr = self.read_only_virtual_geo_raster()
-        gv = gr.footprint().reproject(CRS({'init': 'epsg:4326'}))
+        gv = gr.footprint().reproject(WGS84_CRS)
         bounding_tile = mercantile.bounding_tile(*gv.get_shape(gv.crs).bounds)
         self.assertEqual(bounding_tile, (37108, 25248, 16))
 
