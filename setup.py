@@ -20,7 +20,6 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         'affine',
-        'dsnparse',
         'fiona>=1.8.4,<2.*',
         'shapely>=1.6.3,<2.*',
         'rasterio>=1.2.0,< 1.3.0',
