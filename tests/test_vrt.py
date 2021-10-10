@@ -1,6 +1,5 @@
 import os
 import pytest
-import pyproj
 import rasterio
 import numpy as np
 from packaging import version
@@ -45,10 +44,6 @@ record = {
 }
 
 
-@pytest.mark.skipif(
-    version.parse(pyproj.__version__) < version.parse('2.0.0'),
-    reason="pyproj >= 2 is required",
-)
 def test_wms_vrt():
     vector = GeoFeature.from_record(record, crs=constants.WGS84_CRS).geometry
     doc = str(wms_vrt("tests/data/google.xml",

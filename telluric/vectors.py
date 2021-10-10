@@ -13,6 +13,7 @@ from shapely.geometry import (
 from mercantile import Bbox, xy_bounds, tiles
 
 from rasterio.crs import CRS
+from rasterio._err import CPLE_AppDefinedError
 from typing import Tuple, Iterator
 
 from telluric.constants import DEFAULT_CRS, EQUAL_AREA_CRS, WGS84_CRS, WEB_MERCATOR_CRS
@@ -218,13 +219,12 @@ class _GeoVectorDelegator:
 
         elif item in GEOM_BINARY_PREDICATES:
             def delegated_predicate(self_, other):
-                relationship = getattr(
-                    self_.get_shape(self_.crs), item
-                )(other.get_shape(self_.crs))
-                # workaround to overcome issue of impossible transformation
-                if relationship:
-                    return relationship
-                else:
+                try:
+                    relationship = getattr(
+                        self_.get_shape(self_.crs), item
+                    )(other.get_shape(self_.crs))
+                except CPLE_AppDefinedError:
+                    # workaround to overcome issue of impossible transformation
                     relationship = getattr(
                         self_.get_shape(other.crs), item
                     )(other.get_shape(other.crs))
@@ -422,6 +422,8 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
 
     @property
     def area(self):
+        if self.is_empty:
+            return 0.0
         return self.get_shape(EQUAL_AREA_CRS).area
 
     @property

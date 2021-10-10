@@ -3,22 +3,11 @@
 """
 from functools import partial
 
-import pyproj
+from rasterio.warp import transform_geom
 from shapely import ops
+from shapely.geometry import shape as make_shape
 
 from telluric.constants import WGS84_CRS
-
-
-def generate_transform(source_crs, destination_crs):
-    original = pyproj.Proj(dict(source_crs), preserve_units=True)
-    destination = pyproj.Proj(dict(destination_crs), preserve_units=True)
-
-    transformation = partial(
-        pyproj.transform,
-        original, destination
-    )
-
-    return partial(ops.transform, transformation)
 
 
 def transform(shape, source_crs, destination_crs=None, src_affine=None, dst_affine=None):
@@ -50,7 +39,7 @@ def transform(shape, source_crs, destination_crs=None, src_affine=None, dst_affi
         shape = ops.transform(lambda r, q: ~src_affine * (r, q), shape)
 
     if source_crs != destination_crs:
-        shape = generate_transform(source_crs, destination_crs)(shape)
+        shape = make_shape(transform_geom(source_crs, destination_crs, shape))
 
     if dst_affine is not None:
         shape = ops.transform(lambda r, q: dst_affine * (r, q), shape)
