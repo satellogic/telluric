@@ -88,29 +88,35 @@ class BaseVRT:
 
         return vrtrasterband
 
-    def add_band_simplesource(self, vrtrasterband, band_idx, dtype, relative_to_vrt,
-                              file_name, rasterxsize, rasterysize, blockxsize=None, blockysize=None,
-                              src_rect=None, dst_rect=None, nodata=None
-                              ):
-        simplesource = ET.SubElement(vrtrasterband, 'SimpleSource')
-        self._setup_band_simplesource(simplesource, band_idx, dtype, relative_to_vrt, file_name,
-                                      rasterxsize, rasterysize, blockxsize, blockysize, nodata)
-        srcrect_element = ET.SubElement(simplesource, 'SrcRect')
+    def add_band_complexsource(
+        self, vrtrasterband, band_idx, dtype, relative_to_vrt,
+        file_name, rasterxsize, rasterysize, blockxsize=None, blockysize=None,
+        src_rect=None, dst_rect=None, nodata=None
+    ):
+        complexsource = ET.SubElement(vrtrasterband, 'ComplexSource')
+        self._setup_band_complexsource(
+            complexsource, band_idx, dtype, relative_to_vrt, file_name,
+            rasterxsize, rasterysize, blockxsize, blockysize, nodata)
+        srcrect_element = ET.SubElement(complexsource, 'SrcRect')
         self._setup_rect(srcrect_element, src_rect.col_off, src_rect.row_off,
                          src_rect.width, src_rect.height)
-        dstrect_element = ET.SubElement(simplesource, 'DstRect')
+        dstrect_element = ET.SubElement(complexsource, 'DstRect')
         self._setup_rect(dstrect_element, dst_rect.col_off, dst_rect.row_off,
                          dst_rect.width, dst_rect.height)
-        return simplesource, srcrect_element, dstrect_element
+        usemaskband = ET.SubElement(complexsource, 'UseMaskBand')
+        usemaskband.text = 'true'
+        return complexsource, srcrect_element, dstrect_element
 
-    def _setup_band_simplesource(self, simplesource, band_idx, dtype, relative_to_vrt, file_name,
-                                 rasterxsize, rasterysize, blockxsize, blockysize, nodata):
-        sourcefilename = ET.SubElement(simplesource, 'SourceFilename')
+    def _setup_band_complexsource(
+        self, complexsource, band_idx, dtype, relative_to_vrt, file_name,
+        rasterxsize, rasterysize, blockxsize, blockysize, nodata
+    ):
+        sourcefilename = ET.SubElement(complexsource, 'SourceFilename')
         sourcefilename.attrib['relativeToVRT'] = "1" if relative_to_vrt else "0"
         sourcefilename.text = vsi_path(parse_path(file_name))
-        sourceband = ET.SubElement(simplesource, 'SourceBand')
+        sourceband = ET.SubElement(complexsource, 'SourceBand')
         sourceband.text = str(band_idx)
-        sourceproperties = ET.SubElement(simplesource, 'SourceProperties')
+        sourceproperties = ET.SubElement(complexsource, 'SourceProperties')
         sourceproperties.attrib['RasterXSize'] = str(rasterxsize)
         sourceproperties.attrib['RasterYSize'] = str(rasterysize)
         if blockxsize is not None and blockysize is not None:
@@ -123,7 +129,7 @@ class BaseVRT:
         # so till we figure it out I leave it commented out
 
         # if nodata is not None:
-        #     nodata_elem = ET.SubElement(simplesource, 'NODATA')
+        #     nodata_elem = ET.SubElement(complexsource, 'NODATA')
         #     nodata_elem.text = str(nodata)
 
     def _setup_rect(self, sub_element, xoff, yoff, xsize, ysize):
