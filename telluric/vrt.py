@@ -90,9 +90,10 @@ def wms_vrt(wms_file, bounds=None, resolution=None):
         band_element = vrt.add_band(data_type, bidx, band)
         dst_window = Window(0, 0, dst_width, dst_height)
 
-        vrt.add_band_simplesource(band_element, bidx, data_type, False, os.path.abspath(wms_file),
-                                  orig_width, orig_height, blockx, blocky,
-                                  src_window, dst_window)
+        vrt.add_band_complexsource(
+            band_element, bidx, data_type, False, os.path.abspath(wms_file),
+            orig_width, orig_height, blockx, blocky,
+            src_window, dst_window)
 
     return vrt
 
@@ -132,9 +133,10 @@ def boundless_vrt_doc(
         if background is not None:
             src_window = Window(0, 0, background.width, background.height)
             dst_window = Window(0, 0, width, height)
-            vrt.add_band_simplesource(band_element, bidx, dtype, False, background.name,
-                                      width, height, block_shape[1], block_shape[0],
-                                      src_window, dst_window)
+            vrt.add_band_complexsource(
+                band_element, bidx, dtype, False, background.name,
+                width, height, block_shape[1], block_shape[0],
+                src_window, dst_window)
 
         src_window = Window(0, 0, src_dataset.width, src_dataset.height)
         xoff = (src_dataset.transform.xoff - transform.xoff) / transform.a
@@ -142,9 +144,10 @@ def boundless_vrt_doc(
         xsize = src_dataset.width * src_dataset.transform.a / transform.a
         ysize = src_dataset.height * src_dataset.transform.e / transform.e
         dst_window = Window(xoff, yoff, xsize, ysize)
-        vrt.add_band_simplesource(band_element, bidx, dtype, False, src_dataset.name,
-                                  width, height, block_shape[1], block_shape[0],
-                                  src_window, dst_window, nodata=src_dataset.nodata)
+        vrt.add_band_complexsource(
+            band_element, bidx, dtype, False, src_dataset.name,
+            width, height, block_shape[1], block_shape[0],
+            src_window, dst_window, nodata=src_dataset.nodata)
 
     if all(MaskFlags.per_dataset in flags for flags in src_dataset.mask_flag_enums):
         mask_band = vrt.add_mask_band('Byte')
@@ -154,8 +157,9 @@ def boundless_vrt_doc(
         xsize = src_dataset.width
         ysize = src_dataset.height
         dst_window = Window(xoff, yoff, xsize, ysize)
-        vrt.add_band_simplesource(mask_band, 'mask,1', 'Byte', False, src_dataset.name,
-                                  width, height, block_shape[1], block_shape[0], src_window, dst_window)
+        vrt.add_band_complexsource(
+            mask_band, 'mask,1', 'Byte', False, src_dataset.name,
+            width, height, block_shape[1], block_shape[0], src_window, dst_window)
     return vrt
 
 
@@ -173,7 +177,7 @@ def raster_list_vrt(rasters, relative_to_vrt=True, nodata=None, mask_band=None):
     rasters : list
         The list of GeoRasters.
     relative_to_vrt : bool, optional
-        If True the bands simple source url will be related to the VRT file
+        If True the bands complex source url will be related to the VRT file
     nodata : int, optional
         If supplied is the note data value to be used
     mask_band: int, optional
@@ -196,7 +200,7 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None, mask_band=None)
     rasters : FeatureCollection
         The FeatureCollection of GeoRasters.
     relative_to_vrt : bool, optional
-        If True the bands simple source url will be related to the VRT file
+        If True the bands complex source url will be related to the VRT file
     nodata : int, optional
         If supplied is the note data value to be used
     mask_band: int, optional
@@ -253,18 +257,20 @@ def raster_collection_vrt(fc, relative_to_vrt=True, nodata=None, mask_band=None)
             else:
                 file_name = os.path.join(os.getcwd(), raster.source_file)
 
-            vrt.add_band_simplesource(band_element, band_idx, raster.dtype, relative_to_vrt, file_name,
-                                      raster.width, raster.height,
-                                      raster.block_shape(i)[1], raster.block_shape(i)[0],
-                                      src_window, dst_window)
+            vrt.add_band_complexsource(
+                band_element, band_idx, raster.dtype, relative_to_vrt, file_name,
+                raster.width, raster.height,
+                raster.block_shape(i)[1], raster.block_shape(i)[0],
+                src_window, dst_window)
             if i == mask_band:
-                vrt.add_band_simplesource(mask_band_elem, "mask,%s" % (mask_band + 1),
-                                          "Byte",
-                                          relative_to_vrt,
-                                          file_name,
-                                          raster.width, raster.height,
-                                          raster.block_shape(i)[1], raster.block_shape(i)[0],
-                                          src_window, dst_window)
+                vrt.add_band_complexsource(
+                    mask_band_elem, "mask,%s" % (mask_band + 1),
+                    "Byte",
+                    relative_to_vrt,
+                    file_name,
+                    raster.width, raster.height,
+                    raster.block_shape(i)[1], raster.block_shape(i)[0],
+                    src_window, dst_window)
 
     vrt.add_metadata(items={band_names_tag: json.dumps(band_names)})
     return vrt

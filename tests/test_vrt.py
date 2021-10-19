@@ -7,7 +7,6 @@ from rasterio.io import MemoryFile
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from telluric.util.raster_utils import build_vrt
 from telluric import GeoFeature, GeoRaster2, constants, FeatureCollection
-from telluric.georaster import join
 from telluric.vrt import wms_vrt, boundless_vrt_doc, raster_list_vrt, raster_collection_vrt
 
 

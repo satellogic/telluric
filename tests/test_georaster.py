@@ -908,6 +908,15 @@ def rasters_for_testing_chunks():
     return rasters
 
 
+def test_join_use_mask_band():
+    # https://github.com/OSGeo/gdal/issues/1148
+    # The test checks the pixel at the coordinate of bottom left corner of the r2 raster is unmasked.
+    r1 = GeoRaster2.open("tests/data/raster/overlap1.tif")
+    r2 = GeoRaster2.open("tests/data/raster/overlap2.tif")
+    joined = join([r1, r2])
+    assert not joined.get(r2.corners()["bl"]).mask.all()
+
+
 @pytest.mark.parametrize("raster", rasters_for_testing_chunks())
 def test_chunks_with_pad(raster):
     shape = (256, 256)
