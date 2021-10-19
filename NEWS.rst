@@ -1,5 +1,13 @@
+telluric 0.13.11 (2021-10-19)
+=============================
+
+Changes
+-------
+
+* Add <UseMaskBand>true</UseMaskBand> element to intermediate VRTs (#309)
+
 telluric 0.13.10 (2021-10-10)
-============================
+=============================
 
 Changes
 -------
