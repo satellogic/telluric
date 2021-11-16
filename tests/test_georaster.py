@@ -858,6 +858,23 @@ def test_crop_boundless_masked(bounds):
                           raster_wo_mask.crop(collection).image.mask))
 
 
+def test_crop_respects_rounding_precision():
+    # https://github.com/satellogic/telluric/pull/311
+    r1 = GeoRaster2.open("tests/data/raster/non_aligned1.tif", lazy_load=False)
+    r2 = GeoRaster2.open("tests/data/raster/non_aligned2.tif", lazy_load=False)
+    roi = GeoVector.from_bounds(
+        271806.0179640717,
+        1438839.4164977344,
+        337216.40041283204,
+        1519170.2272236191,
+        crs=r1.crs,
+    )
+    r1_cropped = r1.crop(roi)
+    r2_cropped = r2.crop(roi)
+    assert r1.shape == r2.shape
+    assert r1_cropped.shape == r2_cropped.shape
+
+
 def test_gdal_open_env_when_proxy_is_not_set_and_url_not_with_http():
     url = "https://bla.com"
     envs = GeoRaster2.get_gdal_env(url)
