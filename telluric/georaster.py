@@ -2254,6 +2254,17 @@ class MutableGeoRaster(GeoRaster2):
     def _raster_backed_by_a_file(self):
         return self._as_in_memory_geotiff()
 
+    def limit_to_bands(self, bands):
+        if self._image is not None:
+            bands_data = self.bands_data(bands)
+            return self.copy_with(image=bands_data, band_names=bands, mutable=True)
+        else:
+            indices = self.bands_indices(bands)
+            bidxs = map(lambda idx: idx + 1, indices)
+            doc = boundless_vrt_doc(self._raster_opener(self.source_file), bands=bidxs)
+            filename = self._save_to_destination_file(doc.tostring())
+            return self.__class__(filename=filename, band_names=bands)
+
 
 class Histogram:
 

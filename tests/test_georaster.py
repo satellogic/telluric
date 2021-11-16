@@ -256,6 +256,13 @@ def test_limit_to_bands_off_memory():
     assert r2._image is None
 
 
+def test_limit_to_bands_mutable():
+    mutable_lazy = GeoRaster2.open("tests/data/raster/rgb.tif", lazy_load=True, mutable=True)
+    mutable_loaded = GeoRaster2.open("tests/data/raster/rgb.tif", lazy_load=False, mutable=True)
+    assert isinstance(mutable_lazy, MutableGeoRaster)
+    assert isinstance(mutable_loaded, MutableGeoRaster)
+
+
 def test_to_png():
     for raster in [some_raster, some_raster_multiband]:
         png_bytes = raster.to_png(transparent=True, thumbnail_size=512)
