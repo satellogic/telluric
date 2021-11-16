@@ -1,3 +1,8 @@
+telluric 0.13.12 (2021-11-16)
+=============================
+
+* Use non-zero precision for windows rounding (#311)
+
 telluric 0.13.11 (2021-10-19)
 =============================
 
