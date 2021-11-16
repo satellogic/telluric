@@ -8,7 +8,9 @@ import fiona
 import tempfile
 
 import pytest
+import shapely
 from unittest import mock
+from packaging import version
 
 from shapely.geometry import Polygon, Point, mapping
 
@@ -94,7 +96,10 @@ def test_convex_hull_raises_warning_with_invalid_shape():
     with pytest.warns(UserWarning) as record:
         fcol.convex_hull
 
-    assert len(record) == 1
+    if version.parse(shapely.__version__) < version.parse('1.8.0'):
+        assert len(record) == 1
+    else:
+        assert len(record) == 2
     assert record[0].message.args[0] == "Some invalid shapes found, discarding them."
 
 
