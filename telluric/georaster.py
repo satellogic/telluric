@@ -1167,7 +1167,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         else:
             window = self.window(*bounds)
         if to_round:
-            window = window.round_offsets(pixel_precision=0).round_shape(op='ceil')
+            window = window.round_offsets(pixel_precision=3).round_shape(op='ceil')
         return window
 
     def _vector_to_raster_bounds(self, vector, boundless=False):
