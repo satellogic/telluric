@@ -94,7 +94,9 @@ def test_convex_hull_raises_warning_with_invalid_shape():
     with pytest.warns(UserWarning) as record:
         fcol.convex_hull
 
-    assert len(record) == 1
+    # TODO: restore after migration to Shapely==1.8.0 is done
+    # assert len(record) = 1
+    assert len(record) == 2
     assert record[0].message.args[0] == "Some invalid shapes found, discarding them."
 
 
