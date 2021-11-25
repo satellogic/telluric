@@ -999,16 +999,10 @@ def test_from_assets_to_assets():
     assert raster == GeoRaster2.from_assets(raster.to_assets())
 
 
-def test_empty_crs():
-    raster = GeoRaster2.open("tests/data/raster/no_georef.png")
-    assert raster.crs == CRS()
-    assert raster.crs.is_valid is False
-
-
 def test_copy_raster_without_crs():
     raster = GeoRaster2.open("tests/data/raster/no_georef.png")
     raster_copy = raster.copy_with()
-    assert raster_copy.crs == CRS()
+    assert raster_copy.crs == raster.crs
 
 
 def test_virtual_filesystem_raster():
