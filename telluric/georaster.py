@@ -640,7 +640,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     @classmethod
     def _raster_opener(cls, filename, *args, **kwargs):
         """Return handler to open rasters (rasterio.open)."""
-        with rasterio.Env(**cls.get_gdal_env(filename)):
+        with rasterio.Env(**cls.get_gdal_env(os.fspath(filename))):
             try:
                 return rasterio.open(filename, *args, **kwargs)
             except (rasterio.errors.RasterioIOError, rasterio._err.CPLE_BaseError) as e:
@@ -716,14 +716,24 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             self._temporary = False
 
     def _populate_from_rasterio_object(self, read_image):
-        with self._raster_opener(self.source_file) as raster:  # type: rasterio.DatasetReader
+        # if there is no _filename we have nowhere to populate from.
+        # Also, trying to acceess the sourcename will try to save the raster to memoryfile before populating
+        # However - this will fail because properties are missing (otherwise we would not have called _populate
+        # in the first place) and when trying to access the missing properties, we will be called again,
+        # getting infinite recursion.
+        #  Instead, we return, and None will remain None.
+        if self._filename is None:
+            return
+        with self._raster_opener(self._filename) as raster:  # type: rasterio.DatasetReader
             self._dtype = np.dtype(raster.dtypes[0])
 
             if self._affine is None:
                 self._affine = copy(raster.transform)
 
             if self._crs is None:
-                self._crs = CRS() if raster.crs is None else copy(raster.crs)
+                # was the CRS() put there to avoid recursion?
+                # if yes, it did not work, so can be removed. If no: why?
+                self._crs = copy(raster.crs)
 
             # if band_names not provided, try read them from raster tags.
             # if not - leave empty, for default:
@@ -945,6 +955,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         * nodata: if passed, will save with nodata value (e.g. useful for qgis)
 
         """
+        filename = os.fspath(filename)
         if not filename.startswith("/vsi"):
             folder = os.path.abspath(os.path.join(filename, os.pardir))
             os.makedirs(folder, exist_ok=True)
@@ -1280,7 +1291,11 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         # The image is a special case because we don't want to make a copy of a possibly big array
         # unless totally necessary
-        if 'image' not in init_args and not self.not_loaded():
+        # TODO: I think it actually DOES copy the image. Because the constructor always calls copy()
+        # The only case where it saved some work was if it was not loaded. But the copied raster
+        # would fail due to infinite recursion anyways...
+        # so - instead, we will just reload always (unless the image was specified).
+        if 'image' not in init_args:
             init_args['image'] = self.image
         if mutable:
             _cls = MutableGeoRaster
