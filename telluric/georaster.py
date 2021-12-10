@@ -20,7 +20,7 @@ import imageio
 from boltons.setutils import IndexedSet
 
 try:
-    import matplotlib
+    import matplotlib.cm
 except ImportError:
     warnings.warn(
         "Visualization dependencies not available, colorize will not work",
