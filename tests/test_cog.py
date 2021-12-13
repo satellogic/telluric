@@ -24,7 +24,7 @@ def sample_raster_image(data=None, mask=None, bands=3, height=4, width=5):
         data = np.floor(data).astype('uint8')
 
     if mask is None:
-        mask = (data == 0).copy()
+        mask = np.repeat((data == 0).all(axis=0, keepdims=True).copy(), bands, 0)
 
     return np.ma.masked_array(data=data, mask=mask)
 

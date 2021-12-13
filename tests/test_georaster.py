@@ -115,12 +115,11 @@ def test_read_write():
             assert read == some_raster_multiband
 
 
-def test_read_non_georeferenced():
+def test_read_non_georeferenced(recwarn):
     crs = CRS(init='epsg:3857')
     affine = Affine(10.0, 0.0, -6425941.63996855,
                     0.0, -10.0, -3169315.69478084)
-    with pytest.warns(NotGeoreferencedWarning):
-        raster = GeoRaster2.open('tests/data/raster/no_georef.png', crs=crs, affine=affine, lazy_load=False)
+    raster = GeoRaster2.open('tests/data/raster/no_georef.png', crs=crs, affine=affine, lazy_load=False)
     assert raster.crs == crs
     assert raster.affine == affine
 
@@ -1000,11 +999,10 @@ def test_from_assets_to_assets():
     assert raster == GeoRaster2.from_assets(raster.to_assets())
 
 
-def test_copy_raster_without_crs():
+def test_copy_raster_without_crs(recwarn):
     raster = GeoRaster2.open("tests/data/raster/no_georef.png")
-    with pytest.warns(NotGeoreferencedWarning):
-        raster_copy = raster.copy_with()
-        assert raster_copy.crs == raster.crs
+    raster_copy = raster.copy_with()
+    assert raster_copy.crs == raster.crs
 
 
 def test_virtual_filesystem_raster():

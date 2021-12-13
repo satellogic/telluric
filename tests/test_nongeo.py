@@ -8,7 +8,7 @@ from telluric.constants import DEFAULT_CRS
 from telluric import GeoRaster2
 
 
-def test_save_nongeo(tmp_path):
+def test_save_nongeo(tmp_path, recwarn):
     raster = GeoRaster2(image=np.ones([10, 10], dtype=np.uint8),
                         crs=DEFAULT_CRS, affine=Affine.translation(10, 100))
     path = tmp_path / 'raster1.tif'
@@ -19,10 +19,8 @@ def test_save_nongeo(tmp_path):
     raster = raster.copy_with(crs=None, affine=None)
     assert raster.crs is None and raster.affine is None
     path = Path('/tmp/raster2.tif')
-    with pytest.warns(NotGeoreferencedWarning):
-        raster.save(path)
+    raster.save(path)
 
     raster = GeoRaster2.open(path)
-    with pytest.warns(NotGeoreferencedWarning):
-        assert raster.crs is None
-        assert raster.affine == Affine.identity()  # rasterio does this
+    assert raster.crs is None
+    assert raster.affine == Affine.identity()  # rasterio does this

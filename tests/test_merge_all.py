@@ -484,7 +484,7 @@ def test_merge_all_non_overlapping_has_correct_metadata():
 
 
 @pytest.mark.parametrize("crop", [True, False])
-def test_merge_all_different_crs(crop):
+def test_merge_all_different_crs(crop, recwarn):
     roi = GeoVector(Polygon.from_bounds(-6321833, -3092272, -6319273, -3089712), WEB_MERCATOR_CRS)
     affine = Affine.translation(-57, -26) * Affine.scale(0.00083, -0.00083)
     expected_resolution = 10
