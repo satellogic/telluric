@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 
 import shapely.geometry
-from shapely.ops import cascaded_union
+from shapely.ops import unary_union
 from shapely.geometry import (
     shape as to_shape,
     Point, MultiPoint, Polygon, LineString, MultiLineString, GeometryCollection,
@@ -375,7 +375,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
             envelopes = []
 
         return cls(
-            cascaded_union([sh for sh in envelopes if sh.is_valid]).envelope,
+            unary_union([sh for sh in envelopes if sh.is_valid]).envelope,
             crs=dst_crs
         )
 
@@ -397,7 +397,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
             shapes = []
 
         return cls(
-            cascaded_union([sh for sh in shapes if sh.is_valid]).simplify(0),
+            unary_union([sh for sh in shapes if sh.is_valid]).simplify(0),
             crs=dst_crs
         )
 
@@ -500,7 +500,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
     def almost_equals(self, other, decimal=6):
         """ invariant to crs. """
         # This method cannot be delegated because it has an extra parameter
-        return self._shape.almost_equals(other.get_shape(self.crs), decimal=decimal)
+        return self._shape.equals_exact(other.get_shape(self.crs), tolerance=0.5 * 10 ** (-decimal))
 
     def polygonize(self, width, cap_style_line=CAP_STYLE.flat, cap_style_point=CAP_STYLE.round):
         """Turns line or point into a buffered polygon."""

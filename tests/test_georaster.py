@@ -119,7 +119,8 @@ def test_read_non_georeferenced():
     crs = CRS(init='epsg:3857')
     affine = Affine(10.0, 0.0, -6425941.63996855,
                     0.0, -10.0, -3169315.69478084)
-    raster = GeoRaster2.open('tests/data/raster/no_georef.png', crs=crs, affine=affine, lazy_load=False)
+    with pytest.warns(NotGeoreferencedWarning):
+        raster = GeoRaster2.open('tests/data/raster/no_georef.png', crs=crs, affine=affine, lazy_load=False)
     assert raster.crs == crs
     assert raster.affine == affine
 
@@ -352,7 +353,7 @@ def test_to_raster_to_world():
     assert pytest.approx(in_world.get_shape(in_world.crs).y) == raster_origin.y + pt.y
 
     back_in_image = some_raster.to_raster(in_world)
-    assert back_in_image.almost_equals(pt)
+    assert back_in_image.equals_exact(pt, tolerance=5e-07)
 
 
 def test_corner_invalid():
@@ -377,7 +378,7 @@ def test_corner():
 
     for corner in GeoRaster2.corner_types():
         assert some_raster.corner(corner).almost_equals(GeoVector(expected_corners[corner], some_raster.crs))
-        assert some_raster.image_corner(corner).almost_equals(expected_image_corners[corner])
+        assert some_raster.image_corner(corner).equals_exact(expected_image_corners[corner], tolerance=5e-07)
 
 
 def test_center():
@@ -386,7 +387,7 @@ def test_center():
     expected_center = Point((ul.x + br.x) / 2, (ul.y + br.y) / 2)
     expected_center_vector = GeoVector(expected_center, some_raster.crs)
 
-    assert expected_center_vector.almost_equals(some_raster.center())
+    assert expected_center_vector.equals_exact(some_raster.center(), tolerance=5e-07)
 
 
 def test_bounds():
@@ -395,7 +396,7 @@ def test_bounds():
                         [some_raster.width, some_raster.height],
                         [0, some_raster.height]])
 
-    assert some_raster.bounds().almost_equals(expected)
+    assert some_raster.bounds().equals_exact(expected, tolerance=5e-07)
 
 
 def test_footprint():
@@ -1001,8 +1002,9 @@ def test_from_assets_to_assets():
 
 def test_copy_raster_without_crs():
     raster = GeoRaster2.open("tests/data/raster/no_georef.png")
-    raster_copy = raster.copy_with()
-    assert raster_copy.crs == raster.crs
+    with pytest.warns(NotGeoreferencedWarning):
+        raster_copy = raster.copy_with()
+        assert raster_copy.crs == raster.crs
 
 
 def test_virtual_filesystem_raster():

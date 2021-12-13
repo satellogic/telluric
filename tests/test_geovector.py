@@ -613,7 +613,7 @@ def test_rasterize_with_crs(mock_rasterize):
     args, kwargs = mock_rasterize.call_args
     assert args[0] == expected_shape
     assert args[1] == expected_crs
-    assert args[2].almost_equals(expected_bounds, decimal=0)
+    assert args[2].equals_exact(expected_bounds, tolerance=0.5)
 
 
 def test_geovector_empty_is_empty():

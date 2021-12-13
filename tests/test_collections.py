@@ -98,8 +98,7 @@ def test_convex_hull_raises_warning_with_invalid_shape():
 
     if version.parse(shapely.__version__) < version.parse('1.8.0'):
         assert len(record) == 1
-    else:
-        assert len(record) == 2
+
     assert record[0].message.args[0] == "Some invalid shapes found, discarding them."
 
 
