@@ -13,7 +13,7 @@ def make_test_raster(value=0, band_names=None, height=3, width=4, dtype=np.uint1
     if image is None:
         shape = [len(band_names), height, width]
         array = np.full(shape, value, dtype=dtype)
-        mask = np.full(shape, False, dtype=np.bool)
+        mask = np.full(shape, False, dtype=bool)
         image = np.ma.array(data=array, mask=mask)
     raster = tl.GeoRaster2(image=image, affine=affine, crs=crs, band_names=band_names)
     return raster

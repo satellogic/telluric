@@ -446,7 +446,7 @@ class GeoRasterMaskedTest(TestCase):
             [True, False, False, False],
             [True, False, False, False],
             [True, False, False, False],
-        ], dtype=np.bool)
+        ], dtype=bool)
 
         image = np.ma.array(
             np.repeat(data[np.newaxis, :, :], 3, 0),

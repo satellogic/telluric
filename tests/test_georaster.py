@@ -24,7 +24,7 @@ from common_for_tests import make_test_raster
 
 
 some_array = np.array([[0, 1, 2], [3, 4, 5]], dtype=np.uint8)
-some_mask = np.array([[False, False, False], [False, False, True]], dtype=np.bool)
+some_mask = np.array([[False, False, False], [False, False, True]], dtype=bool)
 some_image_2d = np.ma.array(some_array, mask=some_mask)
 some_image_2d_alt = np.ma.array(np.array([[0, 1, 2], [3, 4, 99]], dtype=np.uint8), mask=some_mask)
 some_image_3d = np.ma.array(some_array[np.newaxis, :, :], mask=some_mask[np.newaxis, :, :])
@@ -459,7 +459,7 @@ def test_mask_by_value():
     expected_mask = np.array([
         [[False, True, False], [False, False, False]],
         [[False, True, False], [False, False, False]],
-        [[False, True, False], [False, False, False]]], dtype=np.bool)
+        [[False, True, False], [False, False, False]]], dtype=bool)
 
     assert np.array_equal(expected_mask, some_raster_multiband.mask_by_value(1).image.mask)
 

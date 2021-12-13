@@ -24,7 +24,7 @@ def black_and_white_raster(band_names=[], height=10, width=10, dtype=np.uint16,
     bands_num = len(band_names)
     shape = [bands_num, height, width]
     array = np.zeros(shape, dtype=dtype)
-    mask = np.full(shape, False, dtype=np.bool)
+    mask = np.full(shape, False, dtype=bool)
     val = 0
     for i in range(height):
         for j in range(width):

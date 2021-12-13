@@ -109,9 +109,9 @@ def test_cog_calc_overviews_factors(height, factors):
 
 def test_cog_mask_from_masked_array():
     some_array = np.array([[0, 1, 2], [3, 4, 5]], dtype=np.uint8)
-    mask1 = np.array([[False, False, False], [False, False, True]], dtype=np.bool)
-    mask2 = np.array([[False, False, True], [False, False, True]], dtype=np.bool)
-    mask3 = np.array([[False, True, False], [False, False, True]], dtype=np.bool)
+    mask1 = np.array([[False, False, False], [False, False, True]], dtype=bool)
+    mask2 = np.array([[False, False, True], [False, False, True]], dtype=bool)
+    mask3 = np.array([[False, True, False], [False, False, True]], dtype=bool)
     masks = np.array([mask1, mask2, mask3])
     data = np.array([some_array, some_array, some_array])
 
