@@ -419,7 +419,7 @@ class GeoRasterCropTest(BaseGeoRasterTestCase):
 
         # r1c == r2c  # doesn't work, see https://github.com/satellogic/telluric/issues/79
         # currently this is the only way to test the result is the same
-        assert r2c.to_png() == r1c.to_png()
+        assert np.all(np.flip(r1c.image, axis=1) == r2c.image)
 
 
 class GeoRasterMaskedTest(TestCase):
