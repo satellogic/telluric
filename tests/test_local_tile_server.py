@@ -2,6 +2,7 @@ import pytest
 from unittest import mock
 
 pytest.importorskip("tornado")  # noqa: E402
+pytest.importorskip("matplotlib")  # noqa: E402
 
 from common_for_tests import make_test_raster
 from tornado.testing import AsyncHTTPTestCase

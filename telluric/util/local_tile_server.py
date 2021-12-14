@@ -57,6 +57,8 @@ class TileServerHandler(tornado.web.RequestHandler):
 
             if tile:
                 self.set_header("Content-type", "image/png")
+                if tile.num_bands < 3:
+                    tile = tile.colorize("gray")
                 self.finish(tile.to_png())
             else:
                 self.send_error(404)
