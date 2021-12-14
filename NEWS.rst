@@ -1,3 +1,9 @@
+telluric 0.13.13 (2021-12-14)
+=============================
+
+* Support saving :py:class:`~telluric.georaster.GeoRaster2` with empty :code:`affine` and :code:`crs` (#312)
+* Minor fixes
+
 telluric 0.13.12 (2021-11-16)
 =============================
 
