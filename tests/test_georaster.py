@@ -256,11 +256,19 @@ def test_limit_to_bands_off_memory():
     assert r2._image is None
 
 
-def test_to_png():
-    for raster in [some_raster, some_raster_multiband]:
-        png_bytes = raster.to_png(transparent=True, thumbnail_size=512)
-        img = Image.frombytes('RGBA', (raster.width, raster.height), png_bytes)
-        assert img.size == raster.to_pillow_image().size
+def test_to_png_singleband():
+    pytest.importorskip("matplotlib")
+    raster = some_raster
+    png_bytes = raster.colorize("gray").to_png(transparent=True, thumbnail_size=512)
+    img = Image.frombytes('RGBA', (raster.width, raster.height), png_bytes)
+    assert img.size == raster.to_pillow_image().size
+
+
+def test_to_png_multiband():
+    raster = some_raster_multiband
+    png_bytes = raster.to_png(transparent=True, thumbnail_size=512)
+    img = Image.frombytes('RGBA', (raster.width, raster.height), png_bytes)
+    assert img.size == raster.to_pillow_image().size
 
 
 def test_to_png_uint16(recwarn):
