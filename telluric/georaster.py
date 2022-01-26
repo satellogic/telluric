@@ -1404,7 +1404,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         if np.issubdtype(dtype, np.integer):
             ret_val = np.iinfo(dtype).max
         elif np.issubdtype(dtype, np.floating):
-            ret_val = np.finfo(dtype).max
+            ret_val = np.finfo(dtype).max  # type: ignore
         return ret_val
 
     def _reproject(self, new_width, new_height, dest_affine, dtype=None,

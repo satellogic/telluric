@@ -75,10 +75,11 @@ def _creation_options_for_cog(creation_options, source_profile, blocksize):
     if not(creation_options):
         creation_options = {}
 
-    creation_options["blocksize"] = blocksize
+    creation_options["blockxsize"] = blocksize
+    creation_options["blockysize"] = blocksize
     creation_options["tiled"] = True
-    defaults = {"nodata": None, "compress": "lzw"}
-    for key in ["nodata", "compress"]:
+    defaults = {"compress": "lzw"}
+    for key in ["compress"]:
         if key not in creation_options:
             creation_options[key] = source_profile.get(key, defaults.get(key))
     return creation_options
@@ -98,7 +99,7 @@ def convert_to_cog(source_file, destination_file, resampling=rasterio.enums.Resa
     """
 
     with rasterio.open(source_file) as src:
-        # creation_options overrides proile
+        # creation_options overrides profile
         source_profile = src.profile
     creation_options = _creation_options_for_cog(creation_options, source_profile, blocksize)
 
