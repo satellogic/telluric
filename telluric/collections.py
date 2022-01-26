@@ -613,7 +613,7 @@ class _CollectionGroupBy:
                     feature.geometry,
                     {key: feature[key]}
                 )
-                results[name].append(new_feature)
+                results[name].append(new_feature)  # type: ignore
 
         return self.__class__(results)
 
