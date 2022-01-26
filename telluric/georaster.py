@@ -976,6 +976,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 blockysize = kwargs.get('blockysize', 256)
 
                 params = self._get_save_params(extension, nodata_value, tiled, blockxsize, blockysize, compression)
+                masked = params.get('masked')
                 # additional creation options
                 # -co COPY_SRC_OVERVIEWS=YES  -co COMPRESS=DEFLATE -co PHOTOMETRIC=MINISBLACK
                 creation_options = kwargs.get('creation_options', {})
@@ -989,7 +990,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                     creation_options["compress"] = params["compress"]
                     nodata_mask = all([rasterio.enums.MaskFlags.nodata in flags for flags in self.mask_flags])
 
-                    if params.get('masked') and nodata_mask:
+                    if masked and nodata_mask:
                         self._convert_to_internal_mask(filename)
                     else:
                         rasterio.shutil.copy(self.source_file, filename, **creation_options)
@@ -998,7 +999,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                         self._add_overviews_and_tags(r, tags, kwargs)
 
                 else:
+                    del params['masked']
                     with GeoRaster2._raster_opener(filename, **params) as r:
+                        params['masked'] = masked
                         self._write_to_opened_raster(r, params, tags, kwargs)
 
                 return GeoRaster2.open(filename)
