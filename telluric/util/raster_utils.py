@@ -120,8 +120,8 @@ def convert_to_cog(source_file, destination_file, resampling=rasterio.enums.Resa
                              COPY_SRC_OVERVIEWS=True, **creation_options)
 
 
-def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
-                   src_bounds=None, dst_bounds=None, target_aligned_pixels=False):
+def calc_transform(src, dst_crs=None, resolution=None, dimensions=None, rpcs=None,
+                   src_bounds=None, dst_bounds=None, target_aligned_pixels=False, **kwargs):
     """Output dimensions and transform for a reprojection.
 
     Parameters
@@ -135,6 +135,8 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
         system.
     dimensions: tuple (width, height), optional
         Output file size in pixels and lines.
+    rpcs: RPC or dict, optional
+        Rational polynomial coefficients for the source.
     src_bounds: tuple (xmin, ymin, xmax, ymax), optional
         Georeferenced extent of output file from source bounds
         (in source georeferenced units).
@@ -144,6 +146,8 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
     target_aligned_pixels: bool, optional
         Align the output bounds based on the resolution.
         Default is `False`.
+    kwargs: optional
+        Additional arguments passed to transformation function.
 
     Returns
     -------
@@ -203,15 +207,21 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
             dst_height = max(int(ceil((ymax - ymin) / resolution[1])), 1)
 
         else:
-            if src.transform.is_identity and src.gcps:
-                src_crs = src.gcps[1]
-                kwargs = {'gcps': src.gcps[0]}
+            if rpcs is not None:
+                src_crs=src.crs
+                dst_transform, dst_width, dst_height = calcdt(
+                    src_crs, dst_crs, src.width, src.height,
+                    rpcs=rpcs, **kwargs)
             else:
-                src_crs = src.crs
-                kwargs = src.bounds._asdict()
-            dst_transform, dst_width, dst_height = calcdt(
-                src_crs, dst_crs, src.width, src.height,
-                resolution=resolution, **kwargs)
+                if src.transform.is_identity and src.gcps:
+                    src_crs = src.gcps[1]
+                    kwargs = {'gcps': src.gcps[0]}
+                else:
+                    src_crs = src.crs
+                    kwargs = src.bounds._asdict()
+                dst_transform, dst_width, dst_height = calcdt(
+                    src_crs, dst_crs, src.width, src.height,
+                    resolution=resolution, **kwargs)
 
     elif dimensions:
         # Same projection, different dimensions, calculate resolution.
@@ -260,7 +270,7 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None,
 
 # Code was adapted from rasterio.rio.warp module
 def warp(source_file, destination_file, dst_crs=None, resolution=None, dimensions=None,
-         src_bounds=None, dst_bounds=None, src_nodata=None, dst_nodata=None,
+         src_bounds=None, dst_bounds=None, src_nodata=None, dst_nodata=None, rpcs=None,
          target_aligned_pixels=False, check_invert_proj=True,
          creation_options=None, resampling=Resampling.cubic, **kwargs):
     """Warp a raster dataset.
@@ -288,6 +298,8 @@ def warp(source_file, destination_file, dst_crs=None, resolution=None, dimension
         Manually overridden source nodata.
     dst_nodata: int, float, or nan, optional
         Manually overridden destination nodata.
+    rpcs: RPC or dict, optional
+        Rational polynomial coefficients for the source.
     target_aligned_pixels: bool, optional
         Align the output bounds based on the resolution.
         Default is `False`.
@@ -311,8 +323,8 @@ def warp(source_file, destination_file, dst_crs=None, resolution=None, dimension
         with rasterio.open(source_file) as src:
             out_kwargs = src.profile.copy()
             dst_crs, dst_transform, dst_width, dst_height = calc_transform(
-                src, dst_crs, resolution, dimensions,
-                src_bounds, dst_bounds, target_aligned_pixels)
+                src, dst_crs, resolution, dimensions, rpcs,
+                src_bounds, dst_bounds, target_aligned_pixels, **kwargs)
 
             # If src_nodata is not None, update the dst metadata NODATA
             # value to src_nodata (will be overridden by dst_nodata if it is not None.
@@ -348,12 +360,16 @@ def warp(source_file, destination_file, dst_crs=None, resolution=None, dimension
                 out_kwargs.update(**creation_options)
 
             with rasterio.open(destination_file, 'w', **out_kwargs) as dst:
+                if rpcs:
+                    src_crs = None
+                else:
+                    src_crs = src.transform
                 reproject(
                     source=rasterio.band(src, src.indexes),
                     destination=rasterio.band(dst, dst.indexes),
-                    src_transform=src.transform,
-                    src_crs=src.crs,
+                    src_crs=src_crs,
                     src_nodata=src_nodata,
+                    rpcs=rpcs,
                     dst_transform=out_kwargs['transform'],
                     dst_crs=out_kwargs['crs'],
                     dst_nodata=dst_nodata,
