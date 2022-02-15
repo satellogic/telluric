@@ -46,7 +46,7 @@ from shapely.geometry import Point, Polygon
 
 from PIL import Image
 
-from telluric.constants import WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING, RASTER_TYPE
+from telluric.constants import WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING, RASTER_TYPE, WGS84_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 from telluric.util.raster_utils import (
@@ -1465,7 +1465,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         dst_crs = dst_crs or self.crs
         dtype = dtype or self.image.data.dtype
         max_dtype_value = self._max_per_dtype(self.dtype)
-        src_transform = self._patch_affine(self.affine)
+        if rpcs is not None: # src_transform, and rpcs are mutually exclusive parameters
+            src_transform = None
+            src_crs = WGS84_CRS # by rpcs definition
+        else:
+            src_transform = self._patch_affine(self.affine)
+            src_crs = self.crs
         dst_transform = self._patch_affine(dest_affine)
 
         band_images = []
@@ -1480,10 +1485,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             alpha = (~mask).astype(np.uint8) * max_dtype_value
             src_image = np.concatenate((single_band_raster.data, alpha))
             alpha_band_idx = 2
-
             dest_image = np.zeros([alpha_band_idx, new_height, new_width], dtype=self.dtype)
             rasterio.warp.reproject(src_image, dest_image, src_transform=src_transform,
-                                    dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
+                                    dst_transform=dst_transform, src_crs=src_crs, dst_crs=dst_crs,
                                     rpcs=rpcs, resampling=resampling, dest_alpha=alpha_band_idx,
                                     init_dest_nodata=False, src_alpha=alpha_band_idx,
                                     src_nodata=self.nodata_value, **kwargs)
@@ -1544,9 +1548,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             # image is loaded already
             # SimpleNamespace is handy to hold the properties that calc_transform expects, see
             # https://docs.python.org/3/library/types.html#types.SimpleNamespace
-            src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
-                                    bounds=BoundingBox(*self.footprint().get_bounds(self.crs)), rpcs=rpcs,
-                                    gcps=None)
+            if self.crs is not None:
+                src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
+                                    bounds=BoundingBox(*self.footprint().get_bounds(self.crs)), gcps=None)
+            else: # for rpcs based reprojection
+                src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
+                                      rpcs=rpcs)
             dst_crs, dst_transform, dst_width, dst_height = calc_transform(
                 src, dst_crs=dst_crs, resolution=resolution, dimensions=dimensions,
                 rpcs=rpcs, target_aligned_pixels=target_aligned_pixels,
