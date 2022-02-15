@@ -936,7 +936,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """ Get params dict needed for saving the raster"""
         driver = gdal_drivers[extension]
         return {
-            'mode': "w", 'transform': self.affine, 'crs': self.crs,
+            'mode': "w", 'transform': self.affine, 'crs': self.crs, 'rpcs': self.rpcs,
             'driver': driver, 'width': self.shape[2], 'height': self.shape[1], 'count': self.shape[0],
             'dtype': dtype_map[self.dtype.type],
             'nodata': nodata,
