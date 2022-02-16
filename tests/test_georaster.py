@@ -35,11 +35,15 @@ raster_origin = Point(2, 3)
 some_affine = Affine.translation(raster_origin.x, raster_origin.y)
 some_crs = CRS({'init': 'epsg:32620'})
 some_rpcs = RPC(height_off=10.0, height_scale=10.0, lat_off=30.0, lat_scale=30.0,
-                line_den_coeff=[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, -1.0, -2.0, -3.0, 6.0, 1.0, 2.0, 4.0, 5.0, 6.0, 7.0],
-                line_num_coeff=[2.0, 5.0, 3.0, 4.0, 5.0, 9.0, 7.0, 8.0, 9.0, 10.0, -1.0, -2.0, -3.0, 6.0, 9.0, 2.0, 3.0, 5.0, 6.0, 7.0],
+                line_den_coeff=[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                -1.0, -2.0, -3.0, 6.0, 1.0, 2.0, 4.0, 5.0, 6.0, 7.0],
+                line_num_coeff=[2.0, 5.0, 3.0, 4.0, 5.0, 9.0, 7.0, 8.0, 9.0, 10.0, -1.0,
+                                -2.0, -3.0, 6.0, 9.0, 2.0, 3.0, 5.0, 6.0, 7.0],
                 line_off=0.0, line_scale=0.0, long_off=0.0, long_scale=0.0,
-                samp_den_coeff=[4.0, 7.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 1.0, -2.0, -3.0, 7.0, 1.0, 2.0, 7.0, 5.0, 6.0, 7.0],
-                samp_num_coeff=[8.0, 9.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 8.0, -2.0, -3.0, 6.0, 1.0, 5.0, 4.0, 5.0, 6.0, 7.0],
+                samp_den_coeff=[4.0, 7.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 1.0,
+                                -2.0, -3.0, 7.0, 1.0, 2.0, 7.0, 5.0, 6.0, 7.0],
+                samp_num_coeff=[8.0, 9.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                8.0, -2.0, -3.0, 6.0, 1.0, 5.0, 4.0, 5.0, 6.0, 7.0],
                 samp_off=50.0, samp_scale=50.0)
 some_raster = GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs, band_names=['r'])
 some_raster_alt = GeoRaster2(some_image_2d_alt, affine=some_affine, crs=some_crs, band_names=['r'])
@@ -75,6 +79,7 @@ def test_construction():
     with pytest.raises(GeoRaster2Error):
         GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs, band_names=['gray', 'red'])
 
+
 def test_rpcs_init():
     # test rpcs initilization by passing rpcs in different forms
     rpcs_dict = some_rpcs.to_dict()
@@ -97,6 +102,7 @@ def test_rpcs_init():
         new_rpcs_dict['SAMP_DEN_COEFF'] = ' '.join(str(e) for e in samp_den_coeff)
     georaster3 = GeoRaster2(some_image_2d, rpcs=new_rpcs_dict)
     assert georaster2.rpcs == georaster3.rpcs
+
 
 def test_eq():
     """ test ._eq_ """
@@ -817,7 +823,7 @@ def test_reproject_rpcs():
     # TODO: add smaller test data
     raster = GeoRaster2.open("tests/data/raster/grayscale.tif")
     reprojected = raster.reproject(dst_crs=WEB_MERCATOR_CRS,
-        rpcs=raster.rpcs, target_aligned_pixels=False)
+                                   rpcs=raster.rpcs)
     assert reprojected.shape == (1, 2072, 5241)
     assert reprojected.mean()[0] == pytest.approx(724.4861459505134, 1e-4)
 
@@ -828,7 +834,7 @@ def test_reproject_when_having_no_data_values_in_image():
     for i in range(500):
         for j in range(500):
             if j % 2 == 0:
-                arr[0,  i, j] = 300
+                arr[0, i, j] = 300
     arr = np.ma.masked_array(arr, arr == 1)
     raster = make_test_raster(image=arr)
     reprojected_raster = raster.reproject(WGS84_CRS, resampling=Resampling.average)
@@ -969,7 +975,7 @@ def test_doesnt_use_mask_when_no_mask():
 
 
 def rasters_for_testing_chunks():
-    rasters = [GeoRaster2.open("tests/data/raster/overlap2.tif"),  GeoRaster2.open("tests/data/raster/overlap2.tif")]
+    rasters = [GeoRaster2.open("tests/data/raster/overlap2.tif"), GeoRaster2.open("tests/data/raster/overlap2.tif")]
     rasters[0].image
     return rasters
 

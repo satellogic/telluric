@@ -646,10 +646,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 return RPC.from_gdal(rpcs)
             else:
                 return RPC(height_off=rpcs["HEIGHT_OFF"], height_scale=rpcs["HEIGHT_SCALE"], lat_off=rpcs["LAT_OFF"],
-                           lat_scale=rpcs["LAT_SCALE"], line_den_coeff=rpcs["LINE_DEN_COEFF"], line_num_coeff=rpcs["LINE_NUM_COEFF"],
-                           line_off=rpcs["LINE_OFF"], line_scale=rpcs["LINE_SCALE"], long_off=rpcs["LONG_OFF"], long_scale=rpcs["LONG_SCALE"],
-                           samp_den_coeff=rpcs["SAMP_DEN_COEFF"], samp_num_coeff=rpcs["SAMP_NUM_COEFF"], samp_off=rpcs["SAMP_OFF"],
-                           samp_scale=rpcs["SAMP_SCALE"], err_bias=rpcs.get("ERR_BIAS"), err_rand=rpcs.get("ERR_RAND"))
+                           lat_scale=rpcs["LAT_SCALE"], line_den_coeff=rpcs["LINE_DEN_COEFF"],
+                           line_num_coeff=rpcs["LINE_NUM_COEFF"], line_off=rpcs["LINE_OFF"],
+                           line_scale=rpcs["LINE_SCALE"], long_off=rpcs["LONG_OFF"], long_scale=rpcs["LONG_SCALE"],
+                           samp_den_coeff=rpcs["SAMP_DEN_COEFF"], samp_num_coeff=rpcs["SAMP_NUM_COEFF"],
+                           samp_off=rpcs["SAMP_OFF"], samp_scale=rpcs["SAMP_SCALE"], err_bias=rpcs.get("ERR_BIAS"),
+                           err_rand=rpcs.get("ERR_RAND"))
         else:
             GeoRaster2Error('Wrong input format for rpcs')
 
@@ -1324,7 +1326,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
         if mutable is None:
             mutable = isinstance(self, MutableGeoRaster)
-        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names, 'nodata': self.nodata_value}
+        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names,
+                     'nodata': self.nodata_value}
         init_args.update(kwargs)
 
         # The image is a special case because we don't want to make a copy of a possibly big array
@@ -1465,9 +1468,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         dst_crs = dst_crs or self.crs
         dtype = dtype or self.image.data.dtype
         max_dtype_value = self._max_per_dtype(self.dtype)
-        if rpcs is not None: # src_transform, and rpcs are mutually exclusive parameters
+        if rpcs is not None:  # src_transform, and rpcs are mutually exclusive parameters
             src_transform = None
-            src_crs = WGS84_CRS # by rpcs definition
+            src_crs = WGS84_CRS  # by rpcs definition
         else:
             src_transform = self._patch_affine(self.affine)
             src_crs = self.crs
@@ -1550,8 +1553,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             # https://docs.python.org/3/library/types.html#types.SimpleNamespace
             if self.crs is not None:
                 src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
-                                    bounds=BoundingBox(*self.footprint().get_bounds(self.crs)), gcps=None)
-            else: # for rpcs based reprojection
+                                      bounds=BoundingBox(*self.footprint().get_bounds(self.crs)), gcps=None)
+            else:  # for rpcs based reprojection
                 src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
                                       rpcs=rpcs)
             dst_crs, dst_transform, dst_width, dst_height = calc_transform(
@@ -1838,7 +1841,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def __invert__(self):
         """Invert mask."""
-        return self.copy_with(image=np.ma.masked_array(self.image.data, np.logical_not(np.ma.getmaskarray(self.image))))
+        return self.copy_with(image=np.ma.masked_array(self.image.data,
+                              np.logical_not(np.ma.getmaskarray(self.image))))
 
     def mask(self, vector, mask_shape_nodata=False):
         """

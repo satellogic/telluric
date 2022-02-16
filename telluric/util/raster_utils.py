@@ -13,6 +13,7 @@ from math import ceil
 from telluric.vrt import boundless_vrt_doc
 from telluric.constants import WGS84_CRS
 
+
 def _calc_overviews_factors(one, blocksize=256):
     res = max(one.width, one.height)
     factor = 2
@@ -208,7 +209,7 @@ def calc_transform(src, dst_crs=None, resolution=None, dimensions=None, rpcs=Non
 
         else:
             if rpcs is not None:
-                src_crs=WGS84_CRS #by rpcs definition
+                src_crs = WGS84_CRS  # by rpcs definition
                 dst_transform, dst_width, dst_height = calcdt(
                     src_crs, dst_crs, src.width, src.height,
                     rpcs=rpcs, **kwargs)
@@ -360,7 +361,7 @@ def warp(source_file, destination_file, dst_crs=None, resolution=None, dimension
                 out_kwargs.update(**creation_options)
 
             if rpcs:
-                src_crs = WGS84_CRS #by rpcs definition
+                src_crs = WGS84_CRS  # by rpcs definition
             else:
                 src_crs = src.crs
             with rasterio.open(destination_file, 'w', **out_kwargs) as dst:
