@@ -29,6 +29,7 @@ except ImportError:
     )
 
 from rasterio.crs import CRS
+from rasterio.rpc import RPC
 import rasterio
 import rasterio.warp
 import rasterio.shutil
@@ -45,7 +46,7 @@ from shapely.geometry import Point, Polygon
 
 from PIL import Image
 
-from telluric.constants import WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING, RASTER_TYPE
+from telluric.constants import WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING, RASTER_TYPE, WGS84_CRS
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 from telluric.util.raster_utils import (
@@ -597,7 +598,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     """
 
     def __init__(self, image=None, affine=None, crs=None,
-                 filename=None, band_names=None, nodata=None, shape=None, footprint=None,
+                 filename=None, band_names=None, nodata=None, shape=None, footprint=None, rpcs=None,
                  temporary=False):
         """Create a GeoRaster object
 
@@ -609,6 +610,11 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         :param band_names: e.g. ['red', 'blue'] or 'red'
         :param shape: raster image shape, optional
         :param nodata: if provided image is array (not masked array), treat pixels with value=nodata as nodata
+        :param rpcs: rasterio.rpc.RPC object or
+                     dictionary with RPCs values with capital str keys and str values, e.g:
+                     {"HEIGHT_OFF":"1.0", "LINE_DEN_COEFF":"0 6.5 0.1 ...",...} or
+                     dictionary with RPCs values with capital str keys and float values, e.g:
+                     {"HEIGHT_OFF":1.0, "LINE_DEN_COEFF":[0, 6.5, 0.1 ...]",...}
         :param temporary: True means that file referenced by filename is temporary
             and will be removed by destructor, default False
         """
@@ -619,6 +625,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         self._temporary = temporary
         self._footprint = copy(footprint)
         self._nodata_value = nodata
+        self._rpcs = self._read_rpcs(rpcs)
         self._opened_files = []
 
     def __del__(self):
@@ -627,6 +634,26 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         except Exception:
             pass
+
+    def _read_rpcs(self, rpcs):
+        """Read rpcs and return rasterio.rpc.RPC object"""
+        if rpcs is None:
+            return None
+        elif isinstance(rpcs, RPC):
+            return copy(rpcs)
+        elif isinstance(rpcs, dict):
+            if isinstance(next(iter(rpcs.values())), str):
+                return RPC.from_gdal(rpcs)
+            else:
+                return RPC(height_off=rpcs["HEIGHT_OFF"], height_scale=rpcs["HEIGHT_SCALE"], lat_off=rpcs["LAT_OFF"],
+                           lat_scale=rpcs["LAT_SCALE"], line_den_coeff=rpcs["LINE_DEN_COEFF"],
+                           line_num_coeff=rpcs["LINE_NUM_COEFF"], line_off=rpcs["LINE_OFF"],
+                           line_scale=rpcs["LINE_SCALE"], long_off=rpcs["LONG_OFF"], long_scale=rpcs["LONG_SCALE"],
+                           samp_den_coeff=rpcs["SAMP_DEN_COEFF"], samp_num_coeff=rpcs["SAMP_NUM_COEFF"],
+                           samp_off=rpcs["SAMP_OFF"], samp_scale=rpcs["SAMP_SCALE"], err_bias=rpcs.get("ERR_BIAS"),
+                           err_rand=rpcs.get("ERR_RAND"))
+        else:
+            GeoRaster2Error('Wrong input format for rpcs')
 
     @staticmethod
     def get_gdal_env(url):
@@ -735,6 +762,9 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 # if yes, it did not work, so can be removed. If no: why?
                 self._crs = copy(raster.crs)
 
+            if self._rpcs is None:
+                self._rpcs = copy(raster.rpcs)
+
             # if band_names not provided, try read them from raster tags.
             # if not - leave empty, for default:
             key_name = None
@@ -807,6 +837,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         if self._crs is None:
             self._populate_from_rasterio_object(read_image=False)
         return self._crs
+
+    @property
+    def rpcs(self):
+        """Raster rpcs."""
+        if self._rpcs is None:
+            self._populate_from_rasterio_object(read_image=False)
+        return self._rpcs
 
     @property
     def shape(self):
@@ -901,7 +938,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """ Get params dict needed for saving the raster"""
         driver = gdal_drivers[extension]
         return {
-            'mode': "w", 'transform': self.affine, 'crs': self.crs,
+            'mode': "w", 'transform': self.affine, 'crs': self.crs, 'rpcs': self.rpcs,
             'driver': driver, 'width': self.shape[2], 'height': self.shape[1], 'count': self.shape[0],
             'dtype': dtype_map[self.dtype.type],
             'nodata': nodata,
@@ -1289,7 +1326,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
         if mutable is None:
             mutable = isinstance(self, MutableGeoRaster)
-        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names, 'nodata': self.nodata_value}
+        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names,
+                     'nodata': self.nodata_value}
         init_args.update(kwargs)
 
         # The image is a special case because we don't want to make a copy of a possibly big array
@@ -1410,16 +1448,18 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             ret_val = np.finfo(dtype).max  # type: ignore
         return ret_val
 
-    def _reproject(self, new_width, new_height, dest_affine, dtype=None,
-                   dst_crs=None, resampling=Resampling.cubic):
+    def _reproject(self, new_width, new_height, dest_affine, rpcs=None, dtype=None,
+                   dst_crs=None, resampling=Resampling.cubic, **kwargs):
         """Return re-projected raster to new raster.
 
         :param new_width: new raster width in pixels
         :param new_height: new raster height in pixels
         :param dest_affine: new raster affine
         :param dtype: new raster dtype, default current dtype
+        :param rpcs: new raster Rational Polynomial Coefficients
         :param dst_crs: new raster crs, default current crs
         :param resampling: reprojection resampling method, default `cubic`
+        :param  kwargs: additional arguments passed to reprojection function function.
 
         :return GeoRaster2
         """
@@ -1428,7 +1468,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         dst_crs = dst_crs or self.crs
         dtype = dtype or self.image.data.dtype
         max_dtype_value = self._max_per_dtype(self.dtype)
-        src_transform = self._patch_affine(self.affine)
+        if rpcs is not None:  # src_transform, and rpcs are mutually exclusive parameters
+            src_transform = None
+            src_crs = WGS84_CRS  # by rpcs definition
+        else:
+            src_transform = self._patch_affine(self.affine)
+            src_crs = self.crs
         dst_transform = self._patch_affine(dest_affine)
 
         band_images = []
@@ -1443,13 +1488,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             alpha = (~mask).astype(np.uint8) * max_dtype_value
             src_image = np.concatenate((single_band_raster.data, alpha))
             alpha_band_idx = 2
-
             dest_image = np.zeros([alpha_band_idx, new_height, new_width], dtype=self.dtype)
             rasterio.warp.reproject(src_image, dest_image, src_transform=src_transform,
-                                    dst_transform=dst_transform, src_crs=self.crs, dst_crs=dst_crs,
-                                    resampling=resampling, dest_alpha=alpha_band_idx,
+                                    dst_transform=dst_transform, src_crs=src_crs, dst_crs=dst_crs,
+                                    rpcs=rpcs, resampling=resampling, dest_alpha=alpha_band_idx,
                                     init_dest_nodata=False, src_alpha=alpha_band_idx,
-                                    src_nodata=self.nodata_value)
+                                    src_nodata=self.nodata_value, **kwargs)
             dest_image = np.ma.masked_array(dest_image[0:1, :, :], dest_image[1:2, :, :] == 0)
             band_images.append(dest_image)
         dest_image = np.ma.concatenate(band_images)
@@ -1459,7 +1503,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         return new_raster
 
     def reproject(self, dst_crs=None, resolution=None, dimensions=None,
-                  src_bounds=None, dst_bounds=None, target_aligned_pixels=False,
+                  src_bounds=None, dst_bounds=None, rpcs=None, target_aligned_pixels=False,
                   resampling=Resampling.cubic, creation_options=None, **kwargs):
         """Return re-projected raster to new raster.
 
@@ -1476,6 +1520,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             Georeferenced extent of output (in source georeferenced units).
         dst_bounds: tuple (xmin, ymin, xmax, ymax), optional
             Georeferenced extent of output (in destination georeferenced units).
+        rpcs: RPC or dict, optional
+            Rational polynomial coefficients for the source.
         target_aligned_pixels: bool, optional
             Align the output bounds based on the resolution.
             Default is `False`.
@@ -1495,7 +1541,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tf:
                 warp(self._filename, tf.name, dst_crs=dst_crs, resolution=resolution,
                      dimensions=dimensions, creation_options=creation_options,
-                     src_bounds=src_bounds, dst_bounds=dst_bounds,
+                     src_bounds=src_bounds, dst_bounds=dst_bounds, rpcs=rpcs,
                      target_aligned_pixels=target_aligned_pixels,
                      resampling=resampling, **kwargs)
 
@@ -1505,15 +1551,18 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             # image is loaded already
             # SimpleNamespace is handy to hold the properties that calc_transform expects, see
             # https://docs.python.org/3/library/types.html#types.SimpleNamespace
-            src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
-                                  bounds=BoundingBox(*self.footprint().get_bounds(self.crs)),
-                                  gcps=None)
+            if self.crs is not None:
+                src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
+                                      bounds=BoundingBox(*self.footprint().get_bounds(self.crs)), gcps=None)
+            else:  # for rpcs based reprojection
+                src = SimpleNamespace(width=self.width, height=self.height, transform=self.transform, crs=self.crs,
+                                      rpcs=rpcs)
             dst_crs, dst_transform, dst_width, dst_height = calc_transform(
                 src, dst_crs=dst_crs, resolution=resolution, dimensions=dimensions,
-                target_aligned_pixels=target_aligned_pixels,
-                src_bounds=src_bounds, dst_bounds=dst_bounds)
-            new_raster = self._reproject(dst_width, dst_height, dst_transform,
-                                         dst_crs=dst_crs, resampling=resampling)
+                rpcs=rpcs, target_aligned_pixels=target_aligned_pixels,
+                src_bounds=src_bounds, dst_bounds=dst_bounds, **kwargs)
+            new_raster = self._reproject(dst_width, dst_height, dst_transform, rpcs=rpcs,
+                                         dst_crs=dst_crs, resampling=resampling, **kwargs)
 
         return new_raster
 
@@ -1792,7 +1841,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def __invert__(self):
         """Invert mask."""
-        return self.copy_with(image=np.ma.masked_array(self.image.data, np.logical_not(np.ma.getmaskarray(self.image))))
+        return self.copy_with(image=np.ma.masked_array(self.image.data,
+                              np.logical_not(np.ma.getmaskarray(self.image))))
 
     def mask(self, vector, mask_shape_nodata=False):
         """

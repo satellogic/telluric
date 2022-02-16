@@ -11,6 +11,7 @@ from PIL import Image
 from shapely.geometry import Point, Polygon
 
 from rasterio.crs import CRS
+from rasterio.rpc import RPC
 from rasterio.errors import NotGeoreferencedWarning
 from rasterio.windows import Window
 from telluric.constants import WGS84_CRS, WEB_MERCATOR_CRS
@@ -33,6 +34,17 @@ some_image_3d_multiband = np.ma.array(
 raster_origin = Point(2, 3)
 some_affine = Affine.translation(raster_origin.x, raster_origin.y)
 some_crs = CRS({'init': 'epsg:32620'})
+some_rpcs = RPC(height_off=10.0, height_scale=10.0, lat_off=30.0, lat_scale=30.0,
+                line_den_coeff=[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                -1.0, -2.0, -3.0, 6.0, 1.0, 2.0, 4.0, 5.0, 6.0, 7.0],
+                line_num_coeff=[2.0, 5.0, 3.0, 4.0, 5.0, 9.0, 7.0, 8.0, 9.0, 10.0, -1.0,
+                                -2.0, -3.0, 6.0, 9.0, 2.0, 3.0, 5.0, 6.0, 7.0],
+                line_off=0.0, line_scale=0.0, long_off=0.0, long_scale=0.0,
+                samp_den_coeff=[4.0, 7.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 1.0,
+                                -2.0, -3.0, 7.0, 1.0, 2.0, 7.0, 5.0, 6.0, 7.0],
+                samp_num_coeff=[8.0, 9.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                8.0, -2.0, -3.0, 6.0, 1.0, 5.0, 4.0, 5.0, 6.0, 7.0],
+                samp_off=50.0, samp_scale=50.0)
 some_raster = GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs, band_names=['r'])
 some_raster_alt = GeoRaster2(some_image_2d_alt, affine=some_affine, crs=some_crs, band_names=['r'])
 some_raster_multiband = GeoRaster2(
@@ -48,15 +60,16 @@ some_raster_shrunk_mask = some_raster_multiband.copy_with(
 
 def test_construction():
     # test image - different formats yield identical rasters:
-    raster_masked_2d = GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs)
-    raster_masked_3d = GeoRaster2(some_image_3d, affine=some_affine, crs=some_crs)
-    raster_masked_array = GeoRaster2(some_array, nodata=5, affine=some_affine, crs=some_crs)
+    raster_masked_2d = GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs, rpcs=some_rpcs)
+    raster_masked_3d = GeoRaster2(some_image_3d, affine=some_affine, crs=some_crs, rpcs=some_rpcs)
+    raster_masked_array = GeoRaster2(some_array, nodata=5, affine=some_affine, crs=some_crs, rpcs=some_rpcs)
     assert raster_masked_2d == raster_masked_3d
     assert raster_masked_2d == raster_masked_array
 
     assert np.array_equal(raster_masked_2d.image, some_image_3d)
     assert raster_masked_2d.affine == some_affine
     assert raster_masked_2d.crs == some_crs
+    assert raster_masked_2d.rpcs == some_rpcs
     assert raster_masked_2d.dtype == some_image_2d.dtype
 
     # test bandnames:
@@ -65,6 +78,30 @@ def test_construction():
     assert GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs).band_names == [0]
     with pytest.raises(GeoRaster2Error):
         GeoRaster2(some_image_2d, affine=some_affine, crs=some_crs, band_names=['gray', 'red'])
+
+
+def test_rpcs_init():
+    # test rpcs initilization by passing rpcs in different forms
+    rpcs_dict = some_rpcs.to_dict()
+    rpcs_dict = {k.upper(): v for k, v in rpcs_dict.items()}
+    georaster1 = GeoRaster2(some_image_2d, rpcs=some_rpcs)
+    georaster2 = GeoRaster2(some_image_2d, rpcs=rpcs_dict)
+    assert georaster1.rpcs == georaster2.rpcs
+    # rpcs defined as dictionary of str
+    new_rpcs_dict = {}
+    for k, v in rpcs_dict.items():
+        if isinstance(v, float):
+            new_rpcs_dict[k] = str(v)
+        line_num_coeff = rpcs_dict['LINE_NUM_COEFF']
+        new_rpcs_dict['LINE_NUM_COEFF'] = ' '.join(str(e) for e in line_num_coeff)
+        line_den_coeff = rpcs_dict['LINE_DEN_COEFF']
+        new_rpcs_dict['LINE_DEN_COEFF'] = ' '.join(str(e) for e in line_den_coeff)
+        samp_num_coeff = rpcs_dict['SAMP_NUM_COEFF']
+        new_rpcs_dict['SAMP_NUM_COEFF'] = ' '.join(str(e) for e in samp_num_coeff)
+        samp_den_coeff = rpcs_dict['SAMP_DEN_COEFF']
+        new_rpcs_dict['SAMP_DEN_COEFF'] = ' '.join(str(e) for e in samp_den_coeff)
+    georaster3 = GeoRaster2(some_image_2d, rpcs=new_rpcs_dict)
+    assert georaster2.rpcs == georaster3.rpcs
 
 
 def test_eq():
@@ -781,13 +818,23 @@ def test_reproject_lazy():
     assert reprojected._temporary
 
 
+def test_reproject_rpcs():
+    # test reprojection when rpcs are defined and input raster has no src_crs
+    # TODO: add smaller test data
+    raster = GeoRaster2.open("tests/data/raster/grayscale.tif")
+    reprojected = raster.reproject(dst_crs=WEB_MERCATOR_CRS,
+                                   rpcs=raster.rpcs)
+    assert reprojected.shape == (1, 2072, 5241)
+    assert reprojected.mean()[0] == pytest.approx(724.4861459505134, 1e-4)
+
+
 def test_reproject_when_having_no_data_values_in_image():
     shape = (1, 500, 500)
     arr = np.ones(shape, dtype=np.float32)
     for i in range(500):
         for j in range(500):
             if j % 2 == 0:
-                arr[0,  i, j] = 300
+                arr[0, i, j] = 300
     arr = np.ma.masked_array(arr, arr == 1)
     raster = make_test_raster(image=arr)
     reprojected_raster = raster.reproject(WGS84_CRS, resampling=Resampling.average)
@@ -928,7 +975,7 @@ def test_doesnt_use_mask_when_no_mask():
 
 
 def rasters_for_testing_chunks():
-    rasters = [GeoRaster2.open("tests/data/raster/overlap2.tif"),  GeoRaster2.open("tests/data/raster/overlap2.tif")]
+    rasters = [GeoRaster2.open("tests/data/raster/overlap2.tif"), GeoRaster2.open("tests/data/raster/overlap2.tif")]
     rasters[0].image
     return rasters
 
