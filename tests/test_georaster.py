@@ -57,6 +57,11 @@ some_float32_raster = GeoRaster2(some_float32_array, band_names=[1, 2], affine=s
 some_raster_shrunk_mask = some_raster_multiband.copy_with(
     image=np.ma.array(some_raster_multiband.image.data, mask=np.ma.nomask))
 
+footprint_rpcs_raster = Polygon([[111.39116744, 34.92250008],
+                                 [111.44875176, 34.92250008],
+                                 [111.44875176, 34.90383334],
+                                 [111.39116744, 34.90383334]])
+
 
 def test_construction():
     # test image - different formats yield identical rasters:
@@ -424,6 +429,29 @@ def test_corner():
         assert some_raster.corner(corner).almost_equals(GeoVector(expected_corners[corner], some_raster.crs))
         assert some_raster.image_corner(corner).equals_exact(expected_image_corners[corner], tolerance=5e-07)
 
+    coords = footprint_rpcs_raster.exterior.coords.xy
+    rpcs_raster = GeoRaster2.open("tests/data/raster/grayscale.tif")
+
+    expected_image_corners_rpcs = {
+        'ul': Point(0, 0),
+        'ur': Point(rpcs_raster.width, 0),
+        'bl': Point(0, rpcs_raster.height),
+        'br': Point(rpcs_raster.width, rpcs_raster.height)
+    }
+
+    expected_corners_rpcs = {
+        'ul': Point(coords[0][0], coords[1][0]),
+        'ur': Point(coords[0][1], coords[1][1]),
+        'bl': Point(coords[0][3], coords[1][3]),
+        'br': Point(coords[0][2], coords[1][2])
+    }
+
+    for corner in GeoRaster2.corner_types():
+        assert rpcs_raster.corner(corner).almost_equals(GeoVector(expected_corners_rpcs[corner],
+                                                                  WGS84_CRS), decimal=5)
+        assert rpcs_raster.image_corner(corner).equals_exact(expected_image_corners_rpcs[corner],
+                                                             tolerance=5e-07)
+
 
 def test_center():
     ul = some_raster.corner('ul').get_shape(some_raster.crs)
@@ -432,6 +460,16 @@ def test_center():
     expected_center_vector = GeoVector(expected_center, some_raster.crs)
 
     assert expected_center_vector.equals_exact(some_raster.center(), tolerance=5e-07)
+
+    # test with rpcs
+    rpcs_raster = GeoRaster2.open("tests/data/raster/grayscale.tif")
+
+    ul = rpcs_raster.corner('ul').get_shape(WGS84_CRS)
+    br = rpcs_raster.corner('br').get_shape(WGS84_CRS)
+    expected_center = Point((ul.x + br.x) / 2, (ul.y + br.y) / 2)
+    expected_center_vector = GeoVector(expected_center, WGS84_CRS)
+
+    assert expected_center_vector.equals_exact(rpcs_raster.center(), tolerance=5e-07)
 
 
 def test_bounds():
@@ -451,6 +489,22 @@ def test_footprint():
     expected = GeoVector(expected_shp, some_raster.crs)
 
     assert some_raster.footprint().almost_equals(expected)
+
+    rpcs_raster = GeoRaster2.open("tests/data/raster/grayscale.tif")
+
+    expected = GeoVector(footprint_rpcs_raster, WGS84_CRS)
+    footprint = rpcs_raster.footprint()
+
+    assert footprint.almost_equals(expected, decimal=5)
+
+    # test raster footprint by passing fake DEM
+    dem = GeoRaster2.open("tests/data/raster/dem_grayscale_raster.tif")
+
+    kwargs = {'RPC_DEM': dem.source_file,
+              'RPC_DEM_SRS': WGS84_CRS  # the dem shall be referred to the RPC EPSG
+              }
+
+    assert footprint != rpcs_raster.footprint(**kwargs)
 
 
 def test_area():

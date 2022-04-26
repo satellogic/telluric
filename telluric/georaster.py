@@ -1326,7 +1326,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
         if mutable is None:
             mutable = isinstance(self, MutableGeoRaster)
-        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names,
+        init_args = {'affine': self.affine, 'crs': self.crs, 'rpcs': self.rpcs, 'band_names': self.band_names,
                      'nodata': self.nodata_value}
         init_args.update(kwargs)
 
@@ -1707,20 +1707,35 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         y = 0 if corner[0] == 'u' else self.height
         return Point(x, y)
 
-    def corner(self, corner):
-        """Return footprint origin in world coordinates, as GeoVector."""
+    def corner(self, corner, **kwargs):
+        """Return footprint origin in world coordinates, as GeoVector.
+           param  kwargs: additional arguments passed to corners function: dem path and dem.crs for rpcs rasters."""
+        if self.crs is None and self.rpcs is not None:
+            new_raster = self.reproject(dst_crs=WGS84_CRS, rpcs=self.rpcs, **kwargs)
+            return new_raster.to_world(new_raster.image_corner(corner))
         return self.to_world(self.image_corner(corner))
 
-    def corners(self):
-        """Return footprint corners, as {corner_type -> GeoVector}."""
-        return {corner: self.corner(corner) for corner in self.corner_types()}
+    def corners(self, **kwargs):
+        """Return footprint corners, as {corner_type -> GeoVector}.
+           :param  kwargs: additional arguments passed to corners function: dem path and dem.crs for rpcs rasters."""
+        if self.crs is None and self.rpcs is not None:
+            new_raster = self.reproject(dst_crs=WGS84_CRS, rpcs=self.rpcs, **kwargs)
+            return {corner: new_raster.corner(corner) for corner in new_raster.corner_types()}
+        else:
+            return {corner: self.corner(corner) for corner in self.corner_types()}
 
-    def origin(self):
-        """Return footprint origin in world coordinates, as GeoVector."""
-        return self.corner('ul')
+    def origin(self, **kwargs):
+        """Return footprint origin in world coordinates, as GeoVector.
+           :param  kwargs: additional arguments passed to origin function: dem path and dem.crs for rpcs rasters."""
+        return self.corner('ul', **kwargs)
 
-    def center(self):
-        """Return footprint center in world coordinates, as GeoVector."""
+    def center(self, **kwargs):
+        """Return footprint center in world coordinates, as GeoVector.
+           :param  kwargs: additional arguments passed to corners function: dem path and dem.crs for rpcs rasters."""
+        if self.crs is None:
+            new_raster = self.reproject(dst_crs=WGS84_CRS, rpcs=self.rpcs, **kwargs)
+            image_center = Point(new_raster.width / 2, new_raster.height / 2)
+            return new_raster.to_world(image_center)
         image_center = Point(self.width / 2, self.height / 2)
         return self.to_world(image_center)
 
@@ -1729,8 +1744,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         corners = [self.image_corner(corner) for corner in self.corner_types()]
         return Polygon([[corner.x, corner.y] for corner in corners])
 
-    def _calc_footprint(self):
+    def _calc_footprint(self, **kwargs):
         """Return rectangle in world coordinates, as GeoVector."""
+        if self._crs is None and self.rpcs is not None:
+            return self._footprint_from_rpcs(**kwargs)
+
         corners = [self.corner(corner) for corner in self.corner_types()]
         coords = []
         for corner in corners:
@@ -1742,15 +1760,22 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         self._footprint = GeoVector(shp, self.crs)
         return self._footprint
 
-    def footprint(self):
+    def footprint(self, **kwargs):
+        """:param  kwargs: additional arguments passed to footprint function: dem path and dem.crs for rpcs rasters."""
         if self._footprint is not None:
             return self._footprint
-        return self._calc_footprint()
+        return self._calc_footprint(**kwargs)
+
+    def _footprint_from_rpcs(self, **kwargs):
+        """Return raster footprint from rpcs in the crs: EPSG:4326
+           :param  kwargs: additional arguments passed to footprint function: dem path and dem.crs for rpcs rasters."""
+        new_raster = self.reproject(dst_crs=WGS84_CRS, rpcs=self.rpcs, **kwargs)
+        return new_raster.footprint()
 
     def area(self):
         return self.footprint().area
 
-    #  geography:
+    # geography:
     def project(self, dst_crs, resampling):
         """Return reprojected raster."""
 
@@ -1765,7 +1790,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         shp = transform(shape, self.crs, dst_crs, dst_affine=self.affine)
         return GeoVector(shp, dst_crs)
 
-    #  array:
+    # array:
     # array ops: bitness conversion, setitem/getitem slices, +-*/.. scalar
     def min(self):
         return self.reduce('min')
