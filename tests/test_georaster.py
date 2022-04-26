@@ -253,6 +253,15 @@ def test_resize(raster):
     with pytest.raises(GeoRaster2Error):
         raster.resize(ratio_x=2)
 
+    # test rpcs resize
+    rpcs_raster = GeoRaster2.open("tests/data/raster/grayscale.tif")
+    test_raster = rpcs_raster.resize(ratio=0.5)
+    assert ((test_raster.width == 0.5 * rpcs_raster.width)
+            and (test_raster.rpcs.line_off == 0.5 * rpcs_raster.rpcs.line_off)
+            and (test_raster.rpcs.samp_off == 0.5 * rpcs_raster.rpcs.samp_off)
+            and (test_raster.rpcs.line_scale == 0.5 * rpcs_raster.rpcs.line_scale)
+            and (test_raster.rpcs.samp_scale == 0.5 * rpcs_raster.rpcs.samp_scale))
+
 
 def test_to_pillow_image():
     # without mask:

@@ -1408,7 +1408,14 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Return raster resized by ratio."""
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
-        dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
+
+        if self.crs is None and self.rpcs is not None:
+            # resize raster with rpcs
+            dest_rpcs = self._resize_rpcs(ratio_x, ratio_y)
+            dest_affine = self.affine
+        else:
+            dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
+            dest_rpcs = self.rpcs
 
         window = rasterio.windows.Window(0, 0, self.width, self.height)
         resized_raster = self.get_window(
@@ -1417,9 +1424,19 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             ysize=new_height,
             resampling=resampling,
             affine=dest_affine,
+            rpcs=dest_rpcs
         )
 
         return resized_raster
+
+    def _resize_rpcs(self, ratio_x, ratio_y):
+        """resize raster by using its rpcs"""
+        dest_rpcs = copy(self.rpcs)
+        dest_rpcs.line_off = dest_rpcs.line_off * ratio_y
+        dest_rpcs.samp_off = dest_rpcs.samp_off * ratio_x
+        dest_rpcs.line_scale = dest_rpcs.line_scale * ratio_y
+        dest_rpcs.samp_scale = dest_rpcs.samp_scale * ratio_x
+        return dest_rpcs
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
@@ -1997,7 +2014,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
-                   resampling=Resampling.cubic, masked=None, affine=None
+                   resampling=Resampling.cubic, masked=None, affine=None, rpcs=None
                    ):
         """Get window from raster.
 
@@ -2008,6 +2025,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param resampling: which Resampling to use on reading, default Resampling.cubic
         :param masked: if True uses the maks, if False doesn't use the mask, if None looks to see if there is a mask,
                        if mask exists using it, the default None
+        :param affine: Set destination affine otherwise calculate from output window shape
+        :param rpcs: If not none set destination rpcs
         :return: GeoRaster2 of tile
         """
         bands = bands or list(range(1, self.num_bands + 1))
@@ -2029,7 +2048,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 array = raster.read(bands, **read_params)
             nodata = 0 if not np.ma.isMaskedArray(array) else None
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
-            raster = self.copy_with(image=array, affine=affine, nodata=nodata)
+            raster = self.copy_with(image=array, affine=affine, nodata=nodata, rpcs=rpcs)
 
             return raster
 
