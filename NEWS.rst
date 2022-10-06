@@ -1,3 +1,8 @@
+telluric 0.14.1 (2022-10-06)
+============================
+
+* Don't raise an exception while calling :py:meth:`telluric.georaster.GeoRaster2.rpcs` (#322)
+
 telluric 0.14.0 (2022-02-17)
 ============================
 
