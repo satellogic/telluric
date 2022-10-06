@@ -764,6 +764,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
             if self._rpcs is None:
                 self._rpcs = copy(raster.rpcs)
+                if self._rpcs is None:
+                    self._rpcs = ""
 
             # if band_names not provided, try read them from raster tags.
             # if not - leave empty, for default:
@@ -843,7 +845,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Raster rpcs."""
         if self._rpcs is None:
             self._populate_from_rasterio_object(read_image=False)
-        return self._rpcs
+        return self._rpcs if self._rpcs != "" else None
 
     @property
     def shape(self):
