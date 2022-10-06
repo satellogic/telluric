@@ -73,7 +73,7 @@ def _creation_options_for_cog(creation_options, source_profile, blocksize):
     it uses the profile of the source raster, override anything using the creation_options
     and guarantees we will have tiled raster and blocksize
     """
-    if not(creation_options):
+    if not creation_options:
         creation_options = {}
 
     creation_options["blockxsize"] = blocksize
