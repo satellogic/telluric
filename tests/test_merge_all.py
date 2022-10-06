@@ -41,28 +41,28 @@ def test_merge_single_band_single_raster_returns_itself_for_all_strategies():
     for ms in MergeStrategy:
         raster = make_test_raster(88, [1])
         raster2 = merge_all([raster], roi=raster.footprint(), merge_strategy=ms)
-        assert(raster2 == raster)
+        assert (raster2 == raster)
 
 
 def test_merge_multi_band_single_raster_returns_itself_for_all_strategies():
     for ms in MergeStrategy:
         raster = black_and_white_raster([1, 2, 3])
         raster2 = merge_all([raster], roi=raster.footprint(), merge_strategy=ms)
-        assert(raster2 == raster)
+        assert (raster2 == raster)
 
 
 def test_merge_multi_band_multi_raster_returns_itself():
     rasters = [black_and_white_raster([1, 2, 3]) for i in range(10)]
     raster = black_and_white_raster([1, 2, 3])
     raster2 = merge_all(rasters, roi=raster.footprint())
-    assert(raster2 == black_and_white_raster([1, 2, 3]))
+    assert (raster2 == black_and_white_raster([1, 2, 3]))
 
 
 def test_merge_multi_band_multi_raster_smaller_roi_returns_itself():
     rasters = [black_and_white_raster([1, 2, 3])]
     raster = black_and_white_raster([1, 2, 3], height=7, width=6)
     raster2 = merge_all(rasters, roi=raster.footprint())
-    assert(raster2 == raster)
+    assert (raster2 == raster)
 
 
 def get_rasters():
@@ -76,98 +76,98 @@ def get_rasters():
 def test_merge_multi_band_multi_size_raster_0():
     rasters = get_rasters()
     raster2 = merge_all(rasters, roi=rasters[0].footprint())
-    assert(raster2 == rasters[0])
+    assert (raster2 == rasters[0])
 
 
 def test_merge_multi_band_multi_size_raster_1():
     rasters = get_rasters()
     raster2 = merge_all(rasters, roi=rasters[1].footprint())
-    assert(raster2 == rasters[1])
+    assert (raster2 == rasters[1])
 
 
 def test_merge_multi_band_multi_size_raster_2():
     rasters = get_rasters()
     raster2 = merge_all(rasters, roi=rasters[2].footprint())
-    assert(raster2 == rasters[2])
+    assert (raster2 == rasters[2])
 
 
 def test_merge_multi_band_multi_size_raster_3():
     rasters = get_rasters()
     raster2 = merge_all(rasters, roi=rasters[3].footprint())
-    assert(raster2 == rasters[3])
+    assert (raster2 == rasters[3])
 
 
 def test_empty_raster_from_roi_5_bands():
     affine = Affine.translation(10, 12) * Affine.scale(2, -2)
     raster = make_test_raster(88, [1, 2, 4, 5, 6], affine=affine, height=301, width=402)
     empty = GeoRaster2.empty_from_roi(band_names=raster.band_names, roi=raster.footprint(), resolution=2)
-    assert(affine.almost_equals(empty.affine))
-    assert(raster.crs == empty.crs)
-    assert(raster.shape == empty.shape)
+    assert (affine.almost_equals(empty.affine))
+    assert (raster.crs == empty.crs)
+    assert (raster.shape == empty.shape)
 
 
 def test_empty_raster_from_roi_affine_wide():
     affine = Affine.translation(10, 12) * Affine.scale(2, -2)
     raster = make_test_raster(88, [1, 2], affine=affine, height=3, width=1402)
     empty = GeoRaster2.empty_from_roi(band_names=raster.band_names, roi=raster.footprint(), resolution=2)
-    assert(affine.almost_equals(empty.affine))
-    assert(raster.crs == empty.crs)
-    assert(raster.shape == empty.shape)
+    assert (affine.almost_equals(empty.affine))
+    assert (raster.crs == empty.crs)
+    assert (raster.shape == empty.shape)
 
 
 def test_empty_raster_from_roi_affine_3_bands_high():
     affine = Affine.translation(10, 12) * Affine.scale(2, -2)
     raster = make_test_raster(88, [1, 3, 2], affine=affine, height=1301, width=4)
     empty = GeoRaster2.empty_from_roi(band_names=raster.band_names, roi=raster.footprint(), resolution=2)
-    assert(affine.almost_equals(empty.affine))
-    assert(raster.crs == empty.crs)
-    assert(raster.shape == empty.shape)
+    assert (affine.almost_equals(empty.affine))
+    assert (raster.crs == empty.crs)
+    assert (raster.shape == empty.shape)
 
 
 def test_empty_raster_from_roi_affine_small():
     affine = Affine.translation(10, 12) * Affine.scale(2, -2)
     raster = make_test_raster(88, [1], affine=affine, height=31, width=42)
     empty = GeoRaster2.empty_from_roi(band_names=raster.band_names, roi=raster.footprint(), resolution=2)
-    assert(affine.almost_equals(empty.affine))
-    assert(raster.crs == empty.crs)
+    assert (affine.almost_equals(empty.affine))
+    assert (raster.crs == empty.crs)
 
 
 @pytest.mark.parametrize("main_r", get_rasters())
 @pytest.mark.parametrize("cropping_r", get_rasters())
 def test_crop_for_merging(main_r, cropping_r):
     rr = main_r.crop(cropping_r.footprint(), resolution=cropping_r.resolution())
-    assert(rr.height == min(main_r.height, cropping_r.height))
-    assert(rr.width == min(main_r.width, cropping_r.width))
-    assert(rr.num_bands == cropping_r.num_bands)
-    assert(rr.affine.almost_equals(cropping_r.affine))
+    assert (rr.height == min(main_r.height, cropping_r.height))
+    assert (rr.width == min(main_r.width, cropping_r.width))
+    assert (rr.num_bands == cropping_r.num_bands)
+    assert (rr.affine.almost_equals(cropping_r.affine))
 
 
 def test_pixel_crop():
     rr = black_and_white_raster([1, 2, 3], height=100, width=100)
     out = rr.pixel_crop((0, 0, 100, 100))
-    assert(rr == out)
+    assert (rr == out)
     out = rr.pixel_crop((0, 0, 10, 10), 10, 10, 1)
-    assert(out.shape == (3, 10, 10))
+    assert (out.shape == (3, 10, 10))
     out = rr.pixel_crop((0, 0, 100, 100), 100, 100, 1)
-    assert(rr == out)
+    assert (rr == out)
     out = rr.pixel_crop((0, 0, 50, 50), 100, 100, 1)
-    assert(out.shape == (3, 100, 100))
+    assert (out.shape == (3, 100, 100))
 
 
 def test_patch_affine():
     eps = 1e-100
-    assert(GeoRaster2._patch_affine(Affine.identity()) == Affine.translation(eps, eps))
-    assert(GeoRaster2._patch_affine(Affine.translation(2 * eps, 3 * eps)) ==
+    assert (GeoRaster2._patch_affine(Affine.identity()) == Affine.translation(eps, eps))
+    assert (GeoRaster2._patch_affine(Affine.translation(2 * eps, 3 * eps)) ==
            Affine.translation(2 * eps, 3 * eps))
-    assert(GeoRaster2._patch_affine(Affine.translation(2, 3)) == Affine.translation(2, 3))
-    assert(GeoRaster2._patch_affine(Affine.scale(1.0, -1)) ==
+    assert (GeoRaster2._patch_affine(Affine.translation(2, 3)) == Affine.translation(2, 3))
+    assert (GeoRaster2._patch_affine(Affine.scale(1.0, -1)) ==
            Affine.translation(eps, -eps) * Affine.scale(1, -1))
-    assert(GeoRaster2._patch_affine(Affine.scale(-1, 1)) ==
+    assert (GeoRaster2._patch_affine(Affine.scale(-1, 1)) ==
            Affine.translation(-eps, eps) * Affine.scale(-1, 1))
-    assert(GeoRaster2._patch_affine(Affine.scale(-1, -1)) ==
+    assert (GeoRaster2._patch_affine(Affine.scale(-1, -1)) ==
            Affine.translation(-eps, -eps) * Affine.scale(-1, -1))
-    assert(GeoRaster2._patch_affine(Affine.scale(1.1, -1)) == Affine.scale(1.1, -1))
-    assert(GeoRaster2._patch_affine(Affine.scale(1, -1.1)) == Affine.scale(1, -1.1))
+    assert (GeoRaster2._patch_affine(Affine.scale(1.1, -1)) == Affine.scale(1.1, -1))
+    assert (GeoRaster2._patch_affine(Affine.scale(1, -1.1)) == Affine.scale(1, -1.1))
 
 
 def test_rasters_covering_different_overlapping_areas_on_x():
@@ -178,10 +178,10 @@ def test_rasters_covering_different_overlapping_areas_on_x():
     roi = GeoVector.from_bounds(xmin=1, ymin=-8, xmax=30, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
     merged = merge_all(rasters, roi)
-    assert(merged.affine.almost_equals(affine_a))
-    assert(not merged.image.mask.all())
-    assert((merged.image.data[0, 0:10, 0:20] == 1).all())
-    assert((merged.image.data[0, 0:10, 21:30] == 2).all())
+    assert (merged.affine.almost_equals(affine_a))
+    assert (not merged.image.mask.all())
+    assert ((merged.image.data[0, 0:10, 0:20] == 1).all())
+    assert ((merged.image.data[0, 0:10, 21:30] == 2).all())
 
 
 def test_rasters_covering_different_overlapping_areas_on_y():
@@ -192,10 +192,10 @@ def test_rasters_covering_different_overlapping_areas_on_y():
     roi = GeoVector.from_bounds(xmin=1, ymin=-29, xmax=21, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
     merged = merge_all(rasters, roi)
-    assert(merged.affine.almost_equals(affine_a))
-    assert(not merged.image.mask.all())
-    assert((merged.image.data[0, 0:20, 0:20] == 1).all())
-    assert((merged.image.data[0, 21:30, 0:20] == 2).all())
+    assert (merged.affine.almost_equals(affine_a))
+    assert (not merged.image.mask.all())
+    assert ((merged.image.data[0, 0:20, 0:20] == 1).all())
+    assert ((merged.image.data[0, 21:30, 0:20] == 2).all())
 
 
 def test_rasters_covering_different_areas_with_gap_on_x():
@@ -206,13 +206,13 @@ def test_rasters_covering_different_areas_with_gap_on_x():
     roi = GeoVector.from_bounds(xmin=1, ymin=-8, xmax=30, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
     merged = merge_all(rasters, roi)
-    assert(merged.affine.almost_equals(affine_a))
-    assert(not merged.image.mask[0, 0:10, 0:10].all())
-    assert(merged.image.mask[0, 0:10, 10:20].all())
-    assert(not merged.image.mask[0, 0:10, 20:30].all())
-    assert((merged.image.data[0, 0:10, 0:10] == 1).all())
-    assert((merged.image.data[0, 0:10, 11:20] == 0).all())
-    assert((merged.image.data[0, 0:10, 21:30] == 2).all())
+    assert (merged.affine.almost_equals(affine_a))
+    assert (not merged.image.mask[0, 0:10, 0:10].all())
+    assert (merged.image.mask[0, 0:10, 10:20].all())
+    assert (not merged.image.mask[0, 0:10, 20:30].all())
+    assert ((merged.image.data[0, 0:10, 0:10] == 1).all())
+    assert ((merged.image.data[0, 0:10, 11:20] == 0).all())
+    assert ((merged.image.data[0, 0:10, 21:30] == 2).all())
 
 
 def test_rasters_covering_different_areas_with_gap_on_y():
@@ -223,13 +223,13 @@ def test_rasters_covering_different_areas_with_gap_on_y():
     roi = GeoVector.from_bounds(xmin=1, ymin=-29, xmax=11, ymax=2, crs=WEB_MERCATOR_CRS)
     rasters = [raster_a, raster_b]
     merged = merge_all(rasters, roi)
-    assert(merged.affine.almost_equals(affine_a))
-    assert(not merged.image.mask[0, 0:10, 0:10].all())
-    assert(merged.image.mask[0, 11:20, 0:10].all())
-    assert(not merged.image.mask[0, 21:30, 0:10].all())
-    assert((merged.image.data[0, 0:10, 0:10] == 1).all())
-    assert((merged.image.data[0, 11:20, 0:10] == 0).all())
-    assert((merged.image.data[0, 21:30, 0:10] == 2).all())
+    assert (merged.affine.almost_equals(affine_a))
+    assert (not merged.image.mask[0, 0:10, 0:10].all())
+    assert (merged.image.mask[0, 11:20, 0:10].all())
+    assert (not merged.image.mask[0, 21:30, 0:10].all())
+    assert ((merged.image.data[0, 0:10, 0:10] == 1).all())
+    assert ((merged.image.data[0, 11:20, 0:10] == 0).all())
+    assert ((merged.image.data[0, 21:30, 0:10] == 2).all())
 
 
 @unittest.skip("for manual testing of rasterio bug")
@@ -493,9 +493,9 @@ def test_merge_all_different_crs(crop, recwarn):
     # from memory
     raster_0 = make_test_raster(1, [1], height=1200, width=1200, affine=affine, crs=WGS84_CRS)
     result_0 = merge_all([raster_0], roi=roi, dest_resolution=expected_resolution, crs=expected_crs, crop=crop)
-    assert(result_0.resolution() == expected_resolution)
-    assert(result_0.crs == expected_crs)
-    assert(result_0.footprint().envelope.almost_equals(roi.envelope, decimal=3))
+    assert (result_0.resolution() == expected_resolution)
+    assert (result_0.crs == expected_crs)
+    assert (result_0.footprint().envelope.almost_equals(roi.envelope, decimal=3))
 
     # from file
     path = "/vsimem/raster_for_test.tif"
@@ -503,10 +503,10 @@ def test_merge_all_different_crs(crop, recwarn):
     raster_1 = GeoRaster2.open(path)
     result_1 = merge_all([raster_1], roi=roi, dest_resolution=expected_resolution, crs=expected_crs, crop=crop)
 
-    assert(result_1.resolution() == expected_resolution)
-    assert(result_1.crs == expected_crs)
-    assert(result_1.footprint().envelope.almost_equals(roi.envelope, decimal=3))
-    assert(result_0 == result_1)
+    assert (result_1.resolution() == expected_resolution)
+    assert (result_1.crs == expected_crs)
+    assert (result_1.footprint().envelope.almost_equals(roi.envelope, decimal=3))
+    assert (result_0 == result_1)
 
     # preserve the original resolution if dest_resolution is not provided
     raster_2 = make_test_raster(1, [1], height=1200, width=1200, affine=affine, crs=WGS84_CRS)

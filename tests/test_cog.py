@@ -62,7 +62,7 @@ def test_cog_overviews():
         tl.GeoRaster2(deepcopy(image), crs=WEB_MERCATOR_CRS,
                       affine=base_affine).save(source)
         convert_to_cog(source, dest)
-        assert(os.path.exists(dest))
+        assert (os.path.exists(dest))
         assert not os.path.exists("%s.msk" % dest)
         with rasterio.open(dest) as raster:
             data = raster.read()
@@ -90,7 +90,7 @@ def test_cog_move_telluric_tags_to_general_tags_space():
 
         convert_to_cog(source, dest)
         tags = tl.GeoRaster2.tags(dest)
-        assert(json.loads(tags['telluric_band_names']) == band_names)
+        assert (json.loads(tags['telluric_band_names']) == band_names)
         raster = tl.GeoRaster2.open(dest)
         assert raster.band_names == band_names
 
@@ -104,7 +104,7 @@ def test_cog_calc_overviews_factors(height, factors):
     image = sample_raster_image(height=height, width=900)
     raster = tl.GeoRaster2(image, crs=WEB_MERCATOR_CRS, affine=base_affine)
 
-    assert(_calc_overviews_factors(raster) == factors)
+    assert (_calc_overviews_factors(raster) == factors)
 
 
 def test_cog_mask_from_masked_array():
@@ -118,4 +118,4 @@ def test_cog_mask_from_masked_array():
     image = np.ma.masked_array(data=data, mask=masks)
 
     expected_mask = np.array([[255, 0, 0], [255, 255, 0]], dtype=np.uint8)
-    assert((_mask_from_masked_array(image) == expected_mask).all())
+    assert ((_mask_from_masked_array(image) == expected_mask).all())

@@ -20,15 +20,18 @@ def test_colorize_jet():
                            nodata=0)
 
     heatmap = raster.colorize('jet')
-    assert(np.array_equal(heatmap.band_names, ['red', 'green', 'blue']))
-    assert(np.array_equal(heatmap.image.data[:, 0, 0], [0, 0, 0]))  # nodata remains nodata
-    assert(np.array_equal(heatmap.image.mask[:, 0, 0], [True, True, True]))  # nodata remains nodata
-    assert(np.array_equal(heatmap.image.data[:, 0, 1], [0, 0, 127]))  # blue
-    assert(np.array_equal(heatmap.image.mask[:, 0, 1], [False, False, False]))  # blue
-    assert(np.array_equal(heatmap.image.data[:, heatmap.height - 1, heatmap.width - 1],
-                          [127, 0, 0]))  # red
-    assert(np.array_equal(heatmap.image.mask[:, heatmap.height - 1, heatmap.width - 1],
-                          [False, False, False]))  # red
+    assert (np.array_equal(heatmap.band_names, ['red', 'green', 'blue']))
+    assert (np.array_equal(heatmap.image.data[:, 0, 0], [0, 0, 0]))  # nodata remains nodata
+    assert (np.array_equal(heatmap.image.mask[:, 0, 0], [True, True, True]))  # nodata remains nodata
+    assert (np.array_equal(heatmap.image.data[:, 0, 1], [0, 0, 127]))  # blue
+    assert (np.array_equal(heatmap.image.mask[:, 0, 1], [False, False, False]))  # blue
+    assert np.array_equal(
+        heatmap.image.data[:, heatmap.height - 1, heatmap.width - 1], [127, 0, 0]
+    )  # red
+    assert np.array_equal(
+        heatmap.image.mask[:, heatmap.height - 1, heatmap.width - 1],
+        [False, False, False],
+    )  # red
 
 
 def test_colorize_jet_with_range():
@@ -39,11 +42,11 @@ def test_colorize_jet_with_range():
                            nodata=0)
 
     heatmap = raster.colorize('jet', vmin=-1, vmax=1)
-    assert(np.array_equal(heatmap.band_names, ['red', 'green', 'blue']))
-    assert(np.array_equal(heatmap.image.data[:, 0, 0], [0, 0, 0]))  # nodata remains nodata
-    assert(np.array_equal(heatmap.image.mask[:, 0, 0], [True, True, True]))  # nodata remains nodata
+    assert (np.array_equal(heatmap.band_names, ['red', 'green', 'blue']))
+    assert (np.array_equal(heatmap.image.data[:, 0, 0], [0, 0, 0]))  # nodata remains nodata
+    assert (np.array_equal(heatmap.image.mask[:, 0, 0], [True, True, True]))  # nodata remains nodata
     mask = heatmap.image.mask
-    assert(len(mask[mask]) == 3)
+    assert (len(mask[mask]) == 3)
 
 
 @pytest.mark.parametrize("raster", [multi_raster_16b(),
@@ -55,4 +58,4 @@ def test_colorize_jet_with_range():
 def test_colorize_works_for_all(raster, colormap):
     with pytest.warns(tl.georaster.GeoRaster2Warning, match='Using the first band to colorize the raster'):
         heatmap = raster.colorize('jet')
-    assert(np.array_equal(heatmap.band_names, ['red', 'green', 'blue']))
+    assert (np.array_equal(heatmap.band_names, ['red', 'green', 'blue']))

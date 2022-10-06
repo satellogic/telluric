@@ -897,20 +897,21 @@ def test_crop_boundless_masked(bounds):
     raster_w_mask = GeoRaster2.open("tests/data/raster/rgb.tif")
     raster_wo_mask = GeoRaster2.open("tests/data/raster/rgb.jp2")
 
-    roi = GeoVector(
-        Polygon.from_bounds(*bounds),
-        WEB_MERCATOR_CRS
+    roi = GeoVector(Polygon.from_bounds(*bounds), WEB_MERCATOR_CRS)
+    assert np.array_equal(
+        raster_w_mask.crop(roi).image.mask, raster_wo_mask.crop(roi).image.mask
     )
-    assert(np.array_equal(raster_w_mask.crop(roi).image.mask,
-                          raster_wo_mask.crop(roi).image.mask))
 
-    feature = GeoFeature(roi, properties={'prop1': 1, 'prop2': 2})
-    assert(np.array_equal(raster_w_mask.crop(feature).image.mask,
-                          raster_wo_mask.crop(feature).image.mask))
+    feature = GeoFeature(roi, properties={"prop1": 1, "prop2": 2})
+    assert np.array_equal(
+        raster_w_mask.crop(feature).image.mask, raster_wo_mask.crop(feature).image.mask
+    )
 
     collection = FeatureCollection([feature])
-    assert(np.array_equal(raster_w_mask.crop(collection).image.mask,
-                          raster_wo_mask.crop(collection).image.mask))
+    assert np.array_equal(
+        raster_w_mask.crop(collection).image.mask,
+        raster_wo_mask.crop(collection).image.mask,
+    )
 
 
 def test_crop_respects_rounding_precision():
