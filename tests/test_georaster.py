@@ -4,6 +4,7 @@ from tempfile import TemporaryDirectory, NamedTemporaryFile
 from copy import deepcopy
 
 import numpy as np
+import rasterio.shutil
 from affine import Affine
 from rasterio.enums import Resampling, MaskFlags
 from unittest.mock import Mock
@@ -826,6 +827,20 @@ def test_reproject_rpcs():
                                    rpcs=raster.rpcs)
     assert reprojected.shape == (1, 2072, 5241)
     assert reprojected.mean()[0] == pytest.approx(724.4861459505134, 1e-4)
+
+
+def test_no_error_empty_rpcs():
+    # Make sure that calling rpcs method doesn't raise an exception
+    # if the underlying file was deleted and the instance was created
+    # with lazy_load=False.
+    path = "/vsimem/raster_for_test.tif"
+    some_raster.save(path)
+    raster = GeoRaster2.open(path, lazy_load=False)
+    assert raster.rpcs is None
+
+    rasterio.shutil.delete(path)
+    assert not rasterio.shutil.exists(path)
+    assert raster.rpcs is None
 
 
 def test_reproject_when_having_no_data_values_in_image():
