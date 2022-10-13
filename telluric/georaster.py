@@ -995,6 +995,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
         """
         filename = os.fspath(filename)
+
+        if rasterio.shutil.exists(filename):
+            rasterio.shutil.delete(filename)
+
         if not filename.startswith("/vsi"):
             folder = os.path.abspath(os.path.join(filename, os.pardir))
             os.makedirs(folder, exist_ok=True)
