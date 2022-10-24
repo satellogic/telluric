@@ -323,6 +323,9 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
         else:
             crs = self.crs
 
+        # https://github.com/rasterio/rasterio/issues/2453
+        crs = crs.to_dict()
+
         with fiona.open(filename, 'w', driver=driver, schema=schema, crs=crs) as sink:
             for feature in self:
                 new_feature = self._adapt_feature_before_write(feature)
