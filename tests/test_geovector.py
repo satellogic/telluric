@@ -180,7 +180,7 @@ def test_reproject_respects_units():
 
     # Equality fails on the last decimal places depending on the platform
     # assert gv.reproject(WGS84_CRS) == expected_gv
-    assert gv.reproject(WGS84_CRS).equals_exact(expected_gv, 1e-13)
+    assert gv.reproject(WGS84_CRS).equals_exact(expected_gv, 1e-12)
 
 
 def test_area_is_cartesian_and_correct():

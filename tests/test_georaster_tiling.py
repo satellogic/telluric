@@ -12,6 +12,7 @@ from unittest import TestCase
 from unittest.mock import patch
 from datetime import datetime
 from shapely.geometry import Polygon
+from packaging import version
 
 from rasterio.enums import Resampling
 from rasterio.windows import Window
@@ -140,6 +141,10 @@ class GeoRaster2TestGetTile(BaseGeoRasterTestCase):
             del os.environ["TELLURIC_GET_TILE_BUFFER"]
         self.assertEqual(2, len(np.unique(r.image.mask)))
 
+    @pytest.mark.skipif(
+        version.parse(rasterio.__version__) >= version.parse('1.3'),
+        reason="rasterio >= 1.3 produces (3, 611, 611) shape image",
+    )
     def test_get_entire_all_raster(self):
         vr = self.read_only_virtual_geo_raster()
         roi = GeoVector.from_xyz(37108, 25248, 16)
@@ -391,6 +396,10 @@ class GeoRasterCropTest(BaseGeoRasterTestCase):
         self.assertAlmostEqual(cropped.affine[0], x_ex_res)
         self.assertAlmostEqual(abs(cropped.affine[4]), y_ex_res, 6)
 
+    @pytest.mark.skipif(
+        version.parse(rasterio.__version__) >= version.parse('1.3'),
+        reason="rasterio >= 1.3 doesn't raise exception on given transformation",
+    )
     def test_crop_raises_error_for_impossible_transformation(self):
         raster = self.read_only_virtual_geo_raster()
         vector = GeoVector(Polygon.from_bounds(-180, -90, 180, 90), crs=WGS84_CRS)

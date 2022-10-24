@@ -361,7 +361,9 @@ def test_feature_collection_with_dates_serializes_correctly():
     feature = GeoFeature(GeoVector(Point(0, 0)), expected_properties)
     with tempfile.TemporaryDirectory() as path:
         file_path = os.path.join(path, "test_dates.shp")
-        with fiona.open(file_path, mode='w', driver="ESRI Shapefile", schema=schema, crs=feature.crs) as sink:
+        with fiona.open(
+            file_path, mode='w', driver="ESRI Shapefile", schema=schema, crs=feature.crs.to_dict()
+        ) as sink:
             sink.write(mapping(feature))
 
         fc = FileCollection.open(file_path)

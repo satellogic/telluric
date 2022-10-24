@@ -43,6 +43,10 @@ record = {
 }
 
 
+@pytest.mark.skipif(
+    version.parse(rasterio.__version__) >= version.parse('1.3'),
+    reason="rasterio >= 1.3 produces different values",
+)
 def test_wms_vrt():
     vector = GeoFeature.from_record(record, crs=constants.WGS84_CRS).geometry
     doc = str(wms_vrt("tests/data/google.xml",

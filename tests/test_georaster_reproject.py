@@ -274,9 +274,15 @@ def test_warp_target_aligned_pixels_true(in_memory):
 def test_warp_reproject_creation_options():
     raster = GeoRaster2.open("tests/data/raster/rgb.tif")
     tiled_raster = raster.reproject(
-        dst_crs=WGS84_CRS, dimensions=(1024, 1024), creation_options={'tiled': True})
+        dst_crs=WGS84_CRS,
+        dimensions=(1024, 1024),
+        creation_options={'tiled': True, 'blockxsize': 256, 'blockysize': 256}
+    )
     non_tiled_raster = raster.reproject(
-        dst_crs=WGS84_CRS, dimensions=(1024, 1024), creation_options={'tiled': False})
+        dst_crs=WGS84_CRS,
+        dimensions=(1024, 1024),
+        creation_options={'tiled': False}
+    )
     with rasterio.open(tiled_raster._filename) as src:
         assert src.profile['tiled']
     with rasterio.open(non_tiled_raster._filename) as src:
