@@ -1038,6 +1038,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                         self._add_overviews_and_tags(r, tags, kwargs)
 
                 else:
+                    if rasterio.shutil.exists(filename):
+                        rasterio.shutil.delete(filename)
                     del params['masked']
                     with GeoRaster2._raster_opener(filename, **params) as r:
                         params['masked'] = masked
