@@ -603,7 +603,7 @@ class FileCollection(BaseCollection):
 class _CollectionGroupBy:
 
     def __init__(self, groups, schema=None):
-        # type: (Dict, Dict) -> None
+        # type: (Dict, Optional[Dict]) -> None
         self._groups = groups
         self._schema = schema
 
