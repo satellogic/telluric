@@ -1,3 +1,9 @@
+telluric 0.14.3 (2022-12-21)
+============================
+
+* New `telluric.georaster.GeoRaster2.cleanup` method to explicitly release internal resources.
+* Support to open `telluric.georaster.GeoRaster2` with `with` statement to encapsulate common preparation and cleanup.
+
 telluric 0.14.2 (2022-11-17)
 ============================
 

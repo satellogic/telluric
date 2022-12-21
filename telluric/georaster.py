@@ -628,6 +628,12 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         self._rpcs = self._read_rpcs(rpcs)
         self._opened_files = []
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type=None, exc_val=None, exc_tb=None):
+        self.__del__()
+
     def __del__(self):
         try:
             self._cleanup()
@@ -736,11 +742,19 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
     def _cleanup(self):
         for f in self._opened_files:
             f.close()
+
+        self._opened_files = []
+
         if self._filename is not None and self._temporary:
             with contextlib.suppress(FileNotFoundError):
                 os.remove(self._filename)
             self._filename = None
             self._temporary = False
+
+    @classmethod
+    def cleanup(cls):
+        """Release internal resources."""
+        cls._cleanup()
 
     def _populate_from_rasterio_object(self, read_image):
         # if there is no _filename we have nowhere to populate from.
