@@ -740,10 +740,10 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                                        dtype=dtype, shape=shape, ul_corner=ul_corner, raster_cls=cls)
 
     def _cleanup(self):
-        for f in self._opened_files:
-            f.close()
-
-        self._opened_files = []
+        if self._opened_files:
+            for f in list(self._opened_files):
+                f.close()
+                self._opened_files.pop(0)
 
         if self._filename is not None and self._temporary:
             with contextlib.suppress(FileNotFoundError):
