@@ -746,8 +746,13 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 self._opened_files.pop(0)
 
         if self._filename is not None and self._temporary:
-            with contextlib.suppress(FileNotFoundError):
-                os.remove(self._filename)
+            with contextlib.suppress(OSError):
+                try:
+                    if os.path.exists(self._filename):
+                        os.remove(self._filename)
+                except Exception:
+                    pass
+
             self._filename = None
             self._temporary = False
 
