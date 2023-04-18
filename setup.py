@@ -20,8 +20,8 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         'affine',
-        'fiona>=1.8.4,<2.*',
-        'shapely>=1.6.3,<2.*',
+        'fiona>=1.8.4,<=1.8.21',
+        'shapely>=1.6.3,<2.0.0',
         'rasterio>=1.2.0',
         'pillow',
         'mercantile>=0.10.0',
