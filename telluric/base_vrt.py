@@ -4,7 +4,11 @@ import lxml.etree as ET
 
 from xml.dom import minidom
 from rasterio.dtypes import _gdal_typename, check_dtype
-from rasterio.path import parse_path, vsi_path
+try:
+    from rasterio._path import _parse_path, _vsi_path
+except ImportError:
+    from rasterio.path import parse_path as _parse_path, vsi_path as _vsi_path
+
 from pkg_resources import resource_filename
 
 
@@ -113,7 +117,7 @@ class BaseVRT:
     ):
         sourcefilename = ET.SubElement(complexsource, 'SourceFilename')
         sourcefilename.attrib['relativeToVRT'] = "1" if relative_to_vrt else "0"
-        sourcefilename.text = vsi_path(parse_path(file_name))
+        sourcefilename.text = _vsi_path(_parse_path(file_name))
         sourceband = ET.SubElement(complexsource, 'SourceBand')
         sourceband.text = str(band_idx)
         sourceproperties = ET.SubElement(complexsource, 'SourceProperties')
