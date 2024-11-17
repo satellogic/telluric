@@ -17,6 +17,7 @@ from rasterio._err import CPLE_AppDefinedError
 from typing import Tuple, Iterator
 
 from telluric.constants import DEFAULT_CRS, EQUAL_AREA_CRS, WGS84_CRS, WEB_MERCATOR_CRS
+from telluric.util.general import as_crs
 from telluric.util.projections import transform
 from telluric.plotting import NotebookPlottingMixin
 
@@ -289,7 +290,7 @@ class GeoVector(_GeoVectorDelegator, NotebookPlottingMixin):
 
         """
         self._shape = shape  # type: shapely.geometry.base.BaseGeometry
-        self._crs = CRS(crs)
+        self._crs = as_crs(crs)
 
     @classmethod
     def from_geojson(cls, filename):

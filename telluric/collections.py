@@ -16,6 +16,7 @@ from rasterio.crs import CRS
 from shapely.prepared import prep
 
 from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
+from telluric.util.general import as_crs
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.plotting import NotebookPlottingMixin
@@ -532,7 +533,7 @@ class FileCollection(BaseCollection):
         """
         with fiona.Env():
             with fiona.open(filename, 'r') as source:
-                original_crs = CRS(source.crs)
+                original_crs = as_crs(source.crs)
                 schema = source.schema
                 length = len(source)
         crs = crs or original_crs

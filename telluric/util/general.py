@@ -1,4 +1,5 @@
 import numpy as np
+from rasterio.crs import CRS
 
 
 def convert_meter_to_latlon_deg(lat_deg):
@@ -14,3 +15,7 @@ def convert_resolution_from_meters_to_deg(position_lat, gsd_metric):
     gsd_deg_lat = gsd_metric * m_to_deg_lat
     gsd_deg_lon = gsd_metric * m_to_deg_lon
     return gsd_deg_lon, gsd_deg_lat
+
+
+def as_crs(crs) -> CRS:
+    return crs if isinstance(crs, CRS) else CRS(crs)

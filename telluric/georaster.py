@@ -47,6 +47,7 @@ from shapely.geometry import Point, Polygon
 from PIL import Image
 
 from telluric.constants import WEB_MERCATOR_CRS, MERCATOR_RESOLUTION_MAPPING, RASTER_TYPE, WGS84_CRS
+from telluric.util.general import as_crs
 from telluric.vectors import GeoVector
 from telluric.util.projections import transform
 from telluric.util.raster_utils import (
@@ -620,7 +621,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """
         super().__init__(image=image, band_names=band_names, shape=shape, nodata=nodata)
         self._affine = deepcopy(affine)
-        self._crs = None if crs is None else CRS(crs)  # type: Union[None, CRS]
+        self._crs = None if crs is None else as_crs(crs)  # type: Union[None, CRS]
         self._filename = filename
         self._temporary = temporary
         self._footprint = copy(footprint)
