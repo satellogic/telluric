@@ -1,5 +1,6 @@
 """Base VRT class and fuctions."""
 
+import importlib.resources
 import lxml.etree as ET
 
 from xml.dom import minidom
@@ -8,8 +9,6 @@ try:
     from rasterio._path import _parse_path, _vsi_path
 except ImportError:
     from rasterio.path import parse_path as _parse_path, vsi_path as _vsi_path
-
-from pkg_resources import resource_filename
 
 
 def prettify(elem):
@@ -21,9 +20,11 @@ def prettify(elem):
 
 
 def load_scheme():
-    with open(resource_filename('telluric', 'gdalvrt.xsd')) as f:
-        scheme_doc = ET.parse(f)
-        return ET.XMLSchema(scheme_doc)
+    ref = importlib.resources.files('telluric') / 'gdalvrt.xsd'
+    with importlib.resources.as_file(ref) as path:
+        with path.open() as f:
+            scheme_doc = ET.parse(f)
+            return ET.XMLSchema(scheme_doc)
 
 
 class BaseVRT:
