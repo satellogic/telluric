@@ -51,7 +51,7 @@ def simple_plot(feature, *, mp=None, **map_kwargs):
     from telluric.collections import BaseCollection
 
     if mp is None:
-        mp = folium.Map(tiles="Stamen Terrain", **map_kwargs)
+        mp = folium.Map(tiles="CartoDB Positron", **map_kwargs)
 
     if feature.is_empty:
         warnings.warn("The geometry is empty.")
@@ -143,7 +143,7 @@ def plot(feature, mp=None, style_function=None, **map_kwargs):
         Extra parameters to send to ipyleaflet.Map.
 
     """
-    map_kwargs.setdefault('basemap', basemaps.Stamen.Terrain)
+    map_kwargs.setdefault('basemap', basemaps.CartoDB.Positron)
     if feature.is_empty:
         warnings.warn("The geometry is empty.")
         mp = Map(**map_kwargs) if mp is None else mp
