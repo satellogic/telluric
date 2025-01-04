@@ -1187,7 +1187,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
                 conversion_gain = (omax - omin) / (imax - imin)
 
             # temp conversion, to handle saturation
-            dst_array = conversion_gain * (self.image.astype(np.float_) - imin) + omin
+            dst_array = conversion_gain * (self.image.astype(np.float64) - imin) + omin
             dst_array = np.clip(dst_array, omin, omax)
         else:
             dst_array = self.image
@@ -1426,8 +1426,8 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
-        img = np.rollaxis(np.rollaxis(self.image.data, 2), 2)
-        img = Image.fromarray(img[:, :, 0]) if img.shape[2] == 1 else Image.fromarray(img)
+        img_data = np.rollaxis(np.rollaxis(self.image.data, 2), 2)
+        img = Image.fromarray(img_data[:, :, 0]) if img_data.shape[2] == 1 else Image.fromarray(img_data)
         if return_mask:
             mask = np.ma.getmaskarray(self.image)
             mask = Image.fromarray(np.rollaxis(np.rollaxis(mask, 2), 2).astype(np.uint8)[:, :, 0])
@@ -2371,10 +2371,14 @@ class GeoMultiRaster(GeoRaster2):
         super().__init__(affine=self._vrt.affine, crs=self._vrt.crs,
                          filename=self._vrt._filename, band_names=self._vrt.band_names,)
 
-    def copy(self):
+    def copy(self, mutable=False):
+        if mutable:
+            raise NotImplementedError
         return GeoMultiRaster(self._rasters)
 
-    def to_assets(self, **attr):
+    def to_assets(self, name="0", **attr):
+        if name != "0":
+            raise NotImplementedError("custom asset names not supported for GeoMultiRaster")
         return {str(i): dict(href=raster._filename, bands=raster.band_names, __object=raster, type=RASTER_TYPE, **attr)
                 for i, raster in enumerate(self._rasters)
                 }
