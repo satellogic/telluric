@@ -325,9 +325,11 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             crs = self.crs
 
         # https://github.com/rasterio/rasterio/issues/2453
-        crs = crs.to_dict()
+        # https://github.com/rasterio/rasterio/issues/3282 (to_dict() is lossy in rasterio)
+        # We should switch to fiona 1.9.x and convert to fiona.crs.CRS
+        crs_wkt = crs.to_wkt()
 
-        with fiona.open(filename, 'w', driver=driver, schema=schema, crs=crs) as sink:
+        with fiona.open(filename, 'w', driver=driver, schema=schema, crs_wkt=crs_wkt) as sink:
             for feature in self:
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
