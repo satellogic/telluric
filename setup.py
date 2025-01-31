@@ -17,7 +17,7 @@ setup(
     ),
     packages=find_packages(),
     include_package_data=True,
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=[
         'affine',
         'fiona>=1.8.4,<1.9.0',
@@ -59,7 +59,6 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
