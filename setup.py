@@ -22,13 +22,14 @@ setup(
         'affine',
         'fiona>=1.8.4,<1.9.0',
         'shapely>=1.6.3,<2.0.0',
-        'rasterio>=1.2.0',
+        'rasterio>=1.2.0,<1.4.0',
         'pillow',
         'mercantile>=0.10.0',
         'boltons',
         'imageio',
         "lxml",
         'python-dateutil',
+        'numpy<2.0',
     ],
     extras_require={
         'dev': [
