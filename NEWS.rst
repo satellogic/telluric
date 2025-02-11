@@ -1,3 +1,8 @@
+telluric 0.15.0 (2025-02-11)
+============================
+
+* Update dependencies, supported python version, fix deprecations (#331)
+
 telluric 0.14.4 (2023-04-18)
 ============================
 
