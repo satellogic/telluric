@@ -362,7 +362,7 @@ def test_feature_collection_with_dates_serializes_correctly():
     with tempfile.TemporaryDirectory() as path:
         file_path = os.path.join(path, "test_dates.shp")
         with fiona.open(
-            file_path, mode='w', driver="ESRI Shapefile", schema=schema, crs=feature.crs.to_dict()
+            file_path, mode='w', driver="ESRI Shapefile", schema=schema, crs_wkt=feature.crs.to_wkt()
         ) as sink:
             sink.write(mapping(feature))
 

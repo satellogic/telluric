@@ -116,7 +116,7 @@ class TileServer:
 
     @classmethod
     def folium_client(cls, obj, bounds, mp=None, capture=None,
-                      base_map_name="Stamen Terrain", port=None):
+                      base_map_name="CartoDB Positron", port=None):
         port = port or cls.default_port()
         shape = bounds.get_shape(WGS84_CRS)
         mp = mp or folium.Map(tiles=base_map_name)

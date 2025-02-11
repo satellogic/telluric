@@ -16,6 +16,7 @@ from rasterio.crs import CRS
 from shapely.prepared import prep
 
 from telluric.constants import WEB_MERCATOR_CRS, WGS84_CRS
+from telluric.util.general import as_crs
 from telluric.vectors import GeoVector
 from telluric.features import GeoFeature
 from telluric.plotting import NotebookPlottingMixin
@@ -324,9 +325,11 @@ class BaseCollection(Sequence, NotebookPlottingMixin):
             crs = self.crs
 
         # https://github.com/rasterio/rasterio/issues/2453
-        crs = crs.to_dict()
+        # https://github.com/rasterio/rasterio/issues/3282 (to_dict() is lossy in rasterio)
+        # We should switch to fiona 1.9.x and convert to fiona.crs.CRS
+        crs_wkt = crs.to_wkt()
 
-        with fiona.open(filename, 'w', driver=driver, schema=schema, crs=crs) as sink:
+        with fiona.open(filename, 'w', driver=driver, schema=schema, crs_wkt=crs_wkt) as sink:
             for feature in self:
                 new_feature = self._adapt_feature_before_write(feature)
                 sink.write(new_feature.to_record(crs))
@@ -532,7 +535,7 @@ class FileCollection(BaseCollection):
         """
         with fiona.Env():
             with fiona.open(filename, 'r') as source:
-                original_crs = CRS(source.crs)
+                original_crs = as_crs(source.crs)
                 schema = source.schema
                 length = len(source)
         crs = crs or original_crs
