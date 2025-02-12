@@ -1329,7 +1329,7 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Get a copy of this GeoRaster with some attributes changed. NOTE: image is shallow-copied!"""
         if mutable is None:
             mutable = isinstance(self, MutableGeoRaster)
-        init_args = {'affine': self.affine, 'crs': self.crs, 'band_names': self.band_names,
+        init_args = {'affine': self.affine, 'crs': self.crs, 'rpcs': self.rpcs, 'band_names': self.band_names,
                      'nodata': self.nodata_value}
         init_args.update(kwargs)
 
@@ -1411,7 +1411,14 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
         """Return raster resized by ratio."""
         new_width = int(np.ceil(self.width * ratio_x))
         new_height = int(np.ceil(self.height * ratio_y))
-        dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
+
+        if self.crs is None and self.rpcs is not None:
+            # resize raster with rpcs
+            dest_rpcs = self._resize_rpcs(ratio_x, ratio_y)
+            dest_affine = self.affine
+        else:
+            dest_affine = self.affine * Affine.scale(1 / ratio_x, 1 / ratio_y)
+            dest_rpcs = self.rpcs
 
         window = rasterio.windows.Window(0, 0, self.width, self.height)
         resized_raster = self.get_window(
@@ -1420,9 +1427,19 @@ class GeoRaster2(WindowMethodsMixin, _Raster):
             ysize=new_height,
             resampling=resampling,
             affine=dest_affine,
+            rpcs=dest_rpcs
         )
 
         return resized_raster
+
+    def _resize_rpcs(self, ratio_x, ratio_y):
+        """resize raster by using its rpcs"""
+        dest_rpcs = copy(self.rpcs)
+        dest_rpcs.line_off = dest_rpcs.line_off * ratio_y
+        dest_rpcs.samp_off = dest_rpcs.samp_off * ratio_x
+        dest_rpcs.line_scale = dest_rpcs.line_scale * ratio_y
+        dest_rpcs.samp_scale = dest_rpcs.samp_scale * ratio_x
+        return dest_rpcs
 
     def to_pillow_image(self, return_mask=False):
         """Return Pillow. Image, and optionally also mask."""
@@ -1710,20 +1727,35 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         y = 0 if corner[0] == 'u' else self.height
         return Point(x, y)
 
-    def corner(self, corner):
-        """Return footprint origin in world coordinates, as GeoVector."""
+    def corner(self, corner, **kwargs):
+        """Return footprint origin in world coordinates, as GeoVector.
+           param  kwargs: additional arguments passed to corners function: dem path and dem.crs for rpcs rasters."""
+        if self.crs is None and self.rpcs is not None:
+            new_raster = self.reproject(dst_crs=WGS84_CRS, rpcs=self.rpcs, **kwargs)
+            return new_raster.to_world(new_raster.image_corner(corner))
         return self.to_world(self.image_corner(corner))
 
-    def corners(self):
-        """Return footprint corners, as {corner_type -> GeoVector}."""
-        return {corner: self.corner(corner) for corner in self.corner_types()}
+    def corners(self, **kwargs):
+        """Return footprint corners, as {corner_type -> GeoVector}.
+           :param  kwargs: additional arguments passed to corners function: dem path and dem.crs for rpcs rasters."""
+        if self.crs is None and self.rpcs is not None:
+            new_raster = self.reproject(dst_crs=WGS84_CRS, rpcs=self.rpcs, **kwargs)
+            return {corner: new_raster.corner(corner) for corner in new_raster.corner_types()}
+        else:
+            return {corner: self.corner(corner) for corner in self.corner_types()}
 
-    def origin(self):
-        """Return footprint origin in world coordinates, as GeoVector."""
-        return self.corner('ul')
+    def origin(self, **kwargs):
+        """Return footprint origin in world coordinates, as GeoVector.
+           :param  kwargs: additional arguments passed to origin function: dem path and dem.crs for rpcs rasters."""
+        return self.corner('ul', **kwargs)
 
-    def center(self):
-        """Return footprint center in world coordinates, as GeoVector."""
+    def center(self, **kwargs):
+        """Return footprint center in world coordinates, as GeoVector.
+           :param  kwargs: additional arguments passed to corners function: dem path and dem.crs for rpcs rasters."""
+        if self.crs is None:
+            new_raster = self.reproject(dst_crs=WGS84_CRS, rpcs=self.rpcs, **kwargs)
+            image_center = Point(new_raster.width / 2, new_raster.height / 2)
+            return new_raster.to_world(image_center)
         image_center = Point(self.width / 2, self.height / 2)
         return self.to_world(image_center)
 
@@ -1732,8 +1764,11 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         corners = [self.image_corner(corner) for corner in self.corner_types()]
         return Polygon([[corner.x, corner.y] for corner in corners])
 
-    def _calc_footprint(self):
+    def _calc_footprint(self, **kwargs):
         """Return rectangle in world coordinates, as GeoVector."""
+        if self._crs is None and self.rpcs is not None:
+            return self._footprint_from_rpcs(**kwargs)
+
         corners = [self.corner(corner) for corner in self.corner_types()]
         coords = []
         for corner in corners:
@@ -1745,15 +1780,22 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         self._footprint = GeoVector(shp, self.crs)
         return self._footprint
 
-    def footprint(self):
+    def footprint(self, **kwargs):
+        """:param  kwargs: additional arguments passed to footprint function: dem path and dem.crs for rpcs rasters."""
         if self._footprint is not None:
             return self._footprint
-        return self._calc_footprint()
+        return self._calc_footprint(**kwargs)
+
+    def _footprint_from_rpcs(self, **kwargs):
+        """Return raster footprint from rpcs in the crs: EPSG:4326
+           :param  kwargs: additional arguments passed to footprint function: dem path and dem.crs for rpcs rasters."""
+        new_raster = self.reproject(dst_crs=WGS84_CRS, rpcs=self.rpcs, **kwargs)
+        return new_raster.footprint()
 
     def area(self):
         return self.footprint().area
 
-    #  geography:
+    # geography:
     def project(self, dst_crs, resampling):
         """Return reprojected raster."""
 
@@ -1768,7 +1810,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         shp = transform(shape, self.crs, dst_crs, dst_affine=self.affine)
         return GeoVector(shp, dst_crs)
 
-    #  array:
+    # array:
     # array ops: bitness conversion, setitem/getitem slices, +-*/.. scalar
     def min(self):
         return self.reduce('min')
@@ -1971,7 +2013,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
 
     def get_window(self, window, bands=None,
                    xsize=None, ysize=None,
-                   resampling=Resampling.cubic, masked=None, affine=None
+                   resampling=Resampling.cubic, masked=None, affine=None, rpcs=None
                    ):
         """Get window from raster.
 
@@ -1982,6 +2024,8 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
         :param resampling: which Resampling to use on reading, default Resampling.cubic
         :param masked: if True uses the maks, if False doesn't use the mask, if None looks to see if there is a mask,
                        if mask exists using it, the default None
+        :param affine: Set destination affine otherwise calculate from output window shape
+        :param rpcs: If not none set destination rpcs
         :return: GeoRaster2 of tile
         """
         bands = bands or list(range(1, self.num_bands + 1))
@@ -2003,7 +2047,7 @@ release, please use: .colorize('gray').to_png()", GeoRaster2Warning)
                 array = raster.read(bands, **read_params)
             nodata = 0 if not np.ma.isMaskedArray(array) else None
             affine = affine or self._calculate_new_affine(window, out_shape[2], out_shape[1])
-            raster = self.copy_with(image=array, affine=affine, nodata=nodata)
+            raster = self.copy_with(image=array, affine=affine, nodata=nodata, rpcs=rpcs)
 
             return raster
 
